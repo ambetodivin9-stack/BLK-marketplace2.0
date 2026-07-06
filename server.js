@@ -64,7 +64,6 @@ res.status(500).json({ success: false, message: error.message });
 app.post('/api/upload', async (req, res) => { 
 try { 
 const { base64 } = req.body; 
-// Pour l'instant, on retourne juste l'image en base64 
 res.json({ success: true, url: base64 }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
