@@ -1,7 +1,7 @@
 const express = require('express'); 
 const cors = require('cors'); 
 const admin = require('firebase-admin'); 
-const fetch = require('node-fetch'); 
+const axios = require('axios'); 
 const FormData = require('form-data');
 
 const app = express(); 
@@ -10,21 +10,44 @@ const PORT = process.env.PORT || 10000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' }));
 
-// Firebase 
+//  
+// FIREBASE - Service Account 
+//  
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); 
 admin.initializeApp({ 
 credential: admin.credential.cert(serviceAccount) 
 }); 
 const db = admin.firestore();
 
-// = ROUTES =
+//  
+// CONFIGURATION DES CLÉS API (depuis les variables d'environnement) 
+//  
+const IMG_BB_KEY = process.env.IMG_BB_KEY; 
+const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY;
 
-// Health check 
+console.log('✅ Configuration chargée:'); 
+console.log(  - ImgBB: ${IMG_BB_KEY ? '✅' : '❌'}); 
+console.log(  - Yabetoo: ${YABETOO_SECRET ? '✅' : '❌'});
+
+//  
+// ROUTE PRINCIPALE 
+//  
 app.get('/', (req, res) => { 
-res.json({ status: 'OK', message: 'BLK Marketplace API' }); 
+res.json({ 
+status: 'OK', 
+message: 'BLK Marketplace API', 
+services: { 
+imgbb: IMG_BB_KEY ? '✅' : '❌', 
+yabetoo: YABETOO_SECRET ? '✅' : '❌', 
+firebase: '✅' 
+} 
+}); 
 });
 
-// Get all articles 
+//  
+// ARTICLES 
+// 
+
 app.get('/api/articles', async (req, res) => { 
 try { 
 const snapshot = await db.collection('articles').orderBy('createdAt', 'desc').get(); 
@@ -38,7 +61,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Create article 
 app.post('/api/articles', async (req, res) => { 
 try { 
 const { title, description, price, category, image, sellerId, sellerName } = req.body; 
@@ -60,31 +82,57 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Upload image (base64) 
+//  
+// IMAGE UPLOAD - ImgBB 
+// 
+
 app.post('/api/upload', async (req, res) => { 
 try { 
-const { base64 } = req.body; 
-res.json({ success: true, url: base64 }); 
+const { base64 } = req.body;
+
+if (!base64) {
+  return res.status(400).json({ success: false, message: 'Aucune image fournie' });
+}
+
+if (!IMG_BB_KEY) {
+  return res.status(500).json({ success: false, message: 'Clé ImgBB non configurée' });
+}
+
+const base64Data = base64.includes('base64,') ? base64.split('base64,')[1] : base64;
+
+const formData = new FormData();
+formData.append('key', IMG_BB_KEY);
+formData.append('image', base64Data);
+
+const response = await axios.post('https://api.imgbb.com/1/upload', formData, {
+  headers: formData.getHeaders()
+});
+
+if (response.data.success) {
+  res.json({ success: true, url: response.data.data.url });
+} else {
+  res.status(400).json({ success: false, message: 'Erreur ImgBB' });
+}
 } catch (error) { 
-res.status(500).json({ success: false, message: error.message }); 
+console.error('ImgBB Error:', error.message); 
+res.status(500).json({ success: false, message: 'Erreur upload' }); 
 } 
 });
 
-// Get wallet balance 
+//  
+// WALLET 
+// 
+
 app.get('/api/wallet/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
 const doc = await db.collection('users').doc(userId).get(); 
-if (!doc.exists) { 
-return res.json({ balance: 0 }); 
-} 
-res.json({ balance: doc.data().walletBalance || 0 }); 
+res.json({ balance: doc.data()?.walletBalance || 0 }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
 
-// Withdraw 
 app.post('/api/wallet/withdraw', async (req, res) => { 
 try { 
 const { userId, amount } = req.body; 
@@ -96,39 +144,76 @@ if (currentBalance < amount) {
   return res.status(400).json({ success: false, message: 'Solde insuffisant' });
 }
 
-await userRef.update({
-  walletBalance: currentBalance - amount
-});
-
+await userRef.update({ walletBalance: currentBalance - amount });
 res.json({ success: true, newBalance: currentBalance - amount });
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
 
-// Payment initiate (simulation) 
+//  
+// PAIEMENT - Yabetoo 
+// 
+
 app.post('/api/payment/initiate', async (req, res) => { 
 try { 
-const { amount, phone, userId, type } = req.body; 
-const userRef = db.collection('users').doc(userId); 
-const doc = await userRef.get(); 
-const currentBalance = doc.data()?.walletBalance || 0;
+const { amount, phone, userId } = req.body;
 
-await userRef.update({
-  walletBalance: currentBalance + amount
+if (!amount || !phone || !userId) {
+  return res.status(400).json({ success: false, message: 'Montant, téléphone et userId requis' });
+}
+
+if (!YABETOO_SECRET) {
+  return res.status(500).json({ success: false, message: 'Clé Yabetoo non configurée' });
+}
+
+// Simulation pour l'instant (car Yabetoo est en test)
+const reference = `BLK-${userId.slice(0, 8)}-${Date.now().toString().slice(-6)}`;
+
+// Créditer le wallet directement (en mode test)
+const userRef = db.collection('users').doc(userId);
+const doc = await userRef.get();
+const currentBalance = doc.data()?.walletBalance || 0;
+await userRef.update({ walletBalance: currentBalance + amount });
+
+// Enregistrer la transaction
+await db.collection('transactions').add({
+  userId,
+  amount,
+  phone,
+  reference,
+  status: 'completed',
+  type: 'deposit',
+  createdAt: new Date()
 });
 
-res.json({ success: true, message: 'Paiement initié' });
+res.json({
+  success: true,
+  message: '💰 Paiement simulé avec succès (mode test)',
+  reference: reference,
+  newBalance: currentBalance + amount
+});
+
+// NOTE: En production, remplacer par:
+// const response = await axios.post('https://api.yabetoo.com/v1/payment/initiate', {
+//   amount, phone, reference,
+//   callback_url: 'https://blk-marketplace-7vig.onrender.com/api/payment/callback'
+// }, { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}` } });
+// if (response.data.status === 'success') { ... }
 } catch (error) { 
-res.status(500).json({ success: false, message: error.message }); 
+console.error('Payment Error:', error.message); 
+res.status(500).json({ success: false, message: 'Erreur paiement' }); 
 } 
 });
 
-// Get orders 
+//  
+// ORDRES 
+// 
+
 app.get('/api/orders/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
-const snapshot = await db.collection('orders').where('userId', '==', userId).get(); 
+const snapshot = await db.collection('orders').where('userId', '', userId).get(); 
 const orders = []; 
 snapshot.forEach(doc => { 
 orders.push({ id: doc.id, ...doc.data() }); 
@@ -139,7 +224,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Cancel order 
 app.post('/api/orders/:id/cancel', async (req, res) => { 
 try { 
 const { id } = req.params; 
@@ -150,7 +234,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Extend order 
 app.post('/api/orders/:id/extend', async (req, res) => { 
 try { 
 const { id } = req.params; 
@@ -164,7 +247,10 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Get flames (reliability) 
+//  
+// FLAMES 
+// 
+
 app.get('/api/seller/:userId/flames', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -175,7 +261,10 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// Démarrer le serveur 
+//  
+// DÉMARRAGE 
+// ==
+
 app.listen(PORT, () => { 
 console.log(✅ BLK API running on port ${PORT}); 
 });
