@@ -2,442 +2,63 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLK Marketplace</title>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-app.js">
-    </script>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-auth.js">
-    </script>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-firestore.js">
-    </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #F5F0E8;
-            color: #1a1a1a;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(30px);
-            border-radius: 24px;
-            padding: 40px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-        .logo {
-            font-size: 48px;
-            font-weight: 900;
-            color: #FFD700;
-            margin-bottom: 8px;
-        }
-        h1 {
-            font-size: 22px;
-            color: #1a1a1a;
-            margin-bottom: 8px;
-        }
-        p {
-            color: rgba(0, 0, 0, 0.5);
-            font-size: 14px;
-            margin-bottom: 24px;
-        }
-        .status {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-        .status-success {
-            background: rgba(46, 204, 113, 0.15);
-            color: #27AE60;
-        }
-        .btn {
-            padding: 14px 28px;
-            border: none;
-            border-radius: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            background: #FFD700;
-            color: #1a1a1a;
-            width: 100%;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
-        }
-        .btn-secondary {
-            background: rgba(0, 0, 0, 0.05);
-            color: #1a1a1a;
-            margin-top: 8px;
-        }
-        .btn-secondary:hover {
-            background: rgba(0, 0, 0, 0.1);
-            box-shadow: none;
-        }
-        .form-group {
-            margin-bottom: 16px;
-            text-align: left;
-        }
-        .form-group label {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: rgba(0, 0, 0, 0.5);
-            display: block;
-            margin-bottom: 4px;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 12px 14px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            font-size: 14px;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #FFD700;
-        }
-        .hidden {
-            display: none;
-        }
-        .toggle-link {
-            margin-top: 12px;
-            font-size: 13px;
-            color: rgba(0, 0, 0, 0.4);
-        }
-        .toggle-link button {
-            background: none;
-            border: none;
-            color: #FFD700;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .divider {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin: 16px 0;
-            color: rgba(0, 0, 0, 0.3);
-            font-size: 12px;
-        }
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(0, 0, 0, 0.08);
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #f5f0e8; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+        h1 { text-align: center; color: #FFD700; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; }
+        button { width: 100%; padding: 12px; background: #FFD700; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #f5c400; }
+        .status { text-align: center; margin-top: 10px; font-size: 14px; color: green; }
     </style>
 </head>
 <body>
-
-<div class="container" id="app">
-    <div class="logo">BLK</div>
-    <h1>BLK Marketplace</h1>
-    <p>La mode et les accessoires à portée de main</p>
-
-    <div class="status status-success" id="statusBadge">✅ Connecté au backend</div>
-
-    <div id="loginForm">
-        <div class="form-group">
-            <label>Numéro de téléphone</label>
-            <input type="tel" id="phoneInput" placeholder="+242 06 XXX XXXX" />
-        </div>
-        <div class="form-group hidden" id="nameGroup">
-            <label>Nom complet</label>
-            <input type="text" id="nameInput" placeholder="Jean Dupont" />
-        </div>
-        <button class="btn" id="actionBtn">Se connecter</button>
-        <div class="divider">ou</div>
-        <button class="btn btn-secondary" id="googleBtn">🔵 S'inscrire avec Google</button>
-        <div class="toggle-link">
-            <span id="toggleText">Pas de compte ?</span>
-            <button id="toggleBtn">S'inscrire</button>
-        </div>
+    <div class="container">
+        <h1>BLK Marketplace</h1>
+        <input type="text" id="phone" placeholder="Numéro de téléphone" />
+        <input type="text" id="name" placeholder="Nom (optionnel)" />
+        <button id="loginBtn">Se connecter</button>
+        <div class="status" id="status">✅ Backend connecté</div>
     </div>
-
-    <div id="welcomeScreen" class="hidden">
-        <div style="font-size: 64px; margin-bottom: 12px;">🎉</div>
-        <h2>Bienvenue dans l'univers BLK</h2>
-        <p style="margin-bottom: 16px;">Votre marketplace de confiance</p>
-        <button class="btn" id="welcomeBtn">Commencer</button>
-    </div>
-
-    <div id="dashboard" class="hidden">
-        <p style="font-size: 16px; font-weight: 700; color: #FFD700; margin-bottom: 4px;">👤 <span id="userName">Utilisateur</span></p>
-        <p style="font-size: 13px; color: rgba(0,0,0,0.4); margin-bottom: 16px;" id="userEmail">email@example.com</p>
-        <p style="font-size: 14px; margin-bottom: 16px;">🔥 <span id="flamesCount">0</span> flammes</p>
-        <p style="font-size: 24px; font-weight: 800; color: #2ECC71; margin-bottom: 16px;"><span id="walletBalance">0</span> FCFA</p>
-        <button class="btn btn-secondary" id="logoutBtn">🚪 Déconnexion</button>
-    </div>
-</div>
 
 <script>
-    // ============================================================
-    // CONFIGURATION
-    // ============================================================
-    const firebaseConfig = {
-        apiKey: "AIzaSyA210LGSiktib7iFT82s2HZR1IcSMqmf38",
-        authDomain: "blk-congo.firebaseapp.com",
-        projectId: "blk-congo",
-        storageBucket: "blk-congo.firebasestorage.app",
-        messagingSenderId: "1067239289658",
-        appId: "1:1067239289658:web:a24aba40f2999201349603"
-    };
+    const BACKEND_URL = 'https://blk-marketplace2-0-backend.onrender.com';
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    // ============================================================
-    // BACKEND URL (RENDER)
-    // ============================================================
-    const BACKEND_URL = 'https://blk-marketplace2.0.onrender.com';
-
-    let currentUserId = null;
-    let isLogin = true;
-
-    // ============================================================
-    // ÉLÉMENTS
-    // ============================================================
-    const statusBadge = document.getElementById('statusBadge');
-    const phoneInput = document.getElementById('phoneInput');
-    const nameInput = document.getElementById('nameInput');
-    const nameGroup = document.getElementById('nameGroup');
-    const actionBtn = document.getElementById('actionBtn');
-    const googleBtn = document.getElementById('googleBtn');
-    const toggleBtn = document.getElementById('toggleBtn');
-    const toggleText = document.getElementById('toggleText');
-    const welcomeScreen = document.getElementById('welcomeScreen');
-    const welcomeBtn = document.getElementById('welcomeBtn');
-    const dashboard = document.getElementById('dashboard');
-    const userName = document.getElementById('userName');
-    const userEmail = document.getElementById('userEmail');
-    const flamesCount = document.getElementById('flamesCount');
-    const walletBalance = document.getElementById('walletBalance');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const loginForm = document.getElementById('loginForm');
-
-    // ============================================================
-    // VÉRIFICATION DU BACKEND
-    // ============================================================
-    async function checkBackend() {
-        try {
-            const response = await fetch(BACKEND_URL);
-            const data = await response.json();
-            if (data.status === 'OK') {
-                statusBadge.textContent = '✅ Connecté au backend';
-                statusBadge.className = 'status status-success';
-            } else {
-                statusBadge.textContent = '⚠️ Backend en mode dégradé';
-            }
-        } catch (error) {
-            statusBadge.textContent = '❌ Backend indisponible';
-            statusBadge.className = 'status';
-            statusBadge.style.color = '#E74C3C';
-            statusBadge.style.background = 'rgba(231,76,60,0.1)';
-        }
-    }
-    checkBackend();
-
-    // ============================================================
-    // AUTHENTIFICATION
-    // ============================================================
-    function toggleForm() {
-        isLogin = !isLogin;
-        if (isLogin) {
-            nameGroup.classList.add('hidden');
-            actionBtn.textContent = 'Se connecter';
-            toggleText.textContent = 'Pas de compte ?';
-            toggleBtn.textContent = 'S\'inscrire';
-            document.querySelector('h1').textContent = 'BLK Marketplace';
-        } else {
-            nameGroup.classList.remove('hidden');
-            actionBtn.textContent = 'S\'inscrire';
-            toggleText.textContent = 'Déjà un compte ?';
-            toggleBtn.textContent = 'Se connecter';
-            document.querySelector('h1').textContent = 'Créer un compte';
-        }
-    }
-    toggleBtn.addEventListener('click', toggleForm);
-
-    // Connexion / Inscription
-    actionBtn.addEventListener('click', async () => {
-        const phone = phoneInput.value.trim();
-        const name = nameInput.value.trim();
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const phone = document.getElementById('phone').value;
+        const name = document.getElementById('name').value;
+        const status = document.getElementById('status');
 
         if (!phone) {
-            alert('Entre ton numéro de téléphone');
+            status.textContent = '❌ Entre ton numéro';
+            status.style.color = 'red';
             return;
         }
 
         try {
-            if (isLogin) {
-                // Connexion
-                const snapshot = await db.collection('users')
-                    .where('phone', '==', phone)
-                    .get();
-
-                if (snapshot.empty) {
-                    alert('❌ Aucun compte trouvé avec ce numéro');
-                    return;
-                }
-
-                const doc = snapshot.docs[0];
-                currentUserId = doc.id;
-                const userData = doc.data();
-                showDashboard(userData);
-            } else {
-                // Inscription
-                if (!name) {
-                    alert('Entre ton nom complet');
-                    return;
-                }
-
-                const docRef = await db.collection('users').add({
-                    name: name,
-                    phone: phone,
-                    email: '',
-                    photo: '',
-                    flames: 0,
-                    walletBalance: 0,
-                    createdAt: new Date(),
-                    isNew: true
-                });
-
-                currentUserId = docRef.id;
-                welcomeScreen.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-                document.querySelector('.logo').style.display = 'none';
-
-                welcomeBtn.addEventListener('click', () => {
-                    welcomeScreen.classList.add('hidden');
-                    document.querySelector('.logo').style.display = 'block';
-                    db.collection('users').doc(currentUserId).update({ isNew: false });
-                    showDashboard({ name, phone, flames: 0, walletBalance: 0 });
-                });
-            }
-        } catch (error) {
-            alert('Erreur: ' + error.message);
-        }
-    });
-
-    // Google Auth
-    googleBtn.addEventListener('click', async () => {
-        try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            const result = await auth.signInWithPopup(provider);
-            const user = result.user;
-
-            const snapshot = await db.collection('users')
-                .where('email', '==', user.email)
-                .get();
-
-            let userId;
-            if (snapshot.empty) {
-                const docRef = await db.collection('users').add({
-                    name: user.displayName || 'Utilisateur',
-                    email: user.email,
-                    phone: user.phoneNumber || '',
-                    photo: user.photoURL || '',
-                    flames: 0,
-                    walletBalance: 0,
-                    createdAt: new Date(),
-                    isNew: true
-                });
-                userId = docRef.id;
-                welcomeScreen.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-                document.querySelector('.logo').style.display = 'none';
-                welcomeBtn.addEventListener('click', () => {
-                    welcomeScreen.classList.add('hidden');
-                    document.querySelector('.logo').style.display = 'block';
-                    db.collection('users').doc(userId).update({ isNew: false });
-                    showDashboard({ name: user.displayName, email: user.email, flames: 0,
-                    walletBalance: 0 });
-                });
-            } else {
-                userId = snapshot.docs[0].id;
-                const userData = snapshot.docs[0].data();
-                showDashboard(userData);
-            }
-        } catch (error) {
-            alert('Erreur Google: ' + error.message);
-        }
-    });
-
-    // ============================================================
-    // AFFICHAGE TABLEAU DE BORD
-    // ============================================================
-    function showDashboard(userData) {
-        loginForm.classList.add('hidden');
-        dashboard.classList.remove('hidden');
-        document.querySelector('h1').style.display = 'none';
-        document.querySelector('p').style.display = 'none';
-        document.querySelector('.status').style.display = 'none';
-        document.querySelector('.logo').textContent = '👤';
-
-        userName.textContent = userData.name || 'Utilisateur';
-        userEmail.textContent = userData.email || 'email@example.com';
-        flamesCount.textContent = userData.flames || 0;
-        walletBalance.textContent = userData.walletBalance || 0;
-
-        loadWallet();
-    }
-
-    // ============================================================
-    // CHARGEMENT WALLET
-    // ============================================================
-    async function loadWallet() {
-        if (!currentUserId) return;
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/wallet/${currentUserId}`);
+            const response = await fetch(`${BACKEND_URL}/api/users`);
             const data = await response.json();
-            walletBalance.textContent = data.balance || 0;
+            status.textContent = '✅ Connexion réussie !';
+            status.style.color = 'green';
         } catch (error) {
-            console.error('Erreur wallet:', error);
-        }
-    }
-
-    // ============================================================
-    // DÉCONNEXION
-    // ============================================================
-    logoutBtn.addEventListener('click', async () => {
-        await auth.signOut();
-        location.reload();
-    });
-
-    // ============================================================
-    // ÉTAT AUTH FIREBASE
-    // ============================================================
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            const snapshot = await db.collection('users')
-                .where('email', '==', user.email)
-                .get();
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                currentUserId = doc.id;
-                showDashboard(doc.data());
-            }
+            status.textContent = '❌ Erreur : ' + error.message;
+            status.style.color = 'red';
         }
     });
+
+    // Vérification du backend
+    fetch(BACKEND_URL)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('status').textContent = '✅ Backend OK';
+        })
+        .catch(() => {
+            document.getElementById('status').textContent = '❌ Backend indisponible';
+            document.getElementById('status').style.color = 'red';
+        });
 </script>
 </body>
 </html>
