@@ -21,44 +21,66 @@
         <input type="text" id="phone" placeholder="Numéro de téléphone" />
         <input type="text" id="name" placeholder="Nom (optionnel)" />
         <button id="loginBtn">Se connecter</button>
-        <div class="status" id="status">✅ Backend connecté</div>
+        <div class="status" id="status">⏳ Vérification du backend...</div>
     </div>
 
 <script>
-    const BACKEND_URL = 'https://blk-marketplace2-0-backend.onrender.com';
+    // 🔥 URL EXACTE DE TON BACKEND RENDER
+    const BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
 
+    // ✅ Fonction pour mettre à jour le statut
+    function setStatus(message, isError = false) {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = message;
+        statusEl.style.color = isError ? 'red' : 'green';
+    }
+
+    // ✅ Vérifier la connexion au backend
+    async function checkBackend() {
+        try {
+            const response = await fetch(BACKEND_URL);
+            if (response.ok) {
+                setStatus('✅ Backend connecté');
+            } else {
+                setStatus('❌ Backend répond mais erreur', true);
+            }
+        } catch (error) {
+            setStatus('❌ Backend indisponible : ' + error.message, true);
+        }
+    }
+
+    // ✅ Gestion du clic sur "Se connecter"
     document.getElementById('loginBtn').addEventListener('click', async () => {
         const phone = document.getElementById('phone').value;
         const name = document.getElementById('name').value;
-        const status = document.getElementById('status');
 
         if (!phone) {
-            status.textContent = '❌ Entre ton numéro';
-            status.style.color = 'red';
+            setStatus('❌ Entre ton numéro de téléphone', true);
             return;
         }
 
+        setStatus('⏳ Connexion en cours...');
+
         try {
-            const response = await fetch(`${BACKEND_URL}/api/users`);
+            const response = await fetch(`${BACKEND_URL}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, name })
+            });
+
             const data = await response.json();
-            status.textContent = '✅ Connexion réussie !';
-            status.style.color = 'green';
+            if (data.success) {
+                setStatus('✅ Connexion réussie !');
+            } else {
+                setStatus('❌ ' + data.message, true);
+            }
         } catch (error) {
-            status.textContent = '❌ Erreur : ' + error.message;
-            status.style.color = 'red';
+            setStatus('❌ Erreur : ' + error.message, true);
         }
     });
 
-    // Vérification du backend
-    fetch(BACKEND_URL)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('status').textContent = '✅ Backend OK';
-        })
-        .catch(() => {
-            document.getElementById('status').textContent = '❌ Backend indisponible';
-            document.getElementById('status').style.color = 'red';
-        });
+    // ✅ Vérification automatique au chargement
+    checkBackend();
 </script>
 </body>
 </html>
