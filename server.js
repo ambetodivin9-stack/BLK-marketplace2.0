@@ -3,11 +3,10 @@ const cors = require('cors');
 const app = express(); 
 const PORT = process.env.PORT || 10000;
 
-// ✅ Active CORS pour toutes les origines (Vercel) 
 app.use(cors()); 
 app.use(express.json());
 
-// ✅ Route ping (pour UptimeRobot / HetrixTools) 
+// ✅ Route ping 
 app.get('/ping', (req, res) => { 
 res.send('pong'); 
 });
@@ -17,12 +16,17 @@ app.get('/', (req, res) => {
 res.json({ status: 'OK', message: 'BLK API - LIVE' }); 
 });
 
-// ✅ Route test pour les utilisateurs 
+// ✅ Route /api (pour HetrixTools) 
+app.get('/api', (req, res) => { 
+res.json({ success: true, message: 'API OK' }); 
+});
+
+// ✅ Route /api/users 
 app.get('/api/users', (req, res) => { 
 res.json({ success: true, users: [] }); 
 });
 
-// ✅ Route de connexion (simulée) 
+// ✅ Route /api/login (POST) 
 app.post('/api/login', (req, res) => { 
 const { phone, name } = req.body; 
 if (!phone) { 
