@@ -2,93 +2,232 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLK Marketplace - Mode Secondaire Main Congo</title>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-firestore.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BLK Marketplace</title>
 
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-app.js">
+</script>
+<script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-auth.js">
+</script>
+<script src="https://www.gstatic.com/firebaseapp/10.5.0/firebase-firestore.js">
+</script>
+
+<style>
+    /* ============================================
+               RESET & BASE
+               ============================================ */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
-    
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    @keyframes timerDanger {
-        0%, 100% { transform: scale(1); color: #FF6B6B; }
-        50% { transform: scale(1.05); color: #FFB6C1; }
+
+    :root {
+        --primary: #FFD700;
+        --primary-dark: #F5C400;
+        --success: #2ECC71;
+        --success-dark: #27AE60;
+        --danger: #E74C3C;
+        --danger-dark: #C0392B;
+        --frosted: rgba(255, 255, 255, 0.65);
+        --frosted-border: rgba(255, 255, 255, 0.4);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        --radius: 24px;
+        --radius-sm: 14px;
+        --bg: #F5F0E8;
     }
 
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: linear-gradient(135deg, #FFF5E6 0%, #FFFAEF 100%);
+        background: var(--bg);
         color: #1a1a1a;
         min-height: 100vh;
-        overflow: hidden;
+        overflow-x: hidden;
     }
-    
+
+    /* ============================================
+               ANIMATIONS
+               ============================================ */
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: -200% 0;
+        }
+        100% {
+            background-position: 200% 0;
+        }
+    }
+
+    @keyframes timerDanger {
+        0%,
+        100% {
+            transform: scale(1);
+            color: #E74C3C;
+        }
+        50% {
+            transform: scale(1.05);
+            color: #FF6B6B;
+        }
+    }
+
+    /* ============================================
+               KENTE BAND
+               ============================================ */
     .kente {
-        height: 8px;
-        background: linear-gradient(90deg, #FFA500 0%, #2ECC71 25%, #E74C3C 50%, #FFD700 75%, #2ECC71 100%);
+        height: 6px;
+        background: linear-gradient(90deg,
+                #FFD700 0%, #FFD700 20%,
+                #2ECC71 20%, #2ECC71 40%,
+                #E74C3C 40%, #E74C3C 60%,
+                #FFD700 60%, #FFD700 80%,
+                #2ECC71 80%, #2ECC71 100%);
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 300;
+        z-index: 1000;
     }
 
-    header {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-bottom: 1px solid rgba(255, 165, 0, 0.2);
-        padding: 12px 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        position: fixed;
-        top: 8px;
-        left: 0;
-        right: 0;
-        z-index: 200;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .logo {
-        font-size: 22px;
-        font-weight: 800;
-        color: #FFA500;
-        letter-spacing: 2px;
-    }
-
-    .glass-container {
-        background: rgba(255, 255, 255, 0.6);
+    /* ============================================
+               FROSTED GLASS COMPONENTS
+               ============================================ */
+    .glass {
+        background: var(--frosted);
         backdrop-filter: blur(30px);
         -webkit-backdrop-filter: blur(30px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        border-radius: 24px;
-        padding: 20px;
-        margin-bottom: 12px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--frosted-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+
+    .glass-sm {
+        border-radius: var(--radius-sm);
+        padding: 16px;
+    }
+
+    .glass-lg {
+        border-radius: var(--radius);
+        padding: 24px;
+    }
+
+    /* ============================================
+               BUTTONS
+               ============================================ */
+    .btn {
+        padding: 14px 28px;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
         transition: all 0.3s ease;
+        width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        overflow: hidden;
     }
 
-    .glass-container:hover {
-        background: rgba(255, 255, 255, 0.75);
-        border-color: rgba(255, 165, 0, 0.3);
+    .btn:active {
+        transform: scale(0.97);
     }
 
-    .page { display: none; animation: slideIn 0.4s ease; }
-    .page.active { display: block; }
+    .btn-primary {
+        background: var(--primary);
+        color: #1a1a1a;
+    }
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+    }
 
+    .btn-success {
+        background: var(--success);
+        color: #fff;
+    }
+    .btn-success:hover {
+        background: var(--success-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(46, 204, 113, 0.3);
+    }
+
+    .btn-danger {
+        background: var(--danger);
+        color: #fff;
+    }
+    .btn-danger:hover {
+        background: var(--danger-dark);
+        transform: translateY(-2px);
+    }
+
+    .btn-google {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    .btn-google:hover {
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+    }
+    .btn-outline:hover {
+        background: var(--primary);
+        color: #1a1a1a;
+    }
+
+    /* ============================================
+               AUTH PAGES
+               ============================================ */
     .auth-page {
         position: fixed;
         top: 0;
@@ -99,1240 +238,1016 @@
         align-items: center;
         justify-content: center;
         padding: 20px;
-        z-index: 250;
+        z-index: 500;
+        background: var(--bg);
     }
 
-    .auth-page.signup {
-        background: linear-gradient(-45deg, #FFA500, #2ECC71, #E74C3C, #FFD700);
-        background-size: 400% 400%;
-        animation: gradientShift 15s ease infinite;
-    }
-
-    .auth-page.login {
-        background: linear-gradient(135deg, rgba(255, 245, 230, 0.95), rgba(255, 250, 239, 0.95));
-    }
-
-    .auth-box {
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(30px);
-        -webkit-backdrop-filter: blur(30px);
-        border: 1px solid rgba(255, 255, 255, 0.9);
-        border-radius: 32px;
-        padding: 40px;
+    .auth-page .glass {
         width: 100%;
         max-width: 420px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        padding: 32px 24px;
+        animation: slideUp 0.5s ease;
     }
 
-    .auth-box h2 {
+    .auth-page h2 {
         text-align: center;
-        margin-bottom: 32px;
         font-size: 28px;
-        color: #FFA500;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 24px;
+        letter-spacing: -0.5px;
     }
 
-    .form-group { margin-bottom: 18px; }
+    .auth-page .subtitle {
+        text-align: center;
+        font-size: 14px;
+        color: rgba(0, 0, 0, 0.5);
+        margin-bottom: 24px;
+    }
 
-    label {
+    .auth-page .form-group {
+        margin-bottom: 16px;
+    }
+
+    .auth-page label {
         display: block;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #333;
         font-size: 12px;
+        font-weight: 600;
         text-transform: uppercase;
+        color: rgba(0, 0, 0, 0.5);
+        margin-bottom: 6px;
         letter-spacing: 0.5px;
     }
 
-    input, textarea, select {
+    .auth-page input {
         width: 100%;
         padding: 14px 16px;
-        border: 1px solid rgba(255, 165, 0, 0.2);
-        border-radius: 14px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: var(--radius-sm);
         background: rgba(255, 255, 255, 0.8);
+        font-size: 15px;
+        transition: all 0.3s ease;
         color: #1a1a1a;
-        font-family: inherit;
-        font-size: 14px;
-        transition: all 0.3s;
     }
 
-    input::placeholder, textarea::placeholder {
-        color: rgba(0, 0, 0, 0.4);
-    }
-
-    input:focus, textarea:focus, select:focus {
+    .auth-page input:focus {
         outline: none;
-        border-color: #FFA500;
-        background: rgba(255, 255, 255, 1);
-        box-shadow: 0 0 0 3px rgba(255, 165, 0, 0.1);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.15);
+        background: #fff;
     }
 
-    .btn {
-        padding: 14px 28px;
-        border: none;
-        border-radius: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s;
-        font-size: 14px;
-        width: 100%;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .btn-primary {
-        background: rgba(255, 165, 0, 0.2);
-        color: #FFA500;
-        border: 2px solid #FFA500;
-    }
-
-    .btn-primary:hover {
-        background: #FFA500;
-        color: #FFF;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(255, 165, 0, 0.3);
-    }
-
-    .btn-success {
-        background: #2ECC71;
-        color: #FFF;
-        border: none;
-    }
-
-    .btn-success:hover {
-        background: #27AE60;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(46, 204, 113, 0.3);
-    }
-
-    .btn-danger {
-        background: #E74C3C;
-        color: #FFF;
-        border: none;
-    }
-
-    .btn-danger:hover {
-        background: #C0392B;
-        transform: translateY(-2px);
-    }
-
-    .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 70px 16px 100px;
-        display: none;
-    }
-
-    .container.active { display: block; }
-
-    .tabs {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+    .auth-page .divider {
         display: flex;
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid rgba(255, 165, 0, 0.15);
-        padding: 8px 8px safe-area-inset-bottom;
-        gap: 4px;
-        z-index: 150;
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .tab-btn {
-        flex: 1;
-        padding: 10px 8px;
-        border: none;
-        background: none;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 4px;
-        color: rgba(0, 0, 0, 0.4);
-        font-size: 10px;
-        font-weight: 600;
-        transition: all 0.2s;
-        border-radius: 12px;
-        text-transform: uppercase;
+        gap: 16px;
+        margin: 20px 0;
+        color: rgba(0, 0, 0, 0.3);
+        font-size: 12px;
     }
 
-    .tab-btn:hover {
-        color: #FFA500;
-        background: rgba(255, 165, 0, 0.08);
+    .auth-page .divider::before,
+    .auth-page .divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: rgba(0, 0, 0, 0.08);
     }
 
-    .tab-btn.active {
-        color: #FFA500;
-        background: rgba(255, 165, 0, 0.15);
-    }
-
-    .tab-icon {
-        font-size: 20px;
-        line-height: 1;
-    }
-
-    .card {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        border-radius: 18px;
-        padding: 16px;
-        margin-bottom: 12px;
-        transition: all 0.3s;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .card:hover {
-        background: rgba(255, 255, 255, 0.8);
-        border-color: rgba(255, 165, 0, 0.3);
-        transform: translateY(-2px);
-    }
-
-    h1 {
-        font-size: 28px;
-        margin-bottom: 20px;
-        color: #FFA500;
-        font-weight: 800;
-    }
-
-    h3 {
-        color: #333;
-        margin-bottom: 12px;
-        font-size: 15px;
-        font-weight: 700;
-    }
-
-    .alert {
-        padding: 12px 16px;
-        border-radius: 14px;
-        margin-bottom: 16px;
-        font-size: 13px;
-        display: none;
-        animation: slideIn 0.3s ease;
-        border-left: 4px solid;
-    }
-
-    .alert.active { display: block; }
-
-    .alert-success {
-        background: rgba(46, 204, 113, 0.1);
-        color: #27AE60;
-        border-left-color: #2ECC71;
-    }
-
-    .alert-error {
-        background: rgba(231, 76, 60, 0.1);
-        color: #C0392B;
-        border-left-color: #E74C3C;
-    }
-
-    .timer {
-        font-size: 32px;
-        font-weight: 800;
-        color: #FFA500;
+    .auth-page .toggle-link {
         text-align: center;
-        margin: 16px 0;
-        font-family: 'Courier New', monospace;
-    }
-
-    .timer.danger {
-        animation: timerDanger 1s infinite;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-
-    .product-card {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        overflow: hidden;
-        cursor: pointer;
-        transition: all 0.3s;
-        border: 1px solid rgba(255, 255, 255, 0.7);
-    }
-
-    .product-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-    }
-
-    .product-img {
-        width: 100%;
-        height: 140px;
-        object-fit: cover;
-        background: linear-gradient(135deg, #FFF5E6, #FFFAEF);
-    }
-
-    .product-info {
-        padding: 12px;
-    }
-
-    .product-title {
-        font-weight: 700;
-        font-size: 13px;
-        color: #333;
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .product-price {
-        color: #FFA500;
-        font-weight: 800;
-        font-size: 15px;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: rgba(0, 0, 0, 0.4);
-    }
-
-    .toggle-form {
-        text-align: center;
-        margin-top: 20px;
+        margin-top: 16px;
+        font-size: 14px;
         color: rgba(0, 0, 0, 0.5);
-        font-size: 13px;
     }
 
-    .toggle-form button {
+    .auth-page .toggle-link button {
         background: none;
         border: none;
-        color: #FFA500;
-        cursor: pointer;
+        color: var(--primary);
         font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .auth-page .toggle-link button:hover {
         text-decoration: underline;
     }
 
-    .order-timeline {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin: 16px 0;
-        font-size: 12px;
-    }
-
-    .timeline-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        flex: 1;
-    }
-
-    .timeline-dot {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: rgba(255, 165, 0, 0.2);
-        border: 2px solid #FFA500;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        margin-bottom: 4px;
-    }
-
-    .flames-display {
-        display: flex;
-        gap: 2px;
-        margin-top: 8px;
-    }
-
-    .flame {
-        font-size: 18px;
-    }
-
-    .message-item {
-        background: rgba(255, 255, 255, 0.5);
-        padding: 12px;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        border-left: 3px solid #FFA500;
-    }
-
-    .message-sender {
-        font-weight: 700;
-        font-size: 12px;
-        color: #FFA500;
-        margin-bottom: 4px;
-    }
-
-    .message-text {
-        color: #333;
-        font-size: 13px;
-        word-wrap: break-word;
-    }
-
-    .message-time {
-        font-size: 10px;
-        color: rgba(0, 0, 0, 0.3);
-        margin-top: 4px;
-    }
-
-    .modal {
+    /* ============================================
+               WELCOME SCREEN
+               ============================================ */
+    .welcome-screen {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 600;
+        background: linear-gradient(135deg, #FFD700, #2ECC71, #E74C3C);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease infinite;
+        padding: 40px;
+        text-align: center;
+    }
+
+    .welcome-screen.active {
+        display: flex;
+    }
+
+    @keyframes gradientShift {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    .welcome-screen .content {
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .welcome-screen .logo-big {
+        font-size: 72px;
+        font-weight: 900;
+        color: #fff;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        letter-spacing: 4px;
+        margin-bottom: 16px;
+    }
+
+    .welcome-screen .logo-big span {
+        color: #1a1a1a;
+    }
+
+    .welcome-screen h1 {
+        font-size: 28px;
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .welcome-screen p {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.85);
+        max-width: 320px;
+        margin: 0 auto 32px;
+        line-height: 1.6;
+    }
+
+    .welcome-screen .btn {
+        max-width: 280px;
+        margin: 0 auto;
+        background: #fff;
+        color: #1a1a1a;
+    }
+
+    .welcome-screen .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ============================================
+               HEADER
+               ============================================ */
+    header {
+        position: fixed;
+        top: 6px;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        padding: 10px 16px;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--frosted);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border-bottom: 1px solid var(--frosted-border);
+    }
+
+    header .logo {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--primary);
+        letter-spacing: 1px;
+    }
+
+    header .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    header .user-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--primary);
+        background: var(--primary);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 400;
-        backdrop-filter: blur(5px);
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a1a;
     }
 
-    .modal-content {
-        background: rgba(255, 255, 255, 0.95);
+    header .user-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* ============================================
+               MAIN APP
+               ============================================ */
+    .app-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 70px 16px 90px;
+        display: none;
+    }
+
+    .app-container.active {
+        display: block;
+    }
+
+    /* ============================================
+               PAGES
+               ============================================ */
+    .page {
+        display: none;
+        animation: slideUp 0.4s ease;
+    }
+
+    .page.active {
+        display: block;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 16px;
+        letter-spacing: -0.5px;
+    }
+
+    /* ============================================
+               BOTTOM TABS
+               ============================================ */
+    .tabs {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: none;
+        background: var(--frosted);
         backdrop-filter: blur(30px);
-        border-radius: 28px;
-        padding: 24px;
-        max-width: 400px;
-        width: 90%;
-        max-height: 80vh;
-        overflow-y: auto;
-        border: 1px solid rgba(255, 255, 255, 0.9);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+        -webkit-backdrop-filter: blur(30px);
+        border-top: 1px solid var(--frosted-border);
+        padding: 8px 8px env(safe-area-inset-bottom);
+        z-index: 150;
+    }
+
+    .tabs.active {
+        display: flex;
+    }
+
+    .tab-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 4px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.35);
+        transition: all 0.3s ease;
+        border-radius: var(--radius-sm);
         position: relative;
     }
 
-    .modal-close {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background: none;
-        border: none;
-        font-size: 28px;
-        color: #666;
-        cursor: pointer;
-        z-index: 401;
+    .tab-btn .tab-icon {
+        font-size: 22px;
+        transition: all 0.3s ease;
     }
 
-    .stat-card {
-        background: rgba(255, 165, 0, 0.08);
-        border: 1px solid rgba(255, 165, 0, 0.2);
-        padding: 16px;
-        border-radius: 14px;
+    .tab-btn .tab-label {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .tab-btn:hover {
+        color: var(--primary);
+    }
+
+    .tab-btn.active {
+        color: var(--primary);
+    }
+
+    .tab-btn.active .tab-icon {
+        transform: scale(1.1);
+    }
+
+    .tab-btn .badge {
+        position: absolute;
+        top: 2px;
+        right: 50%;
+        transform: translateX(calc(50% + 20px));
+        background: var(--danger);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+    }
+
+    /* ============================================
+               PRODUCT GRID
+               ============================================ */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .product-card {
+        background: var(--frosted);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--frosted-border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .product-card:active {
+        transform: scale(0.97);
+    }
+
+    .product-card .img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        background: linear-gradient(135deg, #f0ebe3, #e8e0d8);
+    }
+
+    .product-card .info {
+        padding: 12px;
+    }
+
+    .product-card .title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1a1a1a;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .product-card .price {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--primary);
+        margin-top: 4px;
+    }
+
+    .product-card .seller {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.4);
+        margin-top: 4px;
+    }
+
+    /* ============================================
+               SEARCH
+               ============================================ */
+    .search-bar {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        transition: all 0.3s ease;
+        color: #1a1a1a;
+    }
+
+    .search-bar:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.12);
+        background: #fff;
+    }
+
+    /* ============================================
+               EMPTY STATE
+               ============================================ */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: rgba(0, 0, 0, 0.3);
+    }
+
+    .empty-state .icon {
+        font-size: 48px;
         margin-bottom: 12px;
     }
 
-    .stat-label {
-        font-size: 12px;
+    .empty-state h3 {
+        font-size: 18px;
         color: rgba(0, 0, 0, 0.5);
-        text-transform: uppercase;
         margin-bottom: 4px;
     }
 
-    .stat-value {
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    /* ============================================
+               ALERT
+               ============================================ */
+    .alert {
+        padding: 12px 16px;
+        border-radius: var(--radius-sm);
+        margin-bottom: 16px;
+        font-size: 13px;
+        display: none;
+        animation: slideUp 0.3s ease;
+        border-left: 4px solid;
+    }
+
+    .alert.active {
+        display: block;
+    }
+
+    .alert-success {
+        background: rgba(46, 204, 113, 0.1);
+        color: #27AE60;
+        border-left-color: var(--success);
+    }
+
+    .alert-error {
+        background: rgba(231, 76, 60, 0.1);
+        color: var(--danger);
+        border-left-color: var(--danger);
+    }
+
+    .alert-info {
+        background: rgba(255, 215, 0, 0.1);
+        color: #B7950B;
+        border-left-color: var(--primary);
+    }
+
+    /* ============================================
+               ORDERS
+               ============================================ */
+    .order-card {
+        background: var(--frosted);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--frosted-border);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .order-card .status {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+
+    .order-card .status-pending {
+        background: rgba(255, 215, 0, 0.2);
+        color: #B7950B;
+    }
+
+    .order-card .status-delivered {
+        background: rgba(46, 204, 113, 0.2);
+        color: #27AE60;
+    }
+
+    .order-card .status-cancelled {
+        background: rgba(231, 76, 60, 0.2);
+        color: #C0392B;
+    }
+
+    .order-card .status-refunded {
+        background: rgba(52, 152, 219, 0.2);
+        color: #2980B9;
+    }
+
+    .timer-display {
+        font-size: 28px;
+        font-weight: 800;
+        font-family: 'Courier New', monospace;
+        text-align: center;
+        padding: 8px 0;
+    }
+
+    .timer-display.danger {
+        animation: timerDanger 1s infinite;
+    }
+
+    .order-card .confirm-box {
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        margin-top: 12px;
+    }
+
+    .order-card .confirm-box label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .order-card .confirm-box input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--success);
+    }
+
+    .order-card .btn-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .order-card .btn-group .btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    /* ============================================
+               STATS
+               ============================================ */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .stat-card {
+        background: var(--frosted);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--frosted-border);
+        border-radius: var(--radius-sm);
+        padding: 14px;
+        text-align: center;
+    }
+
+    .stat-card .number {
         font-size: 24px;
         font-weight: 800;
-        color: #FFA500;
+        color: var(--primary);
     }
 
-    #recaptchaContainer {
-        margin: 20px 0;
+    .stat-card .label {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: rgba(0, 0, 0, 0.4);
+        margin-top: 4px;
     }
 
-    .code-input {
-        font-size: 24px !important;
-        letter-spacing: 10px;
-        text-align: center;
+    .stat-card .trend {
+        font-size: 11px;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .stat-card .trend.up {
+        color: var(--success);
+    }
+
+    .stat-card .trend.down {
+        color: var(--danger);
+    }
+
+    /* ============================================
+               MESSAGES
+               ============================================ */
+    .message-item {
+        background: var(--frosted);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--frosted-border);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .message-item .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: 700;
+        color: #1a1a1a;
+        flex-shrink: 0;
+    }
+
+    .message-item .content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .message-item .sender {
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    .message-item .text {
+        font-size: 13px;
+        color: rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .message-item .time {
+        font-size: 10px;
+        color: rgba(0, 0, 0, 0.3);
+        flex-shrink: 0;
+    }
+
+    /* ============================================
+               TRANSACTIONS
+               ============================================ */
+    .transaction-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .transaction-item:last-child {
+        border-bottom: none;
+    }
+
+    .transaction-item .info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .transaction-item .desc {
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .transaction-item .date {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.3);
+    }
+
+    .transaction-item .amount {
+        font-weight: 700;
+        font-size: 15px;
+    }
+
+    .transaction-item .amount.positive {
+        color: var(--success);
+    }
+
+    .transaction-item .amount.negative {
+        color: var(--danger);
+    }
+
+    /* ============================================
+               RESPONSIVE
+               ============================================ */
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        }
+
+        .auth-page .glass {
+            padding: 24px 16px;
+        }
+
+        .welcome-screen .logo-big {
+            font-size: 48px;
+        }
+
+        .welcome-screen h1 {
+            font-size: 22px;
+        }
     }
 </style>
 </head>
 <body>
 
+<!-- KENTE BAND -->
 <div class="kente"></div>
 
-<div id="authPage" class="page active">
-    <div class="auth-page login" id="loginContainer">
-        <div class="auth-box">
-            <h2 id="authTitle">Se connecter</h2>
+<!-- ============================================
+AUTH PAGES
+============================================ -->
+<div id="authPage" class="auth-page">
+    <div class="glass">
+        <h2 id="authTitle">Se connecter</h2>
 
-        <div id="loginForm" style="display: block;">
+        <!-- Connexion -->
+        <div id="loginForm">
             <div class="form-group">
                 <label>Numéro de téléphone</label>
-                <input type="tel" id="loginPhone" required placeholder="+242 06 XXX XXXX" />
+                <input type="tel" id="loginPhone" placeholder="+242 06 XXX XXXX" />
             </div>
-            <div id="recaptchaContainer"></div>
-            <button type="button" class="btn btn-primary" onclick="sendPhoneOTP()">Envoyer le code</button>
-        </div>
-
-        <div id="otpForm" style="display: none;">
             <div class="form-group">
-                <label>Code SMS</label>
-                <input type="text" id="otpCode" class="code-input" required placeholder="000000" maxlength="6" />
+                <label>Nom (optionnel)</label>
+                <input type="text" id="loginName" placeholder="Ton nom" />
             </div>
-            <button type="button" class="btn btn-primary" onclick="verifyOTP()">Vérifier</button>
-            <button type="button" class="btn btn-primary" style="margin-top: 8px; background: transparent; color: #666; border-color: #ccc;" onclick="resetOTP()">Retour</button>
+            <button class="btn btn-primary" id="btnLogin">Se connecter</button>
+            <div class="divider">ou</div>
+            <button class="btn btn-google" id="btnGoogleLogin">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                S'inscrire avec Google
+            </button>
+            <div class="toggle-link">
+                Pas de compte ? <button id="btnShowSignup">S'inscrire</button>
+            </div>
         </div>
 
+        <!-- Inscription -->
         <div id="signupForm" style="display: none;">
             <div class="form-group">
                 <label>Nom complet</label>
-                <input type="text" id="signupName" required placeholder="Ton nom" />
+                <input type="text" id="signupName" placeholder="Jean Dupont" />
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="signupEmail" placeholder="jean@gmail.com" />
             </div>
             <div class="form-group">
                 <label>Numéro de téléphone</label>
-                <input type="tel" id="signupPhone" required placeholder="+242 06 XXX XXXX" />
+                <input type="tel" id="signupPhone" placeholder="+242 06 XXX XXXX" />
             </div>
-            <div id="signupRecaptchaContainer"></div>
-            <button type="button" class="btn btn-primary" onclick="sendSignupOTP()">S'inscrire</button>
-            <button type="button" class="btn btn-primary" style="margin-top: 8px; background: transparent; color: #666; border-color: #ccc;" onclick="toggleForms()">Connexion</button>
-        </div>
-
-        <div class="toggle-form">
-            <span id="toggleText">Pas de compte? </span>
-            <button type="button" id="toggleFormBtn" onclick="toggleForms()">S'inscrire</button>
+            <button class="btn btn-primary" id="btnSignup">S'inscrire</button>
+            <div class="divider">ou</div>
+            <button class="btn btn-google" id="btnGoogleSignup">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                S'inscrire avec Google
+            </button>
+            <div class="toggle-link">
+                Déjà un compte ? <button id="btnShowLogin">Se connecter</button>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- ============================================
+WELCOME SCREEN
+============================================ -->
+<div class="welcome-screen" id="welcomeScreen">
+    <div class="content">
+        <div class="logo-big">BLK<span>.</span></div>
+        <h1>Bienvenue dans l'univers</h1>
+        <p>BLK Marketplace - La mode et les accessoires à portée de main.</p>
+        <button class="btn" id="welcomeBtn">Suivant</button>
+    </div>
 </div>
 
-<header id="header" style="display: none;">
+<!-- ============================================
+HEADER
+============================================ -->
+<header id="header">
     <span class="logo">BLK</span>
-    <div style="display: flex; gap: 12px; align-items: center;">
-        <span id="userNameHeader" style="font-size: 13px; font-weight: 600; color: #FFA500;"></span>
+    <div class="user-info">
+        <span class="user-name" id="headerName">Utilisateur</span>
+        <div class="user-avatar" id="headerAvatar">U</div>
     </div>
 </header>
 
-<div id="container" class="container">
+<!-- ============================================
+MAIN APP
+============================================ -->
+<div class="app-container" id="appContainer">
+
     <div id="alertBox" class="alert"></div>
 
-<!-- PAGE ACCUEIL -->
-<div id="homePage" class="page active">
-    <h1>Découvrir</h1>
-    <div class="glass-container">
-        <input type="text" id="searchInput" placeholder="Chercher un article..." style="width: 100%; padding: 12px 14px;" />
-    </div>
-    <div id="productsGrid" class="grid"></div>
-    <div id="emptyHome" class="empty-state" style="display: none;">Aucun article trouvé</div>
-</div>
-
-<!-- PAGE VENDRE -->
-<div id="sellPage" class="page">
-    <h1>Publier</h1>
-    <div class="glass-container">
-        <form id="publishForm">
-            <div class="form-group">
-                <label>Titre</label>
-                <input type="text" id="articleTitle" required placeholder="Ex: Robe vintage..." />
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea id="articleDesc" rows="3" required placeholder="Décris l'article en détail..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>Prix (FCFA)</label>
-                <input type="number" id="articlePrice" required placeholder="5000" />
-            </div>
-            <div class="form-group">
-                <label>Catégorie</label>
-                <select id="articleCategory" required>
-                    <option value="">-- Sélectionner --</option>
-                    <option value="vetements">Vêtements</option>
-                    <option value="chaussures">Chaussures</option>
-                    <option value="accessoires">Accessoires</option>
-                    <option value="autres">Autres</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Photo</label>
-                <input type="file" id="articleImage" accept="image/*" />
-            </div>
-            <button type="submit" class="btn btn-primary">Publier</button>
-        </form>
-    </div>
-</div>
-
-<!-- PAGE MESSAGES -->
-<div id="messagesPage" class="page">
-    <h1>Messages</h1>
-    <div class="glass-container">
-        <div id="messagesList" style="max-height: 400px; overflow-y: auto;"></div>
-        <div id="emptyMessages" class="empty-state">Aucun message</div>
-    </div>
-    <div class="glass-container">
-        <input type="text" id="messageInput" placeholder="Écris ton message..." style="margin-bottom: 10px; width: 100%; padding: 10px;" />
-        <button class="btn btn-success" onclick="sendMessage()" style="padding: 10px;">Envoyer</button>
-    </div>
-</div>
-
-<!-- PAGE COMMANDES -->
-<div id="ordersPage" class="page">
-    <h1>Commandes</h1>
-    <div id="ordersList"></div>
-    <div id="emptyOrders" class="empty-state">Aucune commande</div>
-</div>
-
-<!-- PAGE PROFIL -->
-<div id="profilePage" class="page">
-    <h1>Profil</h1>
-    <div id="profileNotAuth" class="empty-state">Connecte-toi pour voir ton profil</div>
-
-    <div id="profileAuth" style="display: none;">
-        <div class="glass-container">
-            <h3 style="color: #FFA500; margin-bottom: 8px;">Informations</h3>
-            <p style="margin: 8px 0; font-size: 16px; font-weight: 700;" id="profileName"></p>
-            <p style="margin: 4px 0; font-size: 12px; color: rgba(0,0,0,0.6);" id="profilePhone"></p>
-            <button class="btn btn-danger" id="btnLogout" style="margin-top: 16px; padding: 10px;">Déconnexion</button>
+    <!-- ACCUEIL -->
+    <div class="page active" id="pageHome">
+        <h2 class="page-title">🏠 Découvrir</h2>
+        <div class="glass-sm" style="margin-bottom: 12px;">
+            <input type="text" class="search-bar" id="searchInput" placeholder="Rechercher un article..." />
         </div>
-
-        <div class="stat-card">
-            <div class="stat-label">Fiabilité</div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div class="stat-value" id="flamesCount">0</div>
-                <div style="font-size: 24px;">🔥</div>
-            </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;" id="categoryFilters">
+            <button class="btn btn-primary" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="all">Tous</button>
+            <button class="btn btn-outline" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="vêtements">👗 Vêtements</button>
+            <button class="btn btn-outline" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="chaussures">👟 Chaussures</button>
+            <button class="btn btn-outline" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="sacs">👜 Sacs</button>
+            <button class="btn btn-outline" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="bijoux">💍 Bijoux</button>
+            <button class="btn btn-outline" style="width: auto; padding: 6px 14px; font-size: 11px;" data-cat="accessoires">🧣 Accessoires</button>
         </div>
-
-        <div class="glass-container" style="border: 1px solid rgba(46, 204, 113, 0.2);">
-            <h3 style="color: #2ECC71;">Wallet BLK</h3>
-            <p style="margin: 16px 0; font-size: 28px; font-weight: 800; color: #2ECC71;"><span id="walletBalance">0</span> FCFA</p>
-            <button class="btn btn-success" onclick="toggleDepositForm()" style="margin-bottom: 8px;">Ajouter de l'argent</button>
-            <button class="btn btn-primary" onclick="toggleWithdrawForm()">Retirer</button>
-        </div>
-
-        <div id="depositForm" class="glass-container" style="border: 1px solid rgba(46, 204, 113, 0.2); display: none;">
-            <h3 style="color: #2ECC71;">Dépôt</h3>
-            <div class="form-group">
-                <label>Montant (FCFA)</label>
-                <input type="number" id="depositAmount" placeholder="5000" required />
-            </div>
-            <button type="button" class="btn btn-success" onclick="initiateDeposit()">Payer avec MTN/Airtel/Orange</button>
-            <button type="button" class="btn btn-primary" style="margin-top: 8px;" onclick="toggleDepositForm()">Annuler</button>
-        </div>
-
-        <div id="withdrawForm" class="glass-container" style="border: 1px solid rgba(231, 76, 60, 0.2); display: none;">
-            <h3 style="color: #E74C3C;">Retrait</h3>
-            <div class="form-group">
-                <label>Montant (FCFA)</label>
-                <input type="number" id="withdrawAmount" placeholder="5000" required />
-            </div>
-            <button type="button" class="btn btn-danger" onclick="initiateWithdraw()">Demander le retrait</button>
-            <button type="button" class="btn btn-primary" style="margin-top: 8px;" onclick="toggleWithdrawForm()">Annuler</button>
+        <div id="productsGrid" class="grid"></div>
+        <div id="emptyHome" class="empty-state" style="display: none;">
+            <div class="icon">📭</div>
+            <h3>Aucun article</h3>
+            <p>Soyez le premier à publier un article !</p>
         </div>
     </div>
-</div>
+
+    <!-- COMMANDES -->
+    <div class="page" id="pageOrders">
+        <h2 class="page-title">📦 Commandes</h2>
+        <div id="ordersList"></div>
+        <div id="emptyOrders" class="empty-state" style="display: none;">
+            <div class="icon">📭</div>
+            <h3>Aucune commande</h3>
+            <p>Vos commandes apparaîtront ici.</p>
+        </div>
+    </div>
+
+    <!-- MESSAGERIE -->
+    <div class="page" id="pageMessages">
+        <h2 class="page-title">💬 Messagerie</h2>
+        <div class="glass-sm" style="margin-bottom: 12px;">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="chatReceiver" placeholder="ID du destinataire..." style="flex: 1; padding: 8px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm);" />
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="messageInput" placeholder="Écris ton message..." style="flex: 1; padding: 8px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm);" />
+                <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" id="btnSendMessage">Envoyer</button>
+            </div>
+        </div>
+        <div id="messagesList"></div>
+        <div id="emptyMessages" class="empty-state" style="display: none;">
+            <div class="icon">💬</div>
+            <h3>Aucun message</h3>
+            <p>Commencez une conversation !</p>
+        </div>
+    </div>
+
+    <!-- MON MAGASIN -->
+    <div class="page" id="pageShop">
+        <h2 class="page-title">🏪 Mon Magasin</h2>
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="number" id="statSales">0</div>
+                <div class="label">Ventes</div>
+                <div class="trend up" id="trendSales">⬆️ 0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statOrders">0</div>
+                <div class="label">Commandes</div>
+                <div class="trend up" id="trendOrders">⬆️ 0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statArticles">0</div>
+                <div class="label">Articles</div>
+                <div class="trend up" id="trendArticles">⬆️ 0%</div>
+            </div>
+        </div>
+        <div class="glass-sm" style="margin-bottom: 12px;">
+            <h3 style="font-size: 16px;">📈 Évolution des ventes</h3>
+            <div id="chartContainer" style="height: 120px; margin-top: 8px; display: flex; align-items: flex-end; gap: 8px; padding: 8px 0;"></div>
+        </div>
+        <button class="btn btn-primary" id="btnPublish">📤 Publier un article</button>
+        <div id="shopArticles" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- PROFIL -->
+    <div class="page" id="pageProfile">
+        <h2 class="page-title">👤 Profil</h2>
+        <div id="profileContent">
+            <div class="glass-lg" style="text-align: center;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #1a1a1a; border: 3px solid var(--primary);" id="profileAvatar">U</div>
+                <h3 id="profileName">Utilisateur</h3>
+                <p style="color: rgba(0,0,0,0.4); font-size: 13px;" id="profileEmail">email@example.com</p>
+                <p style="color: rgba(0,0,0,0.4); font-size: 13px;" id="profilePhone">+242 06 XXX XXXX</p>
+                <div style="margin-top: 8px;">
+                    <span style="font-size: 14px;">🔥 <span id="profileFlames">0</span> flammes</span>
+                </div>
+            </div>
+
+            <div class="glass-lg" style="margin-top: 12px;">
+                <h3 style="color: var(--success);">💰 Wallet BLK</h3>
+                <p style="font-size: 32px; font-weight: 800; color: var(--success); margin: 8px 0;"><span id="walletBalance">0</span> FCFA</p>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-success" style="flex: 1;" id="btnDeposit">Déposer</button>
+                    <button class="btn btn-primary" style="flex: 1;" id="btnWithdraw">Retirer</button>
+                </div>
+            </div>
+
+            <div class="glass-lg" style="margin-top: 12px; display: none;" id="depositForm">
+                <h3>💳 Dépôt</h3>
+                <div class="form-group">
+                    <label>Montant (FCFA)</label>
+                    <input type="number" id="depositAmount" placeholder="10000" />
+                </div>
+                <div class="form-group">
+                    <label>Numéro MTN</label>
+                    <input type="tel" id="depositPhone" placeholder="+242 06 XXX XXXX" />
+                </div>
+                <button class="btn btn-success" id="btnConfirmDeposit">Confirmer le dépôt</button>
+                <button class="btn btn-outline" style="margin-top: 8px;" id="btnCancelDeposit">Annuler</button>
+            </div>
+
+            <div class="glass-lg" style="margin-top: 12px; display: none;" id="withdrawForm">
+                <h3>💳 Retrait</h3>
+                <div class="form-group">
+                    <label>Montant (FCFA)</label>
+                    <input type="number" id="withdrawAmount" placeholder="5000" />
+                </div>
+                <div class="form-group">
+                    <label>Numéro MTN</label>
+                    <input type="tel" id="withdrawPhone" placeholder="+242 06 XXX XXXX" />
+                </div>
+                <button class="btn btn-danger" id="btnConfirmWithdraw">Confirmer le retrait</button>
+                <button class="btn btn-outline" style="margin-top: 8px;" id="btnCancelWithdraw">Annuler</button>
+            </div>
+
+            <div class="glass-lg" style="margin-top: 12px;">
+                <h3>📋 Historique des transactions</h3>
+                <div id="transactionsList"></div>
+                <div id="emptyTransactions" class="empty-state" style="display: none; padding: 20px 0;">
+                    <p>Aucune transaction</p>
+                </div>
+            </div>
+
+            <button class="btn btn-danger" style="margin-top: 12px;" id="btnLogout">🚪 Déconnexion</button>
+        </div>
+    </div>
 </div>
 
-<nav class="tabs" id="tabs" style="display: none;">
-    <button class="tab-btn active" data-page="homePage" onclick="switchPage(this)">
-        <div class="tab-icon">🏠</div>
-        <div>Accueil</div>
+<!-- ============================================
+BOTTOM TABS
+============================================ -->
+<nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-page="pageHome">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">Accueil</span>
     </button>
-    <button class="tab-btn" data-page="sellPage" onclick="switchPage(this)">
-        <div class="tab-icon">📤</div>
-        <div>Vendre</div>
+    <button class="tab-btn" data-page="pageOrders">
+        <span class="tab-icon">📦</span>
+        <span class="tab-label">Commandes</span>
+        <span class="badge" id="ordersBadge" style="display: none;">0</span>
     </button>
-    <button class="tab-btn" data-page="messagesPage" onclick="switchPage(this)">
-        <div class="tab-icon">💬</div>
-        <div>Chat</div>
+    <button class="tab-btn" data-page="pageMessages">
+        <span class="tab-icon">💬</span>
+        <span class="tab-label">Messages</span>
+        <span class="badge" id="messagesBadge" style="display: none;">0</span>
     </button>
-    <button class="tab-btn" data-page="ordersPage" onclick="switchPage(this)">
-        <div class="tab-icon">📦</div>
-        <div>Commandes</div>
+    <button class="tab-btn" data-page="pageShop">
+        <span class="tab-icon">🏪</span>
+        <span class="tab-label">Mon Magasin</span>
     </button>
-    <button class="tab-btn" data-page="profilePage" onclick="switchPage(this)">
-        <div class="tab-icon">👤</div>
-        <div>Profil</div>
+    <button class="tab-btn" data-page="pageProfile">
+        <span class="tab-icon">👤</span>
+        <span class="tab-label">Profil</span>
     </button>
 </nav>
-
-<script>
-// = FIREBASE CONFIG =
-const firebaseConfig = {
-  apiKey: "AIzaSyA210LGSiktib7iFT82s2HZR1IcSMqmf38",
-  authDomain: "blk-congo.firebaseapp.com",
-  projectId: "blk-congo",
-  storageBucket: "blk-congo.firebasestorage.app",
-  messagingSenderId: "1067239289658",
-  appId: "1:1067239289658:web:a24aba40f2999201349603"
-};
-
-try {
-    firebase.initializeApp(firebaseConfig);
-} catch (error) {
-    console.error('Firebase error:', error);
-}
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-const BACKEND_URL = 'https://blk-marketplace-7vig.onrender.com';
-
-// = FIREBASE PHONE AUTH =
-let confirmationResult;
-let phoneNumber = '';
-
-function sendPhoneOTP() {
-    phoneNumber = document.getElementById('loginPhone').value;
-    if (!phoneNumber) {
-        showAlert('Entre ton numéro', 'error');
-        return;
-    }
-    
-    const appVerifier = new firebase.auth.RecaptchaVerifier('recaptchaContainer', {
-        'size': 'normal',
-        'callback': () => {}
-    });
-    
-    auth.signInWithPhoneNumber(phoneNumber, appVerifier)
-        .then(result => {
-            confirmationResult = result;
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('otpForm').style.display = 'block';
-            showAlert('Code SMS envoyé', 'success');
-        })
-        .catch(error => {
-            showAlert('Erreur: ' + error.message, 'error');
-        });
-}
-
-function verifyOTP() {
-    const otp = document.getElementById('otpCode').value;
-    if (!otp || otp.length ! 6) {
-        showAlert('Entre un code valide', 'error');
-        return;
-    }
-    
-    confirmationResult.confirm(otp)
-        .then(result => {
-            showAlert('Connecté! 👋', 'success');
-            setTimeout(() => showMainApp(), 500);
-        })
-        .catch(error => {
-            showAlert('Code invalide', 'error');
-        });
-}
-
-function resetOTP() {
-    document.getElementById('otpCode').value = '';
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('otpForm').style.display = 'none';
-}
-
-function sendSignupOTP() {
-    const name = document.getElementById('signupName').value;
-    const phone = document.getElementById('signupPhone').value;
-    
-    if (!name || !phone) {
-        showAlert('Complète tous les champs', 'error');
-        return;
-    }
-    
-    phoneNumber = phone;
-    const appVerifier = new firebase.auth.RecaptchaVerifier('signupRecaptchaContainer', {
-        'size': 'normal',
-        'callback': () => {}
-    });
-    
-    auth.signInWithPhoneNumber(phone, appVerifier)
-        .then(result => {
-            confirmationResult = result;
-            document.getElementById('signupForm').innerHTML = `
-                <div class="form-group">
-                    <label>Code SMS</label>
-                    <input type="text" id="signupOtp" class="code-input" required placeholder="000000" maxlength="6" />
-                </div>
-                <button type="button" class="btn btn-primary" onclick="verifySignupOTP('${name}')">Créer le compte</button>
-                <button type="button" class="btn btn-primary" style="margin-top: 8px; background: transparent; color: #666; border-color: #ccc;" onclick="toggleForms()">Retour</button>
-            `;
-            showAlert('Code SMS envoyé', 'success');
-        })
-        .catch(error => {
-            showAlert('Erreur: ' + error.message, 'error');
-        });
-}
-
-function verifySignupOTP(name) {
-    const otp = document.getElementById('signupOtp').value;
-    if (!otp || otp.length ! 6) {
-        showAlert('Entre un code valide', 'error');
-        return;
-    }
-    
-    confirmationResult.confirm(otp)
-        .then(result => {
-            const user = result.user;
-            db.collection('users').doc(user.uid).set({
-                name,
-                phone: phoneNumber,
-                walletBalance: 0,
-                flames: 0,
-                createdAt: new Date()
-            });
-            showAlert('Compte créé! 🎉', 'success');
-            setTimeout(() => showMainApp(), 500);
-        })
-        .catch(error => {
-            showAlert('Code invalide', 'error');
-        });
-}
-
-function toggleForms() {
-    const isLogin = document.getElementById('loginForm').style.display ! 'none';
-    document.getElementById('loginForm').style.display = isLogin ? 'none' : 'block';
-    document.getElementById('signupForm').style.display = isLogin ? 'block' : 'none';
-    document.getElementById('authTitle').textContent = isLogin ? 'S\'inscrire' : 'Se connecter';
-    
-    const container = document.getElementById('loginContainer');
-    if (isLogin) {
-        container.classList.add('signup');
-        container.classList.remove('login');
-    } else {
-        container.classList.add('login');
-        container.classList.remove('signup');
-    }
-}
-
-// = UI FUNCTIONS =
-function showAlert(msg, type = 'success') {
-    const box = document.getElementById('alertBox');
-    box.textContent = msg;
-    box.className = `alert alert-${type} active`;
-    setTimeout(() => box.classList.remove('active'), 4000);
-}
-
-function showMainApp() {
-    document.getElementById('authPage').classList.remove('active');
-    document.getElementById('container').classList.add('active');
-    document.getElementById('header').style.display = 'flex';
-    document.getElementById('tabs').style.display = 'flex';
-    document.getElementById('homePage').classList.add('active');
-    loadProducts();
-    loadUserBalance();
-    loadFlames();
-    setupMessageListener();
-}
-
-function hideMainApp() {
-    document.getElementById('authPage').classList.add('active');
-    document.getElementById('container').classList.remove('active');
-    document.getElementById('header').style.display = 'none';
-    document.getElementById('tabs').style.display = 'none';
-}
-
-function switchPage(btn) {
-    const pageId = btn.dataset.page;
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(pageId).classList.add('active');
-    btn.classList.add('active');
-}
-
-// = PRODUCTS =
-async function loadProducts() {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/articles`);
-        const data = await response.json();
-        const grid = document.getElementById('productsGrid');
-        
-        if (!data.data || data.data.length = 0) {
-            grid.innerHTML = '';
-            document.getElementById('emptyHome').style.display = 'block';
-            return;
-        }
-
-        grid.innerHTML = '';
-        data.data.forEach(product => {
-            const card = document.createElement('div');
-            card.className = 'product-card';
-            card.innerHTML = `
-                ${product.image ? `<img src="${product.image}" class="product-img" />` : `<div class="product-img"></div>`}
-                <div class="product-info">
-                    <div class="product-title">${product.title}</div>
-                    <div class="product-price">${product.price} FCFA</div>
-                </div>
-            `;
-            card.addEventListener('click', () => showProductModal(product));
-            grid.appendChild(card);
-        });
-
-        document.getElementById('emptyHome').style.display = 'none';
-    } catch (error) {
-        console.error("Products error:", error);
-        showAlert('Erreur chargement articles', 'error');
-    }
-}
-
-function showProductModal(product) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <button class="modal-close" onclick="this.closest('.modal').remove()">✕</button>
-            ${product.image ? `<img src="${product.image}" style="width: 100%; height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 16px;" />` : ''}
-            <h3>${product.title}</h3>
-            <p style="color: rgba(0,0,0,0.6); margin: 12px 0; font-size: 13px;">${product.description}</p>
-            <p style="font-size: 24px; font-weight: 800; color: #FFA500; margin-bottom: 16px;">${product.price} FCFA</p>
-            <button class="btn btn-success" onclick="addToCart('${product.id}', '${product.title}', ${product.price}); this.closest('.modal').remove();">Ajouter au panier</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    modal.addEventListener('click', e => {
-        if (e.target = modal) modal.remove();
-    });
-}
-
-// = SELL ARTICLE =
-document.getElementById('publishForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const user = auth.currentUser;
-    if (!user) {
-        showAlert('Connecte-toi d\'abord', 'error');
-        return;
-    }
-
-    const title = document.getElementById('articleTitle').value;
-    const description = document.getElementById('articleDesc').value;
-    const price = document.getElementById('articlePrice').value;
-    const category = document.getElementById('articleCategory').value;
-    const imageFile = document.getElementById('articleImage').files[0];
-
-    let imageUrl = '';
-    if (imageFile) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const base64 = event.target.result;
-                const uploadRes = await fetch(`${BACKEND_URL}/api/upload`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ base64 })
-                });
-                const uploadData = await uploadRes.json();
-                imageUrl = uploadData.url || '';
-                publishArticle(title, description, price, category, imageUrl, user);
-            } catch (error) {
-                showAlert('Erreur upload image', 'error');
-            }
-        };
-        reader.readAsDataURL(imageFile);
-    } else {
-        publishArticle(title, description, price, category, '', user);
-    }
-});
-
-async function publishArticle(title, description, price, category, imageUrl, user) {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/articles`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                title, description, price: parseInt(price), category,
-                image: imageUrl, sellerId: user.uid, sellerName: user.displayName || 'Anonyme'
-            })
-        });
-
-        if (response.ok) {
-            showAlert('Article publié! 🎉', 'success');
-            document.getElementById('publishForm').reset();
-            loadProducts();
-        }
-    } catch (error) {
-        showAlert('Erreur publication', 'error');
-    }
-}
-
-// = CART & ORDERS =
-let cart = [];
-
-function addToCart(productId, title, price) {
-    cart.push({ productId, title, price, quantity: 1 });
-    showAlert(`"${title}" ajouté au panier`, 'success');
-}
-
-// = WALLET =
-async function loadUserBalance() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/wallet/${user.uid}`);
-        const data = await response.json();
-        document.getElementById('walletBalance').textContent = data.balance || 0;
-    } catch (error) {
-        console.log("Balance error:", error);
-    }
-}
-
-function toggleDepositForm() {
-    const form = document.getElementById('depositForm');
-    form.style.display = form.style.display = 'none' ? 'block' : 'none';
-}
-
-function toggleWithdrawForm() {
-    const form = document.getElementById('withdrawForm');
-    form.style.display = form.style.display = 'none' ? 'block' : 'none';
-}
-
-async function initiateDeposit() {
-    const user = auth.currentUser;
-    if (!user) {
-        showAlert('Connecte-toi d\'abord', 'error');
-        return;
-    }
-
-    const amount = document.getElementById('depositAmount').value;
-    if (!amount) {
-        showAlert('Entre un montant', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/payment/initiate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: parseInt(amount),
-                phone: auth.currentUser.phoneNumber || '',
-                userId: user.uid,
-                type: 'deposit'
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            showAlert('Paiement initié! Confirme sur ton mobile...', 'success');
-            document.getElementById('depositAmount').value = '';
-            toggleDepositForm();
-        }
-    } catch (error) {
-        showAlert('Erreur paiement', 'error');
-    }
-}
-
-async function initiateWithdraw() {
-    const user = auth.currentUser;
-    if (!user) {
-        showAlert('Connecte-toi d\'abord', 'error');
-        return;
-    }
-
-    const amount = document.getElementById('withdrawAmount').value;
-    if (!amount) {
-        showAlert('Entre un montant', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/wallet/withdraw`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: user.uid,
-                amount: parseInt(amount)
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            showAlert('Retrait demandé! Tu recevras l\'argent bientôt', 'success');
-            document.getElementById('withdrawAmount').value = '';
-            toggleWithdrawForm();
-            loadUserBalance();
-        }
-    } catch (error) {
-        showAlert('Erreur retrait', 'error');
-    }
-}
-
-// = MESSAGES/CHAT =
-function setupMessageListener() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    db.collection('messages')
-        .where('receiverId', '', user.uid)
-        .orderBy('createdAt', 'desc')
-        .limit(50)
-        .onSnapshot(snapshot => {
-            const list = document.getElementById('messagesList');
-            list.innerHTML = '';
-            
-            if (snapshot.empty) {
-                document.getElementById('emptyMessages').style.display = 'block';
-                return;
-            }
-
-            document.getElementById('emptyMessages').style.display = 'none';
-            snapshot.forEach(doc => {
-                const msg = doc.data();
-                const time = msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleTimeString() : '';
-                const item = document.createElement('div');
-                item.className = 'message-item';
-                item.innerHTML = `
-                    <div class="message-sender">${msg.senderName || 'Anonyme'}</div>
-                    <div class="message-text">${msg.text}</div>
-                    <div class="message-time">${time}</div>
-                `;
-                list.appendChild(item);
-            });
-        });
-}
-
-async function sendMessage() {
-    const user = auth.currentUser;
-    if (!user) {
-        showAlert('Connecte-toi d\'abord', 'error');
-        return;
-    }
-
-    const text = document.getElementById('messageInput').value;
-    if (!text) return;
-
-    try {
-        await db.collection('messages').add({
-            senderId: user.uid,
-            senderName: user.displayName || 'Anonyme',
-            receiverId: 'admin', // ou un ID spécifique
-            text,
-            createdAt: new Date()
-        });
-        document.getElementById('messageInput').value = '';
-        showAlert('Message envoyé', 'success');
-    } catch (error) {
-        showAlert('Erreur envoi message', 'error');
-    }
-}
-
-// = FLAMMES (FIABILITÉ) =
-async function loadFlames() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/seller/${user.uid}/flames`);
-        const data = await response.json();
-        document.getElementById('flamesCount').textContent = data.flames || 0;
-    } catch (error) {
-        console.log("Flames error:", error);
-    }
-}
-
-// = ORDERS =
-async function loadOrders() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/orders/${user.uid}`);
-        const orders = await response.json();
-        const list = document.getElementById('ordersList');
-        
-        if (!orders || orders.length = 0) {
-            document.getElementById('emptyOrders').style.display = 'block';
-            list.innerHTML = '';
-            return;
-        }
-
-        document.getElementById('emptyOrders').style.display = 'none';
-        list.innerHTML = '';
-        
-        orders.forEach(order => {
-            const expiresAt = order.expiresAt ? new Date(order.expiresAt.toDate ? order.expiresAt.toDate() : order.expiresAt) : null;
-            const now = new Date();
-            const timeLeft = expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
-            const hours = Math.floor(timeLeft / 3600);
-            const mins = Math.floor((timeLeft % 3600) / 60);
-            const isDanger = timeLeft < 3600; // moins d'1h
-            
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <h3>Commande #${order.id.slice(0, 8)}</h3>
-                <p style="font-size: 12px; color: rgba(0,0,0,0.5); margin: 4px 0;">Status: <strong>${order.status}</strong></p>
-                <p style="font-size: 14px; color: #FFA500; font-weight: 700; margin: 8px 0;">${order.total} FCFA</p>
-                <div class="timer ${isDanger ? 'danger' : ''}" style="color: ${isDanger ? '#FF6B6B' : '#FFA500'};">${hours}h ${mins}m</div>
-                <div style="display: flex; gap: 8px; margin-top: 12px;">
-                    <button class="btn btn-danger" style="flex: 1; padding: 10px; font-size: 12px;" onclick="cancelOrder('${order.id}')">Annuler</button>
-                    <button class="btn btn-success" style="flex: 1; padding: 10px; font-size: 12px;" onclick="extendOrder('${order.id}')">Prolonger</button>
-                </div>
-            `;
-            list.appendChild(card);
-        });
-    } catch (error) {
-        console.error("Orders error:", error);
-    }
-}
-
-async function cancelOrder(orderId) {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/cancel`, {
-            method: 'POST'
-        });
-        if (response.ok) {
-            showAlert('Commande annulée', 'success');
-            loadOrders();
-        }
-    } catch (error) {
-        showAlert('Erreur annulation', 'error');
-    }
-}
-
-async function extendOrder(orderId) {
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/extend`, {
-            method: 'POST'
-        });
-        if (response.ok) {
-            showAlert('Commande prolongée de 24h', 'success');
-            loadOrders();
-        }
-    } catch (error) {
-        showAlert('Erreur prolongation', 'error');
-    }
-}
-
-// = AUTH STATE =
-document.getElementById('btnLogout')?.addEventListener('click', () => {
-    auth.signOut().then(() => {
-        showAlert('Déconnecté', 'success');
-        hideMainApp();
-        location.reload();
-    });
-});
-
-auth.onAuthStateChanged(user => {
-    if (user) {
-        document.getElementById('userNameHeader').textContent = user.displayName || user.phoneNumber || 'User';
-        document.getElementById('profileName').textContent = user.displayName || 'Anonyme';
-        document.getElementById('profilePhone').textContent = user.phoneNumber || '';
-        document.getElementById('profileAuth').style.display = 'block';
-        document.getElementById('profileNotAuth').style.display = 'none';
-        showMainApp();
-        loadOrders();
-        loadUserBalance();
-        loadFlames();
-    } else {
-        hideMainApp();
-    }
-});
-
-// = SEARCH ===
-document.getElementById('searchInput')?.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    const cards = document.querySelectorAll('.product-card');
-    cards.forEach(card => {
-        const title = card.querySelector('.product-title').textContent.toLowerCase();
-        card.style.display = title.includes(query) ? 'block' : 'none';
-    });
-});
-</script>
-
-
-</body>
-</html>
