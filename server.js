@@ -135,7 +135,7 @@ app.get('/api/categories', (req, res) => {
 });
 
 // ============================================================
-// ARTICLES (collection "products") – Version SIMPLE SANS INDEX
+// ARTICLES (collection "products")
 // ============================================================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) {
@@ -149,14 +149,13 @@ app.get('/api/articles', async (req, res) => {
     });
   }
   try {
-    const snapshot = await db.collection('products').get();
+    const snapshot = await db.collection('products')
+      .where('status', '==', 'active')
+      .get();
     const articles = [];
-    snapshot.forEach(doc => {
-      articles.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
     res.json({ success: true, data: articles });
   } catch (error) {
-    console.error('❌ Erreur articles:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -359,6 +358,7 @@ app.post('/api/wallet/deposit', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Yabetoo non configuré' });
     }
     const reference = `DEP-${userId.slice(0,8)}-${Date.now().toString().slice(-6)}`;
+    // ✅ URL CORRECTE (api.yabetoo.com)
     const yabResponse = await axios.post('https://api.yabetoo.com/v1/payment/initiate', {
       amount: parseInt(amount),
       phone: phone,
@@ -416,6 +416,7 @@ app.post('/api/wallet/withdraw', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Solde insuffisant' });
     }
     const reference = `WTH-${userId.slice(0,8)}-${Date.now().toString().slice(-6)}`;
+    // ✅ URL CORRECTE
     const yabResponse = await axios.post('https://api.yabetoo.com/v1/withdraw', {
       amount: parseInt(amount),
       phone: phone,
@@ -628,6 +629,7 @@ app.post('/api/orders/confirm', async (req, res) => {
     if (ADMIN_PHONE && adminTotal > 0) {
       try {
         const adminRef = `ADMIN-${Date.now().toString().slice(-6)}`;
+        // ✅ URL CORRECTE
         await axios.post('https://api.yabetoo.com/v1/withdraw', {
           amount: adminTotal,
           phone: ADMIN_PHONE,
