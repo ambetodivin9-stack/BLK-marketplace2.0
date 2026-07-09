@@ -8,8 +8,8 @@
         /* = RESET & VARIABLES = */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #FFD700;
-            --primary-dark: #F5C400;
+            --primary: #E74C3C;      /* Rouge pour les onglets et la barre de recherche */
+            --primary-dark: #C0392B;
             --success: #2ECC71;
             --danger: #E74C3C;
             --frosted: rgba(255,255,255,0.65);
@@ -40,6 +40,7 @@
         @keyframes float { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-10px); } }
         @keyframes gradientShift { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
         @keyframes timerDanger { 0%,100% { transform:scale(1); color:#E74C3C; } 50% { transform:scale(1.05); color:#FF6B6B; } }
+        @keyframes fadeInOut { 0% { opacity:0; transform:scale(0.8); } 20% { opacity:1; transform:scale(1); } 80% { opacity:1; transform:scale(1); } 100% { opacity:0; transform:scale(0.8); } }
 
     /* ===== FROSTED GLASS ===== */
     .glass { background: var(--frosted); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid var(--frosted-border); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -49,21 +50,21 @@
     /* ===== BUTTONS ===== */
     .btn { padding: 14px 28px; border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.3s ease; width: 100%; text-transform: uppercase; letter-spacing: 0.5px; }
     .btn:active { transform: scale(0.97); }
-    .btn-primary { background: var(--primary); color: #1a1a1a; }
-    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,215,0,0.3); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(231,76,60,0.3); }
     .btn-success { background: var(--success); color: #fff; }
     .btn-success:hover { background: #27AE60; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(46,204,113,0.3); }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-danger:hover { background: #C0392B; transform: translateY(-2px); }
     .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
-    .btn-outline:hover { background: var(--primary); color: #1a1a1a; }
+    .btn-outline:hover { background: var(--primary); color: #fff; }
     .btn-sm { padding: 8px 14px; font-size: 11px; width: auto; }
     .btn-google { background: rgba(255,255,255,0.9); color: #333; border: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 10px; }
     .btn-google:hover { background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .btn-facebook { background: #1877F2; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; }
     .btn-facebook:hover { background: #1664D9; }
 
-    /* ===== AUTH PAGE ===== */
+    /* ===== AUTH PAGE (fond jaune/orangé) ===== */
     .auth-page {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
@@ -72,39 +73,44 @@
         justify-content: center;
         padding: 20px;
         z-index: 500;
-        background: var(--bg);
+        background: linear-gradient(135deg, #FFD700, #FF8C00);
+        background-size: 200% 200%;
+        animation: gradientShift 10s ease infinite;
     }
     .auth-page .glass {
         width: 100%;
         max-width: 420px;
         padding: 32px 24px;
         animation: slideUp 0.5s ease;
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(255,255,255,0.5);
     }
     .auth-page h2 {
         text-align: center;
         font-size: 28px;
         font-weight: 800;
-        color: var(--primary);
+        color: #1a1a1a;
         margin-bottom: 8px;
     }
     .auth-page .subtitle {
         text-align: center;
         font-size: 14px;
-        color: rgba(0,0,0,0.4);
+        color: rgba(0,0,0,0.5);
         margin-bottom: 24px;
     }
     .auth-page .form-group { margin-bottom: 16px; }
     .auth-page label { display:block; font-size:12px; font-weight:600; text-transform:uppercase; color:rgba(0,0,0,0.5); margin-bottom:6px; }
     .auth-page input {
         width:100%; padding:14px 16px;
-        border:1px solid rgba(0,0,0,0.08);
+        border:1px solid rgba(0,0,0,0.1);
         border-radius:var(--radius-sm);
         background:rgba(255,255,255,0.8);
         font-size:15px;
         transition:all 0.3s ease;
         color:#1a1a1a;
     }
-    .auth-page input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(255,215,0,0.15); background:#fff; }
+    .auth-page input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(231,76,60,0.15); background:#fff; }
     .auth-page .divider {
         display: flex;
         align-items: center;
@@ -117,7 +123,7 @@
         content: '';
         flex: 1;
         height: 1px;
-        background: rgba(0,0,0,0.08);
+        background: rgba(0,0,0,0.1);
     }
     .auth-page .toggle-link {
         text-align: center;
@@ -202,7 +208,7 @@
         border:2px solid var(--primary);
         background:var(--primary);
         display:flex; align-items:center; justify-content:center;
-        font-size:16px; font-weight:700; color:#1a1a1a; overflow:hidden;
+        font-size:16px; font-weight:700; color:#fff; overflow:hidden;
     }
     header .user-avatar img { width:100%; height:100%; object-fit:cover; }
     header .user-name { font-size:13px; font-weight:600; color:#1a1a1a; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -226,13 +232,14 @@
         letter-spacing: -0.5px;
     }
 
-    /* ===== TABS ===== */
+    /* ===== TABS (rouge glass) ===== */
     .tabs {
         position: fixed; bottom:0; left:0; right:0;
         display: none;
-        background: var(--frosted);
+        background: rgba(255,255,255,0.5);
         backdrop-filter: blur(30px);
-        border-top: 1px solid var(--frosted-border);
+        -webkit-backdrop-filter: blur(30px);
+        border-top: 1px solid rgba(255,255,255,0.8);
         padding: 8px 8px env(safe-area-inset-bottom);
         z-index: 150;
     }
@@ -249,7 +256,7 @@
         cursor: pointer;
         font-size: 9px;
         font-weight: 600;
-        color: rgba(0,0,0,0.35);
+        color: rgba(0,0,0,0.4);
         transition: all 0.3s ease;
         border-radius: var(--radius-sm);
         position: relative;
@@ -270,7 +277,10 @@
         letter-spacing: 0.3px;
     }
     .tab-btn:hover { color: var(--primary); }
-    .tab-btn.active { color: var(--primary); }
+    .tab-btn.active {
+        color: var(--primary);
+        background: rgba(231,76,60,0.1);
+    }
     .tab-btn.active .tab-icon { transform: scale(1.1); }
     .tab-btn .badge {
         position: absolute; top: 2px; right: 50%;
@@ -280,14 +290,15 @@
         min-width: 18px; text-align: center;
     }
 
-    /* ===== SEARCH ===== */
+    /* ===== SEARCH (rouge glass) ===== */
     .search-container {
         display: flex;
         align-items: center;
         gap: 12px;
-        background: var(--frosted);
+        background: rgba(255,255,255,0.5);
         backdrop-filter: blur(20px);
-        border: 1px solid var(--frosted-border);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.8);
         border-radius: var(--radius-sm);
         padding: 6px 16px;
         margin-bottom: 12px;
@@ -322,6 +333,23 @@
         width: auto;
         padding: 6px 14px;
         font-size: 11px;
+    }
+    .category-filters .btn-primary {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+    }
+    .category-filters .btn-primary:hover {
+        background: var(--primary-dark);
+    }
+    .category-filters .btn-outline {
+        background: transparent;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+    }
+    .category-filters .btn-outline:hover {
+        background: var(--primary);
+        color: #fff;
     }
 
     /* ===== PRODUCTS ===== */
@@ -508,7 +536,7 @@
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        color: #1a1a1a;
+        color: #fff;
         flex-shrink: 0;
         overflow: hidden;
     }
@@ -546,11 +574,50 @@
         justify-content: center;
         font-size: 32px;
         font-weight: 800;
-        color: #1a1a1a;
+        color: #fff;
         border: 3px solid var(--primary);
         overflow: hidden;
     }
     .profile-avatar img { width:100%; height:100%; object-fit:cover; }
+
+    /* ===== CONFIRMATION OVERLAY ===== */
+    .confirmation-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(10px);
+        animation: fadeInOut 2.5s ease forwards;
+    }
+    .confirmation-overlay.active {
+        display: flex;
+    }
+    .confirmation-overlay .box {
+        background: #fff;
+        padding: 40px 32px;
+        border-radius: var(--radius);
+        text-align: center;
+        max-width: 360px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        animation: slideUp 0.4s ease;
+    }
+    .confirmation-overlay .box .icon {
+        font-size: 56px;
+        margin-bottom: 12px;
+    }
+    .confirmation-overlay .box h3 {
+        font-size: 20px;
+        color: var(--success);
+        margin-bottom: 8px;
+    }
+    .confirmation-overlay .box p {
+        color: rgba(0,0,0,0.6);
+        font-size: 14px;
+    }
 
     /* ===== MODAL ===== */
     .modal {
@@ -641,7 +708,7 @@
 
     .camera-btn {
         background: var(--primary);
-        color: #1a1a1a;
+        color: #fff;
         padding: 8px 12px;
         border: none;
         border-radius: var(--radius-sm);
@@ -663,6 +730,15 @@
 </head>
 <body>
     <div class="kente"></div>
+
+<!-- ===== CONFIRMATION OVERLAY ===== -->
+<div class="confirmation-overlay" id="confirmationOverlay">
+    <div class="box">
+        <div class="icon">✅</div>
+        <h3>Article publié !</h3>
+        <p>Votre article a été ajouté avec succès à la marketplace.</p>
+    </div>
+</div>
 
 <!-- ===== AUTH PAGE ===== -->
 <div id="authPage" class="auth-page">
@@ -943,6 +1019,17 @@
     }
 
     // ============================================================
+    // CONFIRMATION PUBLICATION (overlay)
+    // ============================================================
+    function showConfirmation() {
+        const overlay = document.getElementById('confirmationOverlay');
+        overlay.classList.add('active');
+        setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 2500);
+    }
+
+    // ============================================================
     // AUTH
     // ============================================================
     function handleLogin(name, email) {
@@ -988,19 +1075,10 @@
         handleLogin(name, email);
     });
 
-    // Fake Facebook / Google (simulation)
-    document.getElementById('btnFakeFacebook').addEventListener('click', () => {
-        handleLogin('Utilisateur Facebook', 'fb@example.com');
-    });
-    document.getElementById('btnFakeFacebook2').addEventListener('click', () => {
-        handleLogin('Utilisateur Facebook', 'fb@example.com');
-    });
-    document.getElementById('btnFakeGoogle').addEventListener('click', () => {
-        handleLogin('Utilisateur Google', 'google@example.com');
-    });
-    document.getElementById('btnFakeGoogle2').addEventListener('click', () => {
-        handleLogin('Utilisateur Google', 'google@example.com');
-    });
+    document.getElementById('btnFakeFacebook').addEventListener('click', () => handleLogin('Utilisateur Facebook', 'fb@example.com'));
+    document.getElementById('btnFakeFacebook2').addEventListener('click', () => handleLogin('Utilisateur Facebook', 'fb@example.com'));
+    document.getElementById('btnFakeGoogle').addEventListener('click', () => handleLogin('Utilisateur Google', 'google@example.com'));
+    document.getElementById('btnFakeGoogle2').addEventListener('click', () => handleLogin('Utilisateur Google', 'google@example.com'));
 
     document.getElementById('btnShowSignup').addEventListener('click', () => {
         document.getElementById('loginForm').style.display = 'none';
@@ -1030,7 +1108,6 @@
         document.getElementById('profileAvatar').textContent = (currentUser?.name || 'U')[0].toUpperCase();
         document.getElementById('walletBalance').textContent = currentUser?.walletBalance || 0;
 
-        // Date et heure pour les stats
         const now = new Date();
         document.getElementById('statsDate').textContent = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
@@ -1273,7 +1350,7 @@
     }
 
     // ============================================================
-    // PUBLISH (avec caméra)
+    // PUBLISH (avec caméra et confirmation)
     // ============================================================
     document.getElementById('btnPublish').addEventListener('click', () => {
         const modal = document.createElement('div');
@@ -1321,17 +1398,13 @@
         `;
         document.body.appendChild(modal);
 
-        // Caméra
         const cameraBtn = document.getElementById('cameraBtn');
         const cameraInput = document.getElementById('cameraInput');
         const fileInput = document.getElementById('pubImage');
 
-        cameraBtn.addEventListener('click', () => {
-            cameraInput.click();
-        });
+        cameraBtn.addEventListener('click', () => cameraInput.click());
         cameraInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                // Copier le fichier dans l'input de fichier
                 const dt = new DataTransfer();
                 dt.items.add(e.target.files[0]);
                 fileInput.files = dt.files;
@@ -1388,8 +1461,10 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showAlert('✅ Article publié !', 'success');
+                    // Afficher la confirmation
+                    showConfirmation();
                     modal.remove();
+                    // Recharger l'accueil et les stats
                     loadProducts();
                     loadStats();
                     loadShopArticles();
@@ -1718,7 +1793,6 @@
     const savedId = localStorage.getItem(STORAGE_KEY);
     if (savedId) {
         // L'utilisateur s'est déjà connecté, on peut lui proposer de se reconnecter
-        // Pour l'instant, on laisse l'écran de connexion visible
     }
 
     console.log('✅ BLK Marketplace - Mode localStorage (persistant)');
