@@ -305,7 +305,8 @@ app.get('/api/users/:userId', async (req, res) => {
         phone: '+242 06 123 4567',
         email: 'test@example.com',
         isSeller: true,
-        blockedUsers: []
+        blockedUsers: [],
+        online: false
       }
     });
   }
@@ -324,9 +325,22 @@ app.get('/api/users/:userId', async (req, res) => {
         phone: data.phone || '',
         email: data.email || '',
         isSeller: data.isSeller || false,
-        blockedUsers: data.blockedUsers || []
+        blockedUsers: data.blockedUsers || [],
+        online: data.online || false
       }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Mise à jour du statut en ligne
+app.post('/api/users/online', async (req, res) => {
+  if (!firebaseReady) return res.json({ success: true });
+  try {
+    const { userId, online } = req.body;
+    await db.collection('users').doc(userId).update({ online: online || false });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -575,7 +589,6 @@ app.post('/api/orders/create', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     }
 
-    // Vérifier si le vendeur est bloqué par l'acheteur
     const buyerDoc = await db.collection('users').doc(buyerId).get();
     const blockedUsers = buyerDoc.data()?.blockedUsers || [];
     if (blockedUsers.includes(sellerId)) {
@@ -699,7 +712,6 @@ app.post('/api/orders/confirm', async (req, res) => {
       orderId: orderId
     });
 
-    // ✅ COMMISSION ADMIN AVEC YABETOO (URL CORRECTE)
     if (ADMIN_PHONE && adminTotal > 0) {
       try {
         const adminRef = `ADMIN-${Date.now().toString().slice(-6)}`;
