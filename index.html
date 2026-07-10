@@ -8,7 +8,7 @@
         /* = RESET & VARIABLES = */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #E74C3C;      /* Rouge pour les onglets et la barre de recherche */
+            --primary: #E74C3C;
             --primary-dark: #C0392B;
             --success: #2ECC71;
             --danger: #E74C3C;
@@ -1196,6 +1196,9 @@
         renderProducts(allProducts);
     });
 
+    // ============================================================
+    // PRODUCT DETAIL (avec bouton "Contacter le vendeur")
+    // ============================================================
     function showProductDetail(product) {
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -1207,19 +1210,39 @@
                 <p style="color:rgba(0,0,0,0.6);margin:8px 0;">${product.description || 'Aucune description'}</p>
                 <p style="font-size:24px;font-weight:800;color:var(--primary);">${product.price || 0} FCFA</p>
                 <p style="font-size:12px;color:rgba(0,0,0,0.4);margin-top:4px;">Vendeur: ${product.sellerName || 'Anonyme'}</p>
-                <div style="display:flex;gap:8px;margin-top:12px;">
-                    <button class="btn btn-primary" id="modalBuy">Acheter</button>
-                    <button class="btn btn-outline" id="modalClose">Fermer</button>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                    <button class="btn btn-primary" id="modalBuy" style="flex:1;">Acheter</button>
+                    <button class="btn btn-outline" id="modalContact" style="flex:1;">💬 Contacter le vendeur</button>
+                    <button class="btn btn-outline" id="modalClose" style="flex:1;">Fermer</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
+
         document.getElementById('modalClose').addEventListener('click', () => modal.remove());
+
         document.getElementById('modalBuy').addEventListener('click', async () => {
             await buyProduct(product);
             modal.remove();
         });
-        modal.addEventListener('click', (e) => { if(e.target===modal) modal.remove(); });
+
+        document.getElementById('modalContact').addEventListener('click', () => {
+            modal.remove();
+            // Basculer vers l'onglet Messagerie
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const targetTab = document.querySelector('.tab-btn[data-page="pageMessages"]');
+            if (targetTab) {
+                targetTab.classList.add('active');
+                document.getElementById('pageMessages').classList.add('active');
+            }
+            // Pré-remplir le destinataire avec l'ID du vendeur
+            document.getElementById('chatReceiver').value = product.sellerId || '';
+            document.getElementById('messageInput').focus();
+            showAlert('💬 Vous pouvez maintenant envoyer un message au vendeur.', 'info');
+        });
+
+        modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
     }
 
     // ============================================================
@@ -1461,10 +1484,8 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    // Afficher la confirmation
                     showConfirmation();
                     modal.remove();
-                    // Recharger l'accueil et les stats
                     loadProducts();
                     loadStats();
                     loadShopArticles();
@@ -1792,7 +1813,7 @@
     // ============================================================
     const savedId = localStorage.getItem(STORAGE_KEY);
     if (savedId) {
-        // L'utilisateur s'est déjà connecté, on peut lui proposer de se reconnecter
+        // L'utilisateur s'est déjà connecté
     }
 
     console.log('✅ BLK Marketplace - Mode localStorage (persistant)');
