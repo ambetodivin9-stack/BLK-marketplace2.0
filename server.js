@@ -398,14 +398,13 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - DÉPÔT (CORRECTION DÉFINITIVE)
+// WALLET - DÉPÔT YABETOO (RÉEL)
 // ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
   console.log('Body:', req.body);
 
   try {
-    // 👇 Accepte userid (minuscule) OU userId (camelCase)
     const userId = req.body.userid || req.body.userId;
     const amount = parseInt(req.body.amount);
     const phone = req.body.phone;
@@ -415,41 +414,126 @@ app.post('/api/wallet/deposit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'userId, amount et phone requis' });
     }
 
-    console.log(`✅ Dépôt pour userId: ${userId}, montant: ${amount}, phone: ${phone}`);
+    // 🔐 Vérifier que YABETOO_SECRET est configuré
+    if (!YABETOO_SECRET) {
+      console.error('❌ YABETOO_SECRET manquant');
+      return res.status(500).json({ success: false, message: 'Configuration paiement manquante' });
+    }
 
-    // 🔥 FIREBASE : on utilise set() avec merge:true pour créer le document s'il n'existe pas
-    const userRef = db.collection('users').doc(userId);
-    const doc = await userRef.get();
-    const currentBalance = doc.data()?.walletBalance || 0;
-    const newBalance = currentBalance + amount;
+    // 🧾 Générer une référence unique
+    const reference = `DEP-${Date.now()}-${userId.slice(-6)}`;
 
-    await userRef.set({
-      walletBalance: newBalance,
-      phone: phone,
-      lastDeposit: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    // 💰 Appeler Yabetoo pour initier le paiement
+    const paymentResponse = await axios.post(
+      'https://api.yabetoo.com/v1/payment',
+      {
+        amount: amount,
+        phone: phone,
+        reference: reference,
+        callback_url: `https://blk-backend.onrender.com/api/payment/callback`,
+        description: `Dépôt BLK Marketplace - ${userId}`
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${YABETOO_SECRET}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    // 📝 Ajout d'une transaction dans l'historique
-    await db.collection('transactions').add({
-      userId,
-      amount,
-      phone,
-      type: 'deposit',
-      status: 'completed',
-      description: 'Dépôt (simulé)',
-      createdAt: new Date()
-    });
+    if (paymentResponse.data.success) {
+      // 📝 Sauvegarder la transaction en attente
+      await db.collection('transactions').add({
+        userId,
+        amount,
+        phone,
+        reference,
+        type: 'deposit',
+        status: 'pending',
+        yabetooId: paymentResponse.data.transaction_id,
+        createdAt: new Date()
+      });
 
-    console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
-    res.json({
-      success: true,
-      message: '💰 Dépôt effectué avec succès !',
-      newBalance: newBalance
-    });
+      console.log(`✅ Paiement initié: ${reference}`);
+      res.json({
+        success: true,
+        message: '📲 Vérifie ton téléphone, tu vas recevoir une demande de paiement.',
+        reference: reference,
+        transactionId: paymentResponse.data.transaction_id
+      });
+    } else {
+      console.error('❌ Erreur Yabetoo:', paymentResponse.data.message);
+      res.status(400).json({ success: false, message: paymentResponse.data.message || 'Erreur paiement' });
+    }
 
   } catch (error) {
     console.error('❌ Erreur dépôt:', error.message);
     res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
+  }
+});
+
+// ============================================================
+// CALLBACK YABETOO
+// ============================================================
+app.post('/api/payment/callback', async (req, res) => {
+  console.log('📩 Callback Yabetoo reçu !');
+  console.log('Body:', req.body);
+
+  try {
+    const { reference, status, transaction_id } = req.body;
+
+    // Vérifier que la référence existe
+    const snapshot = await db.collection('transactions')
+      .where('reference', '==', reference)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      console.log('❌ Transaction non trouvée:', reference);
+      return res.status(404).json({ success: false, message: 'Transaction non trouvée' });
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+
+    if (status === 'success') {
+      // 💰 Créditer le wallet de l'utilisateur
+      if (data.type === 'deposit') {
+        const userRef = db.collection('users').doc(data.userId);
+        const userDoc = await userRef.get();
+        const currentBalance = userDoc.data()?.walletBalance || 0;
+        const newBalance = currentBalance + data.amount;
+
+        await userRef.set({
+          walletBalance: newBalance,
+          phone: data.phone,
+          lastDeposit: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
+      }
+
+      // Mettre à jour la transaction
+      await doc.ref.update({
+        status: 'completed',
+        yabetooId: transaction_id,
+        completedAt: new Date()
+      });
+
+      res.json({ success: true });
+    } else {
+      // Transaction échouée
+      await doc.ref.update({
+        status: 'failed',
+        yabetooId: transaction_id,
+        failedAt: new Date()
+      });
+      res.json({ success: false, message: 'Transaction échouée' });
+    }
+
+  } catch (error) {
+    console.error('❌ Callback Error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -503,49 +587,9 @@ app.post('/api/wallet/withdraw', async (req, res) => {
 });
 
 // ============================================================
-// PAYMENT CALLBACK
+// PAYMENT CALLBACK (déjà géré ci-dessus)
 // ============================================================
-app.post('/api/payment/callback', async (req, res) => {
-  if (!firebaseReady) {
-    return res.json({ success: true });
-  }
-  try {
-    const { reference, status, transaction_id } = req.body;
-    const snapshot = await db.collection('transactions')
-      .where('reference', '==', reference)
-      .limit(1)
-      .get();
-    if (snapshot.empty) {
-      return res.status(404).json({ success: false, message: 'Transaction non trouvée' });
-    }
-    const doc = snapshot.docs[0];
-    const data = doc.data();
-    if (status === 'success') {
-      if (data.type === 'deposit') {
-        const userRef = db.collection('users').doc(data.userId);
-        const userDoc = await userRef.get();
-        const currentBalance = userDoc.data()?.walletBalance || 0;
-        await userRef.update({ walletBalance: currentBalance + data.amount });
-      }
-      await doc.ref.update({
-        status: 'completed',
-        yabetooId: transaction_id,
-        completedAt: new Date()
-      });
-      res.json({ success: true });
-    } else {
-      await doc.ref.update({
-        status: 'failed',
-        yabetooId: transaction_id,
-        failedAt: new Date()
-      });
-      res.json({ success: false, message: 'Transaction échouée' });
-    }
-  } catch (error) {
-    console.error('Callback Error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+// (la route /api/payment/callback est déjà définie plus haut)
 
 // ============================================================
 // ORDRES
