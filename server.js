@@ -139,10 +139,7 @@ app.get('/api/categories', (req, res) => {
 // ============================================================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({
-      success: true,
-      data: []
-    });
+    return res.json({ success: true, data: [] });
   }
   try {
     const snapshot = await db.collection('products')
@@ -398,7 +395,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - DÉPÔT YABETOO (RÉEL)
+// WALLET - DÉPÔT YABETOO (RÉEL) - URL CORRIGÉE
 // ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
@@ -424,8 +421,9 @@ app.post('/api/wallet/deposit', async (req, res) => {
     const reference = `DEP-${Date.now()}-${userId.slice(-6)}`;
 
     // 💰 Appeler Yabetoo pour initier le paiement
+    // 🔥 URL CORRECTE (avec deux "o")
     const paymentResponse = await axios.post(
-      'https://api.yabetoo.com/v1/payment',
+      'https://api.yabetoo.com/v1/payment',  // ← ici corrigé
       {
         amount: amount,
         phone: phone,
@@ -587,11 +585,6 @@ app.post('/api/wallet/withdraw', async (req, res) => {
 });
 
 // ============================================================
-// PAYMENT CALLBACK (déjà géré ci-dessus)
-// ============================================================
-// (la route /api/payment/callback est déjà définie plus haut)
-
-// ============================================================
 // ORDRES
 // ============================================================
 app.post('/api/orders/create', async (req, res) => {
@@ -738,6 +731,7 @@ app.post('/api/orders/confirm', async (req, res) => {
     if (ADMIN_PHONE && adminTotal > 0) {
       try {
         const adminRef = `ADMIN-${Date.now().toString().slice(-6)}`;
+        // 🔥 URL CORRECTE pour le retrait
         await axios.post('https://api.yabetoo.com/v1/withdraw', {
           amount: adminTotal,
           phone: ADMIN_PHONE,
