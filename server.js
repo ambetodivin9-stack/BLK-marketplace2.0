@@ -139,7 +139,10 @@ app.get('/api/categories', (req, res) => {
 // ============================================================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ success: true, data: [] });
+    return res.json({
+      success: true,
+      data: []
+    });
   }
   try {
     const snapshot = await db.collection('products')
@@ -395,52 +398,49 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - DÉPÔT (SIMULATION AVEC LOGS)
+// WALLET - DÉPÔT (CORRECTION DÉFINITIVE)
 // ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
   console.log('Body:', req.body);
 
   try {
-    const { userId, amount, phone } = req.body;
+    // 👇 Accepte userid (minuscule) OU userId (camelCase)
+    const userId = req.body.userid || req.body.userId;
+    const amount = parseInt(req.body.amount);
+    const phone = req.body.phone;
 
-    // Vérifier que les champs requis sont présents
-    if (!userId) {
-      console.log('❌ userId manquant');
-      return res.status(400).json({ success: false, message: 'userId requis' });
+    if (!userId || !amount || !phone) {
+      console.log('❌ Champs manquants');
+      return res.status(400).json({ success: false, message: 'userId, amount et phone requis' });
     }
 
     console.log(`✅ Dépôt pour userId: ${userId}, montant: ${amount}, phone: ${phone}`);
 
-    // SIMULATION : on crédite le wallet dans Firestore (si disponible)
-    let newBalance = 10000; // valeur par défaut
+    // 🔥 FIREBASE : on utilise set() avec merge:true pour créer le document s'il n'existe pas
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    const currentBalance = doc.data()?.walletBalance || 0;
+    const newBalance = currentBalance + amount;
 
-    if (firebaseReady && db) {
-      try {
-        const userRef = db.collection('users').doc(userId);
-        const doc = await userRef.get();
-        const currentBalance = doc.data()?.walletBalance || 0;
-        const depositAmount = parseInt(amount) || 1000;
-        newBalance = currentBalance + depositAmount;
-        await userRef.update({ walletBalance: newBalance });
+    await userRef.set({
+      walletBalance: newBalance,
+      phone: phone,
+      lastDeposit: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
 
-        await db.collection('transactions').add({
-          userId,
-          amount: depositAmount,
-          phone: phone || '00000000',
-          type: 'deposit',
-          status: 'completed',
-          description: 'Dépôt (simulé)',
-          createdAt: new Date()
-        });
+    // 📝 Ajout d'une transaction dans l'historique
+    await db.collection('transactions').add({
+      userId,
+      amount,
+      phone,
+      type: 'deposit',
+      status: 'completed',
+      description: 'Dépôt (simulé)',
+      createdAt: new Date()
+    });
 
-        console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
-      } catch (error) {
-        console.error('❌ Erreur mise à jour Firestore:', error.message);
-        // On renvoie quand même une réponse positive pour ne pas bloquer le test
-      }
-    }
-
+    console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
     res.json({
       success: true,
       message: '💰 Dépôt effectué avec succès !',
@@ -457,57 +457,48 @@ app.post('/api/wallet/deposit', async (req, res) => {
 // WALLET - RETRAIT (SIMULATION)
 // ============================================================
 app.post('/api/wallet/withdraw', async (req, res) => {
-  console.log('📩 Requête de retrait reçue !');
-  console.log('Body:', req.body);
-
+  if (!firebaseReady) {
+    return res.json({ 
+      success: true, 
+      message: '💰 Retrait simulé avec succès !', 
+      newBalance: 5000 
+    });
+  }
   try {
     const { userId, amount, phone } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ success: false, message: 'userId requis' });
+    if (!userId || !amount || !phone) {
+      return res.status(400).json({ success: false, message: 'userId, amount et phone requis' });
     }
 
-    let newBalance = 5000;
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    const currentBalance = doc.data()?.walletBalance || 0;
 
-    if (firebaseReady && db) {
-      try {
-        const userRef = db.collection('users').doc(userId);
-        const doc = await userRef.get();
-        const currentBalance = doc.data()?.walletBalance || 0;
-        const withdrawAmount = parseInt(amount) || 1000;
-
-        if (currentBalance < withdrawAmount) {
-          return res.status(400).json({ success: false, message: 'Solde insuffisant' });
-        }
-
-        newBalance = currentBalance - withdrawAmount;
-        await userRef.update({ walletBalance: newBalance });
-
-        await db.collection('transactions').add({
-          userId,
-          amount: withdrawAmount,
-          phone: phone || '00000000',
-          type: 'withdraw',
-          status: 'completed',
-          description: 'Retrait (simulé)',
-          createdAt: new Date()
-        });
-
-        console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
-      } catch (error) {
-        console.error('❌ Erreur mise à jour Firestore:', error.message);
-      }
+    if (currentBalance < amount) {
+      return res.status(400).json({ success: false, message: 'Solde insuffisant' });
     }
+
+    const newBalance = currentBalance - parseInt(amount);
+    await userRef.update({ walletBalance: newBalance });
+
+    await db.collection('transactions').add({
+      userId,
+      amount: parseInt(amount),
+      phone,
+      type: 'withdraw',
+      status: 'completed',
+      description: 'Retrait (simulé)',
+      createdAt: new Date()
+    });
 
     res.json({
       success: true,
       message: '💰 Retrait effectué avec succès !',
       newBalance: newBalance
     });
-
   } catch (error) {
-    console.error('❌ Erreur retrait:', error.message);
-    res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
+    console.error('Withdraw Error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
