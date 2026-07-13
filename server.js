@@ -48,11 +48,7 @@ try {
 // CONFIGURATION
 // ============================================================
 const IMG_BB_KEY = process.env.IMG_BB_KEY || '08d90ac3321b7689d9e1c35e34a88b6c';
-const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
-
-// 🔥 URL YABETOO CORRECTE (d'après la documentation)
-const YABETOO_URL = 'https://pay.api.yabetoopay.com/v1/payment-intents';
 
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.04;
@@ -63,7 +59,6 @@ const ALLOWED_CATEGORIES = [
 
 console.log(`📱 Admin Phone: ${ADMIN_PHONE}`);
 console.log(`🖼️  ImgBB: ${IMG_BB_KEY ? 'OK' : 'MANQUANT'}`);
-console.log(`💳 Yabetoo: ${YABETOO_SECRET ? 'OK' : 'MANQUANT'}`);
 console.log(`🔥 Firebase: ${firebaseReady ? 'OK' : 'DÉGRADÉ (SIMULATION)'}`);
 
 // ============================================================
@@ -122,8 +117,7 @@ app.get('/', (req, res) => {
     mode: firebaseReady ? '100% RÉEL' : 'SIMULATION',
     services: {
       firebase: firebaseReady ? '✅' : '❌',
-      imgbb: IMG_BB_KEY ? '✅' : '❌',
-      yabetoo: YABETOO_SECRET ? '✅' : '❌'
+      imgbb: IMG_BB_KEY ? '✅' : '❌'
     }
   });
 });
@@ -285,7 +279,7 @@ app.get('/api/users/:userId', async (req, res) => {
         name: 'Utilisateur Test',
         photo: '',
         flames: 0,
-        walletBalance: 5000,
+        walletBalance: 0,
         phone: '+242 06 123 4567',
         email: 'test@example.com',
         isSeller: false,
@@ -380,7 +374,7 @@ app.post('/api/users/block', async (req, res) => {
 // ============================================================
 app.get('/api/wallet/:userId', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ balance: 5000 });
+    return res.json({ balance: 0 });
   }
   try {
     const { userId } = req.params;
@@ -392,7 +386,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - DÉPÔT YABETOO (AVEC AXIOS)
+// WALLET - DÉPÔT (SIMULÉ - sans Yabetoo)
 // ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
@@ -404,129 +398,85 @@ app.post('/api/wallet/deposit', async (req, res) => {
     const phone = req.body.phone;
 
     if (!userId || !amount || !phone) {
-      console.log('❌ Champs manquants');
       return res.status(400).json({ success: false, message: 'userId, amount et phone requis' });
     }
 
-    if (!YABETOO_SECRET) {
-      console.error('❌ YABETOO_SECRET manquant');
-      return res.status(500).json({ success: false, message: 'Configuration paiement manquante' });
-    }
+    // SIMULATION : on crédite directement (comme avant)
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    const currentBalance = doc.data()?.walletBalance || 0;
+    const newBalance = currentBalance + amount;
 
-    const reference = `DEP-${Date.now()}-${userId.slice(-6)}`;
+    await userRef.set({
+      walletBalance: newBalance,
+      phone: phone,
+      lastDeposit: admin.firestore.FieldValue.serverTimestamp(),
+      name: doc.data()?.name || userId
+    }, { merge: true });
 
-    // ✅ Appel direct à Yabetoo avec axios
-    const paymentResponse = await axios.post(
-      YABETOO_URL,
-      {
-        amount: amount,
-        phone: phone,
-        reference: reference,
-        callback_url: 'https://blk-backend.onrender.com/api/payment/callback',
-        description: `Dépôt BLK - ${userId}`
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${YABETOO_SECRET}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    await db.collection('transactions').add({
+      userId,
+      amount,
+      phone,
+      type: 'deposit',
+      status: 'completed',
+      description: 'Dépôt (simulé)',
+      createdAt: new Date()
+    });
 
-    const transactionId = paymentResponse.data.id || paymentResponse.data.transaction_id;
-
-    if (paymentResponse.data.success !== false && transactionId) {
-      await db.collection('transactions').add({
-        userId,
-        amount,
-        phone,
-        reference,
-        type: 'deposit',
-        status: 'pending',
-        yabetooId: transactionId,
-        createdAt: new Date()
-      });
-
-      console.log(`✅ Paiement initié: ${reference}`);
-      res.json({
-        success: true,
-        message: '📲 Vérifie ton téléphone, tu vas recevoir une demande de paiement.',
-        reference: reference,
-        transactionId: transactionId
-      });
-    } else {
-      console.error('❌ Erreur Yabetoo:', paymentResponse.data);
-      res.status(400).json({ success: false, message: paymentResponse.data.message || 'Erreur paiement' });
-    }
+    console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
+    res.json({
+      success: true,
+      message: '💰 Dépôt effectué avec succès !',
+      newBalance: newBalance
+    });
 
   } catch (error) {
     console.error('❌ Erreur dépôt:', error.message);
-    if (error.response) {
-      console.error('📦 Réponse Yabetoo:', error.response.data);
-    }
     res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
   }
 });
 
 // ============================================================
-// CALLBACK YABETOO
+// ADMIN - CRÉDIT MANUEL (pour la page admin)
 // ============================================================
-app.post('/api/payment/callback', async (req, res) => {
-  console.log('📩 Callback Yabetoo reçu !');
+app.post('/api/wallet/admin-credit', async (req, res) => {
+  console.log('📩 Crédit manuel admin reçu !');
   console.log('Body:', req.body);
 
   try {
-    const { reference, status, transaction_id } = req.body;
-
-    const snapshot = await db.collection('transactions')
-      .where('reference', '==', reference)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      console.log('❌ Transaction non trouvée:', reference);
-      return res.status(404).json({ success: false, message: 'Transaction non trouvée' });
+    const { userId, amount, phone } = req.body;
+    if (!userId || !amount) {
+      return res.status(400).json({ success: false, message: 'userId et amount requis' });
     }
 
-    const doc = snapshot.docs[0];
-    const data = doc.data();
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    const currentBalance = doc.data()?.walletBalance || 0;
+    const newBalance = currentBalance + amount;
 
-    if (status === 'success' || status === 'completed') {
-      if (data.type === 'deposit') {
-        const userRef = db.collection('users').doc(data.userId);
-        const userDoc = await userRef.get();
-        const currentBalance = userDoc.data()?.walletBalance || 0;
-        const newBalance = currentBalance + data.amount;
+    await userRef.set({
+      walletBalance: newBalance,
+      phone: phone || doc.data()?.phone || '',
+      lastDeposit: admin.firestore.FieldValue.serverTimestamp(),
+      name: doc.data()?.name || userId
+    }, { merge: true });
 
-        await userRef.set({
-          walletBalance: newBalance,
-          phone: data.phone,
-          lastDeposit: admin.firestore.FieldValue.serverTimestamp(),
-          name: data.userId || 'Utilisateur BLK',
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+    await db.collection('transactions').add({
+      userId,
+      amount,
+      phone: phone || '065918166',
+      type: 'deposit',
+      status: 'completed',
+      description: 'Dépôt manuel (admin)',
+      createdAt: new Date()
+    });
 
-        console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
-      }
-
-      await doc.ref.update({
-        status: 'completed',
-        yabetooId: transaction_id,
-        completedAt: new Date()
-      });
-
-      res.json({ success: true });
-    } else {
-      await doc.ref.update({
-        status: 'failed',
-        yabetooId: transaction_id,
-        failedAt: new Date()
-      });
-      res.json({ success: false, message: 'Transaction échouée' });
-    }
+    console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
+    res.json({ success: true, message: 'Wallet crédité', newBalance });
 
   } catch (error) {
-    console.error('❌ Callback Error:', error.message);
+    console.error('❌ Erreur crédit admin:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -539,7 +489,7 @@ app.post('/api/wallet/withdraw', async (req, res) => {
     return res.json({ 
       success: true, 
       message: '💰 Retrait simulé avec succès !', 
-      newBalance: 5000 
+      newBalance: 0 
     });
   }
   try {
@@ -589,9 +539,9 @@ app.post('/api/orders/create', async (req, res) => {
       success: true,
       orderId: 'mock-' + Date.now(),
       message: 'Commande créée (simulée)',
-      totalAmount: 15450,
-      buyerCommission: 450,
-      sellerCommission: 600,
+      totalAmount: 0,
+      buyerCommission: 0,
+      sellerCommission: 0,
       expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000)
     });
   }
@@ -709,7 +659,6 @@ app.post('/api/orders/confirm', async (req, res) => {
     const sellerCommission = order.sellerCommission || Math.round(order.amount * COMMISSION_SELLER);
     const buyerCommission = order.buyerCommission || Math.round(order.amount * COMMISSION_BUYER);
     const amountToSeller = order.amount - sellerCommission;
-    const adminTotal = buyerCommission + sellerCommission;
 
     const sellerRef = db.collection('users').doc(order.sellerId);
     const sellerDoc = await sellerRef.get();
@@ -724,40 +673,13 @@ app.post('/api/orders/confirm', async (req, res) => {
       orderId: orderId
     });
 
-    if (ADMIN_PHONE && adminTotal > 0) {
-      try {
-        const adminRef = `ADMIN-${Date.now().toString().slice(-6)}`;
-        await axios.post(
-          'https://pay.api.yabetoopay.com/v1/withdrawals',
-          {
-            amount: adminTotal,
-            phone: ADMIN_PHONE,
-            reference: `COM-${orderId.slice(0,8)}-${adminRef}`,
-            callback_url: 'https://blk-backend.onrender.com/api/payment/callback'
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${YABETOO_SECRET}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        console.log(`✅ Commission ${adminTotal} FCFA envoyée à ${ADMIN_PHONE}`);
-      } catch (error) {
-        console.error('❌ Erreur envoi commission:', error.message);
-        if (error.response) {
-          console.error('📦 Réponse Yabetoo:', error.response.data);
-        }
-      }
-    }
-
     await orderRef.update({
       status: 'livré',
       buyerConfirmed: true,
       buyerConfirmedAt: new Date(),
       confirmations,
       sellerReceived: amountToSeller,
-      adminCommission: adminTotal
+      adminCommission: buyerCommission + sellerCommission
     });
 
     await db.collection('notifications').add({
@@ -782,7 +704,7 @@ app.post('/api/orders/confirm', async (req, res) => {
       success: true,
       message: '✅ Commande confirmée !',
       sellerReceived: amountToSeller,
-      adminCommission: adminTotal,
+      adminCommission: buyerCommission + sellerCommission,
       sellerBalance: sellerBalance + amountToSeller
     });
   } catch (error) {
@@ -898,7 +820,7 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
 // ============================================================
 app.post('/api/flames', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ success: true, flames: 5 });
+    return res.json({ success: true, flames: 1 });
   }
   try {
     const { sellerId, buyerId } = req.body;
@@ -929,7 +851,7 @@ app.post('/api/flames', async (req, res) => {
 
 app.get('/api/flames/:userId', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ flames: 3 });
+    return res.json({ flames: 0 });
   }
   try {
     const { userId } = req.params;
@@ -1195,56 +1117,11 @@ app.post('/api/notifications/read/:id', async (req, res) => {
 });
 
 // ============================================================
-// ADMIN - CRÉDIT MANUEL (POUR TEST)
-// ============================================================
-app.post('/api/wallet/admin-credit', async (req, res) => {
-  console.log('📩 Crédit manuel admin reçu !');
-  console.log('Body:', req.body);
-
-  try {
-    const { userId, amount, phone } = req.body;
-    if (!userId || !amount) {
-      return res.status(400).json({ success: false, message: 'userId et amount requis' });
-    }
-
-    const userRef = db.collection('users').doc(userId);
-    const doc = await userRef.get();
-    const currentBalance = doc.data()?.walletBalance || 0;
-    const newBalance = currentBalance + amount;
-
-    await userRef.set({
-      walletBalance: newBalance,
-      phone: phone || doc.data()?.phone || '',
-      lastDeposit: admin.firestore.FieldValue.serverTimestamp(),
-      name: doc.data()?.name || userId
-    }, { merge: true });
-
-    await db.collection('transactions').add({
-      userId,
-      amount,
-      phone: phone || '065918166',
-      type: 'deposit',
-      status: 'completed',
-      description: 'Dépôt manuel (admin)',
-      createdAt: new Date()
-    });
-
-    console.log(`💰 Wallet mis à jour: ${currentBalance} → ${newBalance}`);
-    res.json({ success: true, message: 'Wallet crédité', newBalance });
-
-  } catch (error) {
-    console.error('❌ Erreur crédit admin:', error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ============================================================
 // DÉMARRAGE
 // ============================================================
 app.listen(PORT, () => {
   console.log(`✅ BLK API running on port ${PORT}`);
   console.log(`📦 Mode: ${firebaseReady ? '100% RÉEL' : 'SIMULATION'}`);
-  console.log(`💳 Paiement: ${YABETOO_SECRET ? 'Yabetoo' : 'Simulé'}`);
   console.log(`📱 Admin: ${ADMIN_PHONE}`);
   console.log(`💰 Commissions: ${COMMISSION_BUYER*100}% (buyer) + ${COMMISSION_SELLER*100}% (seller)`);
 });
