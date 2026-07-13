@@ -62,6 +62,52 @@ console.log(`🖼️  ImgBB: ${IMG_BB_KEY ? 'OK' : 'MANQUANT'}`);
 console.log(`🔥 Firebase: ${firebaseReady ? 'OK' : 'DÉGRADÉ (SIMULATION)'}`);
 
 // ============================================================
+// CRON – REMBOURSEMENT AUTO
+// ============================================================
+if (firebaseReady) {
+  cron.schedule('0 * * * *', async () => {
+    console.log('⏰ Vérification des commandes expirées...');
+    try {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      const snapshot = await db.collection('orders')
+        .where('status', '==', 'en attente de confirmation')
+        .where('createdAt', '<=', twelveHoursAgo)
+        .get();
+
+      for (const doc of snapshot.docs) {
+        const order = doc.data();
+        console.log(`🔄 Remboursement commande ${doc.id}`);
+        await refundOrder(doc.id, order);
+      }
+    } catch (error) {
+      console.error('❌ Cron Error:', error.message);
+    }
+  });
+}
+
+async function refundOrder(orderId, order) {
+  if (!firebaseReady) return;
+  try {
+    const buyerRef = db.collection('users').doc(order.buyerId);
+    const buyerDoc = await buyerRef.get();
+    const buyerBalance = buyerDoc.data()?.walletBalance || 0;
+    await buyerRef.update({
+      walletBalance: buyerBalance + order.totalAmount
+    });
+    await db.collection('products').doc(order.articleId).update({
+      status: 'active'
+    });
+    await db.collection('orders').doc(orderId).update({
+      status: 'remboursé',
+      refundedAt: new Date()
+    });
+    console.log(`✅ Remboursement effectué pour ${orderId}`);
+  } catch (error) {
+    console.error(`❌ Erreur remboursement ${orderId}:`, error.message);
+  }
+}
+
+// ============================================================
 // ROUTES PRINCIPALES
 // ============================================================
 app.get('/', (req, res) => {
@@ -572,9 +618,9 @@ app.post('/api/messages', (req, res) => {
 });
 
 // ============================================================
-// DÉMARRAGE
+// DÉMARRAGE (CORRIGÉ AVEC 0.0.0.0)
 // ============================================================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ BLK API running on port ${PORT}`);
   console.log(`📦 Mode: ${firebaseReady ? '100% RÉEL' : 'SIMULATION'}`);
   console.log(`📱 Admin: ${ADMIN_PHONE}`);
