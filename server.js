@@ -51,7 +51,7 @@ const IMG_BB_KEY = process.env.IMG_BB_KEY || '08d90ac3321b7689d9e1c35e34a88b6c';
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 
-// 🔥 URLS YABETOO CORRECTES (d'après la documentation)
+// 🔥 URLS YABETOO CORRECTES (d'après ta documentation)
 const YABETOO_BASE_URL = 'https://pay.api.yabetoopay.com/v1';
 const YABETOO_SANDBOX_URL = 'https://pay.sandbox.yabetoopay.com/v1';
 
@@ -59,7 +59,6 @@ const YABETOO_SANDBOX_URL = 'https://pay.sandbox.yabetoopay.com/v1';
 const YABETOO_ENDPOINTS = {
   paymentIntent: `${YABETOO_BASE_URL}/payment-intents`,
   withdrawal: `${YABETOO_BASE_URL}/withdrawals`,
-  // En sandbox
   paymentIntentSandbox: `${YABETOO_SANDBOX_URL}/payment-intents`,
   withdrawalSandbox: `${YABETOO_SANDBOX_URL}/withdrawals`
 };
