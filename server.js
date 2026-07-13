@@ -7,7 +7,8 @@ const FormData = require('form-data');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+// ✅ CORS large pour permettre toutes les origines
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 
 // ============================================================
@@ -59,6 +60,11 @@ app.get('/', (req, res) => {
 });
 
 app.get('/ping', (req, res) => res.send('pong'));
+
+// ✅ Route de test /api
+app.get('/api', (req, res) => {
+  res.json({ success: true, message: 'API OK' });
+});
 
 // ============================================================
 // CATÉGORIES
@@ -229,6 +235,16 @@ app.put('/api/users/:userId', async (req, res) => {
   }
 });
 
+app.post('/api/users/online', async (req, res) => {
+  try {
+    const { userId, online } = req.body;
+    await db.collection('users').doc(userId).update({ online: online || false });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ============================================================
 // WALLET
 // ============================================================
@@ -242,9 +258,6 @@ app.get('/api/wallet/:userId', async (req, res) => {
   }
 });
 
-// ============================================================
-// WALLET - DÉPÔT (SIMULATION)
-// ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
   console.log('Body:', req.body);
@@ -293,9 +306,6 @@ app.post('/api/wallet/deposit', async (req, res) => {
   }
 });
 
-// ============================================================
-// ADMIN - CRÉDIT MANUEL
-// ============================================================
 app.post('/api/wallet/admin-credit', async (req, res) => {
   console.log('📩 Crédit manuel admin reçu !');
   console.log('Body:', req.body);
@@ -337,9 +347,6 @@ app.post('/api/wallet/admin-credit', async (req, res) => {
   }
 });
 
-// ============================================================
-// WALLET - RETRAIT (SIMULATION)
-// ============================================================
 app.post('/api/wallet/withdraw', async (req, res) => {
   try {
     const { userId, amount, phone } = req.body;
