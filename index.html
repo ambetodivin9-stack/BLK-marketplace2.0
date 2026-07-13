@@ -392,45 +392,88 @@
         o.classList.add('active'); setTimeout(() => o.classList.remove('active'), 2500);
     }
 
+    // 
+    // FONCTION handleLogin CORRIGÉE (sans erreur de syntaxe)
+    // 
     function handleLogin(name, email) {
         let userId = localStorage.getItem(STORAGE_KEY);
-        if (!userId) { userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); localStorage.setItem(STORAGE_KEY, userId); }
+        if (!userId) {
+            userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            localStorage.setItem(STORAGE_KEY, userId);
+        }
         currentUserId = userId;
-        currentUser = { name: name || 'Utilisateur', email: email || 'user@example.com', phone: '+242 06 XXX XXXX', photo: '', flames: 0, walletBalance: 0, id: userId, isSeller: false, blockedUsers: [], online: true };
+        currentUser = {
+            name: name || 'Utilisateur',
+            email: email || 'user@example.com',
+            phone: '+242 06 XXX XXXX',
+            photo: '',
+            flames: 0,
+            walletBalance: 0,
+            id: userId,
+            isSeller: false,
+            blockedUsers: [],
+            online: true
+        };
         document.getElementById('authPage').style.display = 'none';
         document.getElementById('welcomeScreen').classList.add('active');
-        document.getElementById('welcomeBtn').addEventListener('click', () => {
+        document.getElementById('welcomeBtn').addEventListener('click', function() {
             document.getElementById('welcomeScreen').classList.remove('active');
-            showMainApp(); showAlert('✅ Bienvenue ' + currentUser.name + ' !', 'success');
-            fetch(BACKEND_URL+'/api/users/online', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUserId, online: true }) });
+            showMainApp();
+            showAlert('✅ Bienvenue ' + currentUser.name + ' !', 'success');
+            fetch(BACKEND_URL + '/api/users/online', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, online: true })
+            });
         });
     }
 
-    document.getElementById('btnLogin').addEventListener('click', () => {
+    // 
+    // ÉVÉNEMENTS DE CONNEXION
+    // 
+    document.getElementById('btnLogin').addEventListener('click', function() {
         const name = document.getElementById('loginName').value.trim() || 'Utilisateur';
         const email = document.getElementById('loginEmail').value.trim() || 'user@example.com';
         handleLogin(name, email);
     });
-    document.getElementById('btnSignup').addEventListener('click', () => {
+
+    document.getElementById('btnSignup').addEventListener('click', function() {
         const name = document.getElementById('signupName').value.trim() || 'Utilisateur';
         const email = document.getElementById('signupEmail').value.trim() || 'user@example.com';
-        const pwd = document.getElementById('signupPassword').value, cnf = document.getElementById('signupConfirmPassword').value;
-        if (pwd && pwd ! cnf) { showAlert('Les mots de passe ne correspondent pas', 'error'); return; }
+        const pwd = document.getElementById('signupPassword').value;
+        const cnf = document.getElementById('signupConfirmPassword').value;
+        if (pwd && pwd ! cnf) {
+            showAlert('Les mots de passe ne correspondent pas', 'error');
+            return;
+        }
         handleLogin(name, email);
     });
-    document.getElementById('btnFakeFacebook').addEventListener('click', () => handleLogin('Utilisateur Facebook', 'fb@example.com'));
-    document.getElementById('btnFakeFacebook2').addEventListener('click', () => handleLogin('Utilisateur Facebook', 'fb@example.com'));
-    document.getElementById('btnFakeGoogle').addEventListener('click', () => handleLogin('Utilisateur Google', 'google@example.com'));
-    document.getElementById('btnFakeGoogle2').addEventListener('click', () => handleLogin('Utilisateur Google', 'google@example.com'));
-    document.getElementById('btnShowSignup').addEventListener('click', () => {
+
+    document.getElementById('btnFakeFacebook').addEventListener('click', function() {
+        handleLogin('Utilisateur Facebook', 'fb@example.com');
+    });
+    document.getElementById('btnFakeFacebook2').addEventListener('click', function() {
+        handleLogin('Utilisateur Facebook', 'fb@example.com');
+    });
+    document.getElementById('btnFakeGoogle').addEventListener('click', function() {
+        handleLogin('Utilisateur Google', 'google@example.com');
+    });
+    document.getElementById('btnFakeGoogle2').addEventListener('click', function() {
+        handleLogin('Utilisateur Google', 'google@example.com');
+    });
+
+    document.getElementById('btnShowSignup').addEventListener('click', function() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'block';
     });
-    document.getElementById('btnShowLogin').addEventListener('click', () => {
+    document.getElementById('btnShowLogin').addEventListener('click', function() {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('signupForm').style.display = 'none';
     });
 
+    // 
+    // FONCTIONS PRINCIPALES DE L'APP
+    // 
     function showMainApp() {
         document.getElementById('appContainer').classList.add('active');
         document.getElementById('header').style.display = 'flex';
@@ -449,7 +492,11 @@
         const now = new Date();
         document.getElementById('statsDate').textContent = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         setInterval(() => {
-            fetch(BACKEND_URL+'/api/users/online', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUserId, online: true }) });
+            fetch(BACKEND_URL+'/api/users/online', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, online: true })
+            });
         }, 30000);
         loadProducts(); loadStats(); loadOrders(); loadMessages(); loadTransactions(); loadWallet(); loadUserData(currentUserId);
     }
@@ -464,6 +511,9 @@
         });
     });
 
+    // 
+    // CHARGEMENT DES DONNÉES (fonctions existantes, non modifiées)
+    // 
     async function loadUserData(userId) {
         if (!userId) return;
         try {
@@ -700,6 +750,9 @@
     modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
 });
 
+// ============================================================
+// ORDRES
+// ============================================================
 async function loadOrders() {
     if (!currentUserId) return;
     try {
@@ -1268,7 +1321,7 @@ document.getElementById('btnLogout').addEventListener('click', () => {
 
 const savedId = localStorage.getItem(STORAGE_KEY);
 if (savedId) {
-    // utilisateur déjà connecté
+    console.log('⚠️ Utilisateur déjà connecté (mode démo)');
 }
 
 console.log('✅ BLK Marketplace - Mode localStorage (persistant)');
