@@ -3,10 +3,6 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const axios = require('axios');
 const FormData = require('form-data');
-const cron = require('node-cron');
-
-// ✅ SDK Yabetoo (si tu veux l'utiliser plus tard)
-// const Yabetoo = require('@yabetool/sdk-js');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -247,7 +243,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - DÉPÔT (SIMULATION - sans Yabetoo pour l'instant)
+// WALLET - DÉPÔT (SIMULATION)
 // ============================================================
 app.post('/api/wallet/deposit', async (req, res) => {
   console.log('📩 Requête de dépôt reçue !');
@@ -298,7 +294,7 @@ app.post('/api/wallet/deposit', async (req, res) => {
 });
 
 // ============================================================
-// ADMIN - CRÉDIT MANUEL (page admin)
+// ADMIN - CRÉDIT MANUEL
 // ============================================================
 app.post('/api/wallet/admin-credit', async (req, res) => {
   console.log('📩 Crédit manuel admin reçu !');
@@ -345,13 +341,6 @@ app.post('/api/wallet/admin-credit', async (req, res) => {
 // WALLET - RETRAIT (SIMULATION)
 // ============================================================
 app.post('/api/wallet/withdraw', async (req, res) => {
-  if (!firebaseReady) {
-    return res.json({ 
-      success: true, 
-      message: '💰 Retrait simulé avec succès !', 
-      newBalance: 0 
-    });
-  }
   try {
     const { userId, amount, phone } = req.body;
     if (!userId || !amount || !phone) {
@@ -391,12 +380,11 @@ app.post('/api/wallet/withdraw', async (req, res) => {
 });
 
 // ============================================================
-// ORDRES
+// ORDRES (simplifiées)
 // ============================================================
 app.post('/api/orders/create', async (req, res) => {
   try {
     const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body;
-
     if (!articleId || !buyerId || !sellerId || !amount) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     }
@@ -404,7 +392,6 @@ app.post('/api/orders/create', async (req, res) => {
     const buyerRef = db.collection('users').doc(buyerId);
     const buyerDoc = await buyerRef.get();
     const buyerBalance = buyerDoc.data()?.walletBalance || 0;
-
     const buyerCommission = Math.round(amount * COMMISSION_BUYER);
     const totalAmount = amount + buyerCommission;
 
@@ -418,9 +405,7 @@ app.post('/api/orders/create', async (req, res) => {
       });
     }
 
-    await buyerRef.update({
-      walletBalance: buyerBalance - totalAmount
-    });
+    await buyerRef.update({ walletBalance: buyerBalance - totalAmount });
 
     const order = {
       articleId,
@@ -428,8 +413,8 @@ app.post('/api/orders/create', async (req, res) => {
       sellerId,
       buyerPhone: buyerPhone || buyerDoc.data()?.phone || '',
       amount: parseInt(amount),
-      buyerCommission: buyerCommission,
-      totalAmount: totalAmount,
+      buyerCommission,
+      totalAmount,
       sellerCommission: Math.round(amount * COMMISSION_SELLER),
       status: 'en attente de confirmation',
       buyerConfirmed: false,
@@ -453,15 +438,14 @@ app.post('/api/orders/create', async (req, res) => {
 
     res.json({
       success: true,
-      orderId: orderId,
-      message: '✅ Commande créée avec succès ! Livre dans les 12h.',
-      totalAmount: totalAmount,
-      buyerCommission: buyerCommission,
+      orderId,
+      message: '✅ Commande créée ! Livre dans les 12h.',
+      totalAmount,
+      buyerCommission,
       sellerCommission: Math.round(amount * COMMISSION_SELLER),
       expiresAt: order.expiresAt
     });
   } catch (error) {
-    console.error('Order Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -469,7 +453,6 @@ app.post('/api/orders/create', async (req, res) => {
 app.post('/api/orders/confirm', async (req, res) => {
   try {
     const { orderId, buyerId, confirmations } = req.body;
-
     if (!orderId || !buyerId || !confirmations) {
       return res.status(400).json({ success: false, message: 'Champs requis' });
     }
@@ -486,25 +469,16 @@ app.post('/api/orders/confirm', async (req, res) => {
 
     const orderRef = db.collection('orders').doc(orderId);
     const orderDoc = await orderRef.get();
-
-    if (!orderDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
+    if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvée' });
 
     const order = orderDoc.data();
-
-    if (order.buyerId !== buyerId) {
-      return res.status(403).json({ success: false, message: 'Non autorisé' });
-    }
-
-    if (order.status !== 'en attente de confirmation') {
-      return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
-    }
+    if (order.buyerId !== buyerId) return res.status(403).json({ success: false, message: 'Non autorisé' });
+    if (order.status !== 'en attente de confirmation') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
 
     const now = new Date();
     const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt);
     if (now > expiresAt) {
-      return res.status(400).json({ success: false, message: '⏰ Délai expiré, remboursement automatique' });
+      return res.status(400).json({ success: false, message: '⏰ Délai expiré' });
     }
 
     const sellerCommission = order.sellerCommission || Math.round(order.amount * COMMISSION_SELLER);
@@ -515,12 +489,9 @@ app.post('/api/orders/confirm', async (req, res) => {
     const sellerRef = db.collection('users').doc(order.sellerId);
     const sellerDoc = await sellerRef.get();
     const sellerBalance = sellerDoc.data()?.walletBalance || 0;
-    await sellerRef.update({
-      walletBalance: sellerBalance + amountToSeller
-    });
+    await sellerRef.update({ walletBalance: sellerBalance + amountToSeller });
 
-    const articleRef = db.collection('articles').doc(order.articleId);
-    await articleRef.update({
+    await db.collection('articles').doc(order.articleId).update({
       status: 'sold',
       soldAt: new Date(),
       soldTo: buyerId,
@@ -534,7 +505,7 @@ app.post('/api/orders/confirm', async (req, res) => {
           amount: adminTotal,
           phone: ADMIN_PHONE,
           reference: `COM-${orderId.slice(0, 8)}-${adminRef}`,
-          callback_url: `https://blk-marketplace2.0-1.onrender.com/api/payment/callback`
+          callback_url: 'https://blk-marketplace2-0.onrender.com/api/payment/callback'
         }, {
           headers: {
             'Authorization': `Bearer ${YABETOO_SECRET}`,
@@ -551,14 +522,14 @@ app.post('/api/orders/confirm', async (req, res) => {
       status: 'livré',
       buyerConfirmed: true,
       buyerConfirmedAt: new Date(),
-      confirmations: confirmations,
+      confirmations,
       sellerReceived: amountToSeller,
       adminCommission: adminTotal
     });
 
     await db.collection('notifications').add({
       userId: order.sellerId,
-      message: `💰 Vente confirmée ! ${amountToSeller} FCFA crédités sur ton wallet.`,
+      message: `💰 Vente confirmée ! ${amountToSeller} FCFA crédités.`,
       type: 'sale_confirmed',
       read: false,
       orderId: orderId,
@@ -567,7 +538,7 @@ app.post('/api/orders/confirm', async (req, res) => {
 
     await db.collection('notifications').add({
       userId: order.buyerId,
-      message: `✅ Commande #${orderId.slice(0, 8)} confirmée avec succès.`,
+      message: `✅ Commande #${orderId.slice(0, 8)} confirmée.`,
       type: 'order_confirmed',
       read: false,
       orderId: orderId,
@@ -582,7 +553,6 @@ app.post('/api/orders/confirm', async (req, res) => {
       sellerBalance: sellerBalance + amountToSeller
     });
   } catch (error) {
-    console.error('Confirm Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -606,15 +576,8 @@ app.get('/api/orders/:userId', async (req, res) => {
       orders.push({
         id: doc.id,
         ...order,
-        article: article ? {
-          title: article.title,
-          image: article.image,
-          price: article.price
-        } : null,
-        seller: seller ? {
-          name: seller.name,
-          photo: seller.photo || ''
-        } : null
+        article: article ? { title: article.title, image: article.image, price: article.price } : null,
+        seller: seller ? { name: seller.name, photo: seller.photo || '' } : null
       });
     }
 
@@ -634,15 +597,8 @@ app.get('/api/orders/:userId', async (req, res) => {
         orders.push({
           id: doc.id,
           ...order,
-          article: article ? {
-            title: article.title,
-            image: article.image,
-            price: article.price
-          } : null,
-          buyer: buyer ? {
-            name: buyer.name,
-            photo: buyer.photo || ''
-          } : null
+          article: article ? { title: article.title, image: article.image, price: article.price } : null,
+          buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null
         });
       }
     }
@@ -655,7 +611,6 @@ app.get('/api/orders/:userId', async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    console.error('Orders Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -667,13 +622,9 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
 
     const orderRef = db.collection('orders').doc(orderId);
     const orderDoc = await orderRef.get();
-
-    if (!orderDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
-    }
+    if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvée' });
 
     const order = orderDoc.data();
-
     if (order.buyerId !== userId && order.sellerId !== userId) {
       return res.status(403).json({ success: false, message: 'Non autorisé' });
     }
@@ -681,39 +632,24 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
     const now = new Date();
     const createdAt = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
     const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
-
     if (hoursSinceCreation > 2) {
-      return res.status(400).json({
-        success: false,
-        message: '⏰ Délai de 2h dépassé. Annulation impossible.'
-      });
+      return res.status(400).json({ success: false, message: '⏰ Délai de 2h dépassé.' });
     }
 
     const buyerRef = db.collection('users').doc(order.buyerId);
     const buyerDoc = await buyerRef.get();
     const buyerBalance = buyerDoc.data()?.walletBalance || 0;
-    await buyerRef.update({
-      walletBalance: buyerBalance + order.totalAmount
-    });
+    await buyerRef.update({ walletBalance: buyerBalance + order.totalAmount });
 
-    const articleRef = db.collection('articles').doc(order.articleId);
-    await articleRef.update({
-      status: 'active'
-    });
-
+    await db.collection('articles').doc(order.articleId).update({ status: 'active' });
     await orderRef.update({
       status: 'annulé',
       cancelledAt: new Date(),
       cancelledBy: userId
     });
 
-    res.json({
-      success: true,
-      message: '✅ Commande annulée et remboursée',
-      refunded: order.totalAmount
-    });
+    res.json({ success: true, message: '✅ Commande annulée et remboursée', refunded: order.totalAmount });
   } catch (error) {
-    console.error('Cancel Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -724,25 +660,16 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
 app.post('/api/flames', async (req, res) => {
   try {
     const { sellerId, buyerId } = req.body;
-
-    if (!sellerId || !buyerId) {
-      return res.status(400).json({ success: false, message: 'sellerId et buyerId requis' });
-    }
+    if (!sellerId || !buyerId) return res.status(400).json({ success: false, message: 'sellerId et buyerId requis' });
 
     const existing = await db.collection('flames')
       .where('sellerId', '==', sellerId)
       .where('buyerId', '==', buyerId)
       .get();
 
-    if (!existing.empty) {
-      return res.status(400).json({ success: false, message: 'Flamme déjà donnée' });
-    }
+    if (!existing.empty) return res.status(400).json({ success: false, message: 'Flamme déjà donnée' });
 
-    await db.collection('flames').add({
-      sellerId,
-      buyerId,
-      createdAt: new Date()
-    });
+    await db.collection('flames').add({ sellerId, buyerId, createdAt: new Date() });
 
     const userRef = db.collection('users').doc(sellerId);
     const userDoc = await userRef.get();
@@ -771,7 +698,6 @@ app.get('/api/flames/:userId', async (req, res) => {
 app.get('/api/stats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-
     const articlesSnapshot = await db.collection('articles')
       .where('sellerId', '==', userId)
       .where('status', '==', 'active')
@@ -782,8 +708,7 @@ app.get('/api/stats/:userId', async (req, res) => {
       .where('status', '==', 'livré')
       .get();
 
-    let totalSales = 0;
-    let totalRevenue = 0;
+    let totalSales = 0, totalRevenue = 0;
     ordersSnapshot.forEach(doc => {
       const order = doc.data();
       totalSales += 1;
@@ -795,8 +720,7 @@ app.get('/api/stats/:userId', async (req, res) => {
       .where('status', '==', 'livré')
       .get();
 
-    let totalPurchases = 0;
-    let totalSpent = 0;
+    let totalPurchases = 0, totalSpent = 0;
     purchasesSnapshot.forEach(doc => {
       const order = doc.data();
       totalPurchases += 1;
@@ -808,9 +732,7 @@ app.get('/api/stats/:userId', async (req, res) => {
       const order = doc.data();
       const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
       const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!history[month]) {
-        history[month] = { ventes: 0, revenu: 0 };
-      }
+      if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
       history[month].ventes += 1;
       history[month].revenu += order.sellerReceived || (order.amount - (order.amount * COMMISSION_SELLER));
     });
@@ -848,9 +770,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
       .get();
 
     const transactions = [];
-    snapshot.forEach(doc => {
-      transactions.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
 
     const ordersSnapshot = await db.collection('orders')
       .where('buyerId', '==', userId)
@@ -914,9 +834,7 @@ app.get('/api/messages/:userId', async (req, res) => {
       .get();
 
     const messages = [];
-    snapshot.forEach(doc => {
-      messages.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
 
     for (const msg of messages) {
       if (msg.receiverId === userId && !msg.read) {
@@ -933,7 +851,6 @@ app.get('/api/messages/:userId', async (req, res) => {
 app.post('/api/messages', async (req, res) => {
   try {
     const { senderId, receiverId, text, senderName, senderPhoto } = req.body;
-
     if (!senderId || !receiverId || !text) {
       return res.status(400).json({ success: false, message: 'Champs requis' });
     }
@@ -979,9 +896,7 @@ app.get('/api/notifications/:userId', async (req, res) => {
       .get();
 
     const notifications = [];
-    snapshot.forEach(doc => {
-      notifications.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(doc => notifications.push({ id: doc.id, ...doc.data() }));
 
     res.json({ success: true, data: notifications });
   } catch (error) {
@@ -1000,7 +915,7 @@ app.post('/api/notifications/read/:id', async (req, res) => {
 });
 
 // ============================================================
-// DÉMARRAGE (avec 0.0.0.0 pour Render)
+// DÉMARRAGE
 // ============================================================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ BLK API running on port ${PORT}`);
