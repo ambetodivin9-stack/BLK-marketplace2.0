@@ -79,6 +79,7 @@
         <input type="text" id="loginName" placeholder="Nom complet" value="Divin Ambeto">
         <input type="email" id="loginEmail" placeholder="Adresse e-mail" value="ambetodivin9@gmail.com">
         <button class="btn btn-primary" id="btnLogin">Se connecter</button>
+        <div id="authError" style="color:red; text-align:center; margin-top:8px; display:none;"></div>
     </div>
 </div>
 
@@ -207,7 +208,7 @@
     // ============================================================
     // CONFIGURATION
     // ============================================================
-    // 🔥 METS ICI LA BONNE URL RENDER (celle que tu vois dans Render)
+    // 🔥 METS ICI LA BONNE URL RENDER
     var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
     var STORAGE_KEY = 'blk_user_id';
     var currentUser = null;
@@ -217,6 +218,9 @@
     var viewedUserId = null;
     var activeConversationId = null;
 
+    // ============================================================
+    // UTILITAIRES
+    // ============================================================
     function showAlert(message, type) {
         var box = document.getElementById('alertBox');
         box.textContent = message;
@@ -236,9 +240,10 @@
     }
 
     // ============================================================
-    // AUTH
+    // AUTH (CORRIGÉE)
     // ============================================================
     function handleLogin(name, email) {
+        console.log('🔑 handleLogin appelé avec :', name, email);
         var userId = localStorage.getItem(STORAGE_KEY);
         if (!userId) {
             userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -263,8 +268,16 @@
     }
 
     document.getElementById('btnLogin').addEventListener('click', function() {
-        var name = document.getElementById('loginName').value.trim() || 'Utilisateur';
-        var email = document.getElementById('loginEmail').value.trim() || 'user@example.com';
+        console.log('🖱️ Clic sur "Se connecter" détecté');
+        var name = document.getElementById('loginName').value.trim();
+        var email = document.getElementById('loginEmail').value.trim();
+        var errorDiv = document.getElementById('authError');
+        if (!name || !email) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Veuillez remplir tous les champs.';
+            return;
+        }
+        errorDiv.style.display = 'none';
         handleLogin(name, email);
     });
 
@@ -1011,7 +1024,7 @@
         });
     }
 
-    console.log('✅ BLK Marketplace - Version complète avec messagerie réelle');
+    console.log('✅ BLK Marketplace - Connexion corrigée');
     console.log('🔗 Backend URL:', BACKEND_URL);
 </script>
 </body>
