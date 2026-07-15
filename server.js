@@ -1,8 +1,6 @@
 const express = require('express'); 
 const cors = require('cors'); 
-const admin = require('firebase-admin'); 
-const axios = require('axios'); 
-const FormData = require('form-data');
+const admin = require('firebase-admin');
 
 const app = express(); 
 const PORT = process.env.PORT || 10000;
@@ -10,6 +8,9 @@ const PORT = process.env.PORT || 10000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' }));
 
+//  
+// FIREBASE 
+//  
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) { 
 console.error('❌ FIREBASE_SERVICE_ACCOUNT manquant'); 
 process.exit(1); 
@@ -18,15 +19,17 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) }); 
 const db = admin.firestore();
 
-console.log('✅ BLK API - 100% RÉEL (simulation paiement)'); 
-console.log('✅ Admin Phone:', process.env.ADMIN_PHONE || '065918166');
+console.log('✅ BLK API - 100% RÉEL (simulation paiement)');
 
-const COMMISSION_BUYER = 0.03; 
-const COMMISSION_SELLER = 0.04;
-
+//  
+// ROUTES 
+//  
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
 
+//  
+// UTILISATEURS 
+//  
 app.post('/api/users/online', async (req, res) => { 
 try { 
 const { userId, online } = req.body; 
@@ -68,7 +71,7 @@ if (name) updateData.name = name;
 if (email) updateData.email = email; 
 if (phone) updateData.phone = phone; 
 if (photo) updateData.photo = photo; 
-if (isSeller ! undefined) updateData.isSeller = isSeller; // ✅ corrigé 
+if (isSeller ! undefined) updateData.isSeller = isSeller; 
 await db.collection('users').doc(userId).update(updateData); 
 res.json({ success: true }); 
 } catch (error) { 
@@ -76,6 +79,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ARTICLES 
+//  
 app.get('/api/articles', async (req, res) => { 
 try { 
 const snapshot = await db.collection('articles') 
@@ -142,29 +148,78 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-app.post('/api/upload', async (req, res) => { 
+//  
+// STATISTIQUES (pour Mon Magasin) 
+//  
+app.get('/api/stats/:userId', async (req, res) => { 
 try { 
-const { base64 } = req.body; 
-if (!base64) return res.status(400).json({ success: false, message: 'Aucune image' }); 
-const API_KEY = process.env.IMG_BB_KEY; 
-if (!API_KEY) return res.status(500).json({ success: false, message: 'Clé ImgBB manquante' }); 
-const base64Data = base64.includes('base64,') ? base64.split('base64,')[1] : base64; 
-const formData = new FormData(); 
-formData.append('key', API_KEY); 
-formData.append('image', base64Data); 
-const response = await axios.post('https://api.imgbb.com/1/upload', formData, { 
-headers: formData.getHeaders() 
-}); 
-if (response.data.success) { 
-res.json({ success: true, url: response.data.data.url }); 
-} else { 
-res.status(400).json({ success: false, message: 'Erreur ImgBB' }); 
-} 
-} catch (error) { 
-res.status(500).json({ success: false, message: 'Erreur upload' }); 
-} 
+const { userId } = req.params; 
+const articlesSnapshot = await db.collection('articles') 
+.where('sellerId', '', userId) 
+.where('status', '', 'active') 
+.get();
+
+    const ordersSnapshot = await db.collection('orders')
+        .where('sellerId', '==', userId)
+        .where('status', '==', 'livré')
+        .get();
+
+    let totalSales = 0;
+    let totalRevenue = 0;
+    ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        totalSales += 1;
+        totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
+    });
+
+    const purchasesSnapshot = await db.collection('orders')
+        .where('buyerId', '==', userId)
+        .where('status', '==', 'livré')
+        .get();
+
+    let totalPurchases = 0;
+    let totalSpent = 0;
+    purchasesSnapshot.forEach(doc => {
+        const order = doc.data();
+        totalPurchases += 1;
+        totalSpent += order.totalAmount || order.amount;
+    });
+
+    const history = {};
+    ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
+        history[month].ventes += 1;
+        history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
+    });
+
+    const historyArray = Object.keys(history).sort().map(month => ({
+        month,
+        ventes: history[month].ventes,
+        revenu: Math.round(history[month].revenu)
+    }));
+
+    res.json({
+        success: true,
+        data: {
+            totalArticles: articlesSnapshot.size,
+            totalSales,
+            totalRevenue: Math.round(totalRevenue),
+            totalPurchases,
+            totalSpent,
+            history: historyArray
+        }
+    });
+} catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+}
 });
 
+//  
+// WALLET 
+//  
 app.get('/api/wallet/:userId', async (req, res) => { 
 try { 
 const doc = await db.collection('users').doc(req.params.userId).get(); 
@@ -239,6 +294,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ORDRES (simplifiées) 
+//  
 app.post('/api/orders/create', async (req, res) => { 
 res.json({ success: true, orderId: 'mock-' + Date.now() }); 
 });
@@ -251,15 +309,20 @@ app.get('/api/orders/:userId', async (req, res) => {
 res.json([]); 
 });
 
+//  
+// FLAMMES, TRANSACTIONS, MESSAGES (simplifiés) 
+//  
 app.post('/api/flames', (req, res) => res.json({ success: true })); 
 app.get('/api/flames/:userId', (req, res) => res.json({ flames: 0 })); 
-app.get('/api/stats/:userId', (req, res) => res.json({ success: true, data: {} })); 
 app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] })); 
 app.get('/api/messages/:userId', (req, res) => res.json({ success: true, data: [] })); 
 app.post('/api/messages', (req, res) => res.json({ success: true, id: 'mock-' + Date.now() })); 
 app.get('/api/notifications/:userId', (req, res) => res.json({ success: true, data: [] })); 
 app.post('/api/notifications/read/:id', (req, res) => res.json({ success: true }));
 
+//  
+// DÉMARRAGE 
+//  
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('✅ BLK API running on port', PORT); 
 });
