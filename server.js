@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 10000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' }));
 
+//  
+// FIREBASE 
+//  
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) { 
 console.error('❌ FIREBASE_SERVICE_ACCOUNT manquant'); 
 process.exit(1); 
@@ -20,9 +23,15 @@ const db = admin.firestore();
 
 console.log('✅ BLK API - 100% RÉEL');
 
+//  
+// ROUTES DE BASE 
+//  
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
 
+//  
+// UTILISATEURS 
+//  
 app.post('/api/users/online', async (req, res) => { 
 try { 
 const { userId, online } = req.body; 
@@ -38,16 +47,68 @@ app.get('/api/users/:userId', async (req, res) => {
 try { 
 const doc = await db.collection('users').doc(req.params.userId).get(); 
 if (!doc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' }); 
-res.json({ success: true, data: doc.data() }); 
+const data = doc.data(); 
+// Ajouter les compteurs de followers/following 
+const followersSnap = await db.collection('follows') 
+.where('followingId', '', req.params.userId) 
+.get(); 
+const followingSnap = await db.collection('follows') 
+.where('followerId', '', req.params.userId) 
+.get(); 
+res.json({ 
+success: true, 
+data: { 
+...data, 
+followersCount: followersSnap.size, 
+followingCount: followingSnap.size 
+} 
+}); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
 
+app.put('/api/users/:userId', async (req, res) => { 
+try { 
+const { userId } = req.params; 
+const { name, email, phone, photo, isSeller } = req.body; 
+const updateData = {}; 
+if (name) updateData.name = name; 
+if (email) updateData.email = email; 
+if (phone) updateData.phone = phone; 
+if (photo) updateData.photo = photo; 
+if (isSeller ! undefined) updateData.isSeller = isSeller; 
+await db.collection('users').doc(userId).update(updateData); 
+res.json({ success: true }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+//  
+// ARTICLES (collection "products") 
+//  
 app.get('/api/articles', async (req, res) => { 
 try { 
 const snapshot = await db.collection('products') 
 .where('status', '', 'active') 
+.orderBy('createdAt', 'desc') 
+.get(); 
+const articles = []; 
+snapshot.forEach(doc => { 
+articles.push({ id: doc.id, ...doc.data() }); 
+}); 
+res.json({ success: true, data: articles }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+app.get('/api/articles/seller/:sellerId', async (req, res) => { 
+try { 
+const { sellerId } = req.params; 
+const snapshot = await db.collection('products') 
+.where('sellerId', '', sellerId) 
 .orderBy('createdAt', 'desc') 
 .get(); 
 const articles = []; 
@@ -60,7 +121,7 @@ res.status(500).json({ success: false, message: error.message });
 
 app.post('/api/articles', async (req, res) => { 
 try { 
-const { title, description, price, category, image, sellerId, sellerName } = req.body; 
+const { title, description, price, category, image, sellerId, sellerName, sellerPhoto } = req.body; 
 if (!title || !description || !price || !category || !sellerId) { 
 return res.status(400).json({ success: false, message: 'Champs requis' }); 
 } 
@@ -72,6 +133,7 @@ category,
 image: image || '', 
 sellerId, 
 sellerName: sellerName || 'Anonyme', 
+sellerPhoto: sellerPhoto || '', 
 status: 'active', 
 views: 0, 
 createdAt: new Date() 
@@ -85,18 +147,22 @@ res.status(500).json({ success: false, message: error.message });
 
 app.delete('/api/articles/:id', async (req, res) => { 
 try { 
-const doc = await db.collection('products').doc(req.params.id).get(); 
+const { id } = req.params; 
+const doc = await db.collection('products').doc(id).get(); 
 if (!doc.exists) return res.status(404).json({ success: false, message: 'Article non trouvé' }); 
 if (doc.data().status = 'sold') { 
 return res.status(400).json({ success: false, message: 'Cet article a déjà été vendu' }); 
 } 
-await db.collection('products').doc(req.params.id).update({ status: 'inactive' }); 
+await db.collection('products').doc(id).update({ status: 'inactive' }); 
 res.json({ success: true }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
 
+//  
+// UPLOAD IMAGE (ImgBB) 
+//  
 app.post('/api/upload', async (req, res) => { 
 try { 
 const { base64 } = req.body; 
@@ -119,6 +185,78 @@ res.status(500).json({ success: false, message: 'Erreur upload' });
 } 
 });
 
+//  
+// STATISTIQUES 
+//  
+app.get('/api/stats/:userId', async (req, res) => { 
+try { 
+const { userId } = req.params; 
+const articlesSnapshot = await db.collection('products') 
+.where('sellerId', '', userId) 
+.where('status', '', 'active') 
+.get();
+
+    const ordersSnapshot = await db.collection('orders')
+        .where('sellerId', '==', userId)
+        .where('status', '==', 'livré')
+        .get();
+
+    let totalSales = 0;
+    let totalRevenue = 0;
+    ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        totalSales += 1;
+        totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
+    });
+
+    const purchasesSnapshot = await db.collection('orders')
+        .where('buyerId', '==', userId)
+        .where('status', '==', 'livré')
+        .get();
+
+    let totalPurchases = 0;
+    let totalSpent = 0;
+    purchasesSnapshot.forEach(doc => {
+        const order = doc.data();
+        totalPurchases += 1;
+        totalSpent += order.totalAmount || order.amount;
+    });
+
+    const history = {};
+    ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
+        history[month].ventes += 1;
+        history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
+    });
+
+    const historyArray = Object.keys(history).sort().map(month => ({
+        month,
+        ventes: history[month].ventes,
+        revenu: Math.round(history[month].revenu)
+    }));
+
+    res.json({
+        success: true,
+        data: {
+            totalArticles: articlesSnapshot.size,
+            totalSales,
+            totalRevenue: Math.round(totalRevenue),
+            totalPurchases,
+            totalSpent,
+            history: historyArray
+        }
+    });
+} catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+}
+});
+
+//  
+// WALLET 
+//  
 app.get('/api/wallet/:userId', async (req, res) => { 
 try { 
 const doc = await db.collection('users').doc(req.params.userId).get(); 
@@ -164,6 +302,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ORDRES 
+//  
 app.post('/api/orders/create', async (req, res) => { 
 try { 
 const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
@@ -203,14 +344,184 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-app.get('/api/orders/:userId', (req, res) => res.json([])); 
+app.post('/api/orders/confirm-by-qr', async (req, res) => { 
+try { 
+const { orderId, buyerId } = req.body; 
+if (!orderId || !buyerId) { 
+return res.status(400).json({ success: false, message: 'orderId et buyerId requis' }); 
+} 
+const orderRef = db.collection('orders').doc(orderId); 
+const orderDoc = await orderRef.get(); 
+if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvée' }); 
+const order = orderDoc.data(); 
+if (order.buyerId ! buyerId) return res.status(403).json({ success: false, message: 'Non autorisé' }); 
+if (order.status ! 'en attente de confirmation') return res.status(400).json({ success: false, message: 'Commande déjà traitée' }); 
+const now = new Date(); 
+const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt); 
+if (now > expiresAt) return res.status(400).json({ success: false, message: '⏰ Délai expiré' });
+
+    const sellerCommission = order.sellerCommission || Math.round(order.amount * 0.04);
+    const buyerCommission = order.buyerCommission || Math.round(order.amount * 0.03);
+    const amountToSeller = order.amount - sellerCommission;
+    const adminTotal = buyerCommission + sellerCommission;
+
+    const sellerRef = db.collection('users').doc(order.sellerId);
+    const sellerDoc = await sellerRef.get();
+    const sellerBalance = sellerDoc.data()?.walletBalance || 0;
+    await sellerRef.update({ walletBalance: sellerBalance + amountToSeller });
+
+    await orderRef.update({
+        status: 'livré',
+        buyerConfirmed: true,
+        buyerConfirmedAt: new Date(),
+        sellerReceived: amountToSeller,
+        adminCommission: adminTotal
+    });
+
+    res.json({ success: true, message: '✅ Commande confirmée par QR !', sellerReceived: amountToSeller });
+} catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+}
+});
+
+app.get('/api/orders/:userId', async (req, res) => { 
+try { 
+const { userId } = req.params; 
+const orders = []; 
+const buyerSnapshot = await db.collection('orders') 
+.where('buyerId', '', userId) 
+.orderBy('createdAt', 'desc') 
+.get(); 
+for (const doc of buyerSnapshot.docs) { 
+const order = doc.data(); 
+const productDoc = await db.collection('products').doc(order.articleId).get(); 
+const product = productDoc.data(); 
+orders.push({ id: doc.id, ...order, article: product ? { title: product.title, image: product.image, price: product.price } : null }); 
+} 
+const sellerSnapshot = await db.collection('orders') 
+.where('sellerId', '', userId) 
+.orderBy('createdAt', 'desc') 
+.get(); 
+for (const doc of sellerSnapshot.docs) { 
+const order = doc.data(); 
+if (!orders.find(o => o.id = doc.id)) { 
+const productDoc = await db.collection('products').doc(order.articleId).get(); 
+const product = productDoc.data(); 
+orders.push({ id: doc.id, ...order, article: product ? { title: product.title, image: product.image, price: product.price } : null }); 
+} 
+} 
+orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); 
+res.json(orders); 
+} catch (error) { 
+res.status(500).json([]); 
+} 
+});
+
+//  
+// ABONNEMENTS (FOLLOW) 
+//  
+app.post('/api/follow', async (req, res) => { 
+try { 
+const { followerId, followingId } = req.body; 
+if (!followerId || !followingId) return res.status(400).json({ success: false, message: 'IDs requis' }); 
+if (followerId = followingId) return res.status(400).json({ success: false, message: 'Vous ne pouvez pas vous abonner à vous-même' }); 
+const existing = await db.collection('follows') 
+.where('followerId', '', followerId) 
+.where('followingId', '', followingId) 
+.get(); 
+if (!existing.empty) return res.status(400).json({ success: false, message: 'Déjà abonné' }); 
+await db.collection('follows').add({ followerId, followingId, createdAt: new Date() }); 
+res.json({ success: true, message: 'Abonné !' }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+app.delete('/api/follow', async (req, res) => { 
+try { 
+const { followerId, followingId } = req.body; 
+if (!followerId || !followingId) return res.status(400).json({ success: false, message: 'IDs requis' }); 
+const snapshot = await db.collection('follows') 
+.where('followerId', '', followerId) 
+.where('followingId', '', followingId) 
+.get(); 
+if (snapshot.empty) return res.status(404).json({ success: false, message: 'Abonnement non trouvé' }); 
+snapshot.forEach(doc => doc.ref.delete()); 
+res.json({ success: true, message: 'Désabonné !' }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+app.get('/api/followers/:userId', async (req, res) => { 
+try { 
+const snapshot = await db.collection('follows') 
+.where('followingId', '', req.params.userId) 
+.get(); 
+const followers = []; 
+snapshot.forEach(doc => followers.push({ id: doc.id, ...doc.data() })); 
+res.json({ success: true, data: followers }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+app.get('/api/following/:userId', async (req, res) => { 
+try { 
+const snapshot = await db.collection('follows') 
+.where('followerId', '', req.params.userId) 
+.get(); 
+const following = []; 
+snapshot.forEach(doc => following.push({ id: doc.id, ...doc.data() })); 
+res.json({ success: true, data: following }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+app.get('/api/feed/:userId', async (req, res) => { 
+try { 
+const userId = req.params.userId; 
+// Récupérer les personnes suivies 
+const followSnapshot = await db.collection('follows') 
+.where('followerId', '', userId) 
+.get(); 
+const followingIds = []; 
+followSnapshot.forEach(doc => followingIds.push(doc.data().followingId)); 
+if (followingIds.length = 0) { 
+return res.json({ success: true, data: [] }); 
+} 
+// Récupérer les articles des personnes suivies 
+const articles = []; 
+for (const id of followingIds) { 
+const snapshot = await db.collection('products') 
+.where('sellerId', '', id) 
+.where('status', '', 'active') 
+.orderBy('createdAt', 'desc') 
+.limit(10) 
+.get(); 
+snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
+} 
+// Trier par date décroissante 
+articles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); 
+res.json({ success: true, data: articles }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+//  
+// MESSAGES, FLAMMES, TRANSACTIONS (simplifiés) 
+//  
 app.get('/api/messages/:userId', (req, res) => res.json({ success: true, data: [] })); 
 app.post('/api/messages', (req, res) => res.json({ success: true, id: 'mock-' + Date.now() })); 
 app.post('/api/flames', (req, res) => res.json({ success: true })); 
 app.get('/api/flames/:userId', (req, res) => res.json({ flames: 0 })); 
-app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] })); 
-app.get('/api/stats/:userId', (req, res) => res.json({ success: true, data: {} }));
+app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] }));
 
+//  
+// DÉMARRAGE 
+//  
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('✅ BLK API running on port', PORT); 
 });
