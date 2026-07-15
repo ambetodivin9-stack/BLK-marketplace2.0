@@ -82,6 +82,14 @@
     .admin-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; }
     .admin-card .btn { margin-top: 8px; }
 
+    /* Statistiques */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: rgba(255,255,255,0.8); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.4); }
+    .stat-card .number { font-size: 28px; font-weight: 800; color: #E74C3C; }
+    .stat-card .label { font-size: 12px; color: #999; }
+    .chart-container { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 8px 0; }
+    .chart-bar { flex: 1; background: #E74C3C; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+
     @media (max-width: 480px) { .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
 </style>
 </head>
@@ -134,6 +142,21 @@
     <div class="page" id="pageShop">
         <h2 style="color:#E74C3C; margin-bottom:16px;">Mon Magasin</h2>
         <button class="btn btn-primary" id="btnPublish">📤 Publier un article</button>
+
+        <div id="statsContainer" style="margin-top:16px;">
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="number" id="statSales">0</div><div class="label">Ventes</div></div>
+                <div class="stat-card"><div class="number" id="statRevenue">0</div><div class="label">Revenus (FCFA)</div></div>
+                <div class="stat-card"><div class="number" id="statArticles">0</div><div class="label">Articles</div></div>
+                <div class="stat-card"><div class="number" id="statPurchases">0</div><div class="label">Achats</div></div>
+            </div>
+            <div class="glass">
+                <h4 style="margin-bottom:8px;">📈 Évolution des ventes</h4>
+                <div id="chartContainer" class="chart-container"></div>
+                <div id="statsEmpty" class="empty" style="display:none;">Aucune donnée</div>
+            </div>
+        </div>
+
         <div id="shopArticles" style="margin-top:12px;"></div>
     </div>
 
@@ -197,7 +220,7 @@
     </div>
 </div>
 
-<!-- TABS (en bas) – cachés par défaut -->
+<!-- TABS (en bas) -->
 <div class="tabs" id="tabs">
     <button class="tab-btn active" data-page="pageHome">Accueil</button>
     <button class="tab-btn" data-page="pageShop">Mon Magasin</button>
@@ -292,7 +315,7 @@
     // ============================================================
     function showMainApp() {
         document.getElementById('appContainer').classList.add('active');
-        document.getElementById('tabs').classList.add('show'); // ✅ afficher les onglets
+        document.getElementById('tabs').classList.add('show');
         document.getElementById('profileName').textContent = currentUser.name;
         document.getElementById('profileEmail').textContent = currentUser.email;
         document.getElementById('profilePhone').textContent = currentUser.phone;
@@ -304,6 +327,7 @@
         loadMessages();
         loadTransactions();
         loadShopArticles();
+        loadStats();
     }
 
     // ============================================================
@@ -317,9 +341,45 @@
             document.getElementById(this.dataset.page).classList.add('active');
             if (this.dataset.page === 'pageOrders') loadOrders();
             if (this.dataset.page === 'pageMessages') loadMessages();
-            if (this.dataset.page === 'pageShop') loadShopArticles();
+            if (this.dataset.page === 'pageShop') { loadShopArticles(); loadStats(); }
         });
     });
+
+    // ============================================================
+    // STATISTIQUES
+    // ============================================================
+    function loadStats() {
+        if (!currentUserId) return;
+        fetch(BACKEND_URL + '/api/stats/' + currentUserId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var stats = data.data;
+                    document.getElementById('statSales').textContent = stats.totalSales || 0;
+                    document.getElementById('statRevenue').textContent = stats.totalRevenue || 0;
+                    document.getElementById('statArticles').textContent = stats.totalArticles || 0;
+                    document.getElementById('statPurchases').textContent = stats.totalPurchases || 0;
+
+                    var container = document.getElementById('chartContainer');
+                    var empty = document.getElementById('statsEmpty');
+                    container.innerHTML = '';
+                    if (stats.history && stats.history.length > 0) {
+                        empty.style.display = 'none';
+                        var max = Math.max(...stats.history.map(function(h) { return h.revenu; }), 1);
+                        stats.history.slice(-6).forEach(function(h) {
+                            var bar = document.createElement('div');
+                            bar.className = 'chart-bar';
+                            bar.style.height = Math.max((h.revenu / max) * 100, 5) + 'px';
+                            bar.title = h.month + ': ' + h.revenu + ' FCFA (' + h.ventes + ' ventes)';
+                            container.appendChild(bar);
+                        });
+                    } else {
+                        empty.style.display = 'block';
+                    }
+                }
+            })
+            .catch(function(e) { console.error(e); });
+    }
 
     // ============================================================
     // PRODUCTS
@@ -637,6 +697,7 @@
                     showAlert('Article supprimé', 'success');
                     loadShopArticles();
                     loadProducts();
+                    loadStats();
                 } else {
                     showAlert('❌ Erreur', 'error');
                 }
@@ -709,6 +770,7 @@
                 showAlert('✅ Article publié !', 'success');
                 loadShopArticles();
                 loadProducts();
+                loadStats();
                 document.querySelector('.modal').remove();
             } else {
                 showAlert('❌ ' + data.message, 'error');
