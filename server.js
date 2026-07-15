@@ -22,17 +22,17 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 //  
-// CONFIG 
+// CONFIGURATION 
 //  
 console.log('✅ BLK API - 100% RÉEL (simulation paiement)'); 
 console.log('✅ Admin Phone:', process.env.ADMIN_PHONE || '065918166');
 
-const COMMISSION_BUYER = 0.03; 
-const COMMISSION_SELLER = 0.04; 
+const COMMISSION_BUYER = 0.03;   // 3% 
+const COMMISSION_SELLER = 0.04; // 4% 
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 
 //  
-// ROUTES 
+// ROUTES PRINCIPALES 
 //  
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
@@ -197,7 +197,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// DÉPÔT (SIMULATION - SANS YABETOO) 
+// DÉPÔT (SIMULATION) 
 //  
 app.post('/api/wallet/deposit', async (req, res) => { 
 console.log('📩 Dépôt reçu:', req.body); 
@@ -331,7 +331,7 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// ✅ NOUVEAU : Confirmation par QR Code 
+// ✅ Confirmation par QR Code (le vendeur reçoit le montant moins les commissions) 
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 console.log('📩 Confirmation QR reçue:', req.body); 
 try { 
@@ -398,7 +398,7 @@ read: false,
 orderId: orderId, 
 createdAt: new Date() 
 }); 
-// Simulation d'envoi de commission à l'admin 
+// Simulation d'envoi de commission à l'admin (à remplacer par Yabetoo/PawaPay plus tard) 
 console.log(💰 Commission admin ${adminTotal} FCFA (simulée)); 
 res.json({ 
 success: true, 
@@ -466,7 +466,7 @@ res.status(500).json([]);
 });
 
 //  
-// FLAMMES, STATS, TRANSACTIONS, MESSAGES, NOTIFICATIONS 
+// FLAMMES 
 //  
 app.post('/api/flames', async (req, res) => { 
 try { 
@@ -501,6 +501,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// STATISTIQUES 
+//  
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -557,6 +560,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// TRANSACTIONS 
+//  
 app.get('/api/transactions/:userId', async (req, res) => { 
 try { 
 const snapshot = await db.collection('transactions') 
@@ -572,6 +578,9 @@ res.status(500).json({ success: false, data: [] });
 } 
 });
 
+//  
+// MESSAGES 
+//  
 app.get('/api/messages/:userId', async (req, res) => { 
 try { 
 const snapshot = await db.collection('messages') 
@@ -618,6 +627,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// NOTIFICATIONS 
+//  
 app.get('/api/notifications/:userId', async (req, res) => { 
 try { 
 const snapshot = await db.collection('notifications') 
