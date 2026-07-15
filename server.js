@@ -68,7 +68,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ✅ ROUTE PUT CORRIGEE - SANS AUCUN '!' DANS LA CONDITION 
+// ✅ ROUTE PUT CORRIGEE (SANS AUCUN '!') 
 //  
 app.put('/api/users/:userId', async (req, res) => { 
 try { 
@@ -79,8 +79,8 @@ if (name) updateData.name = name;
 if (email) updateData.email = email; 
 if (phone) updateData.phone = phone; 
 if (photo) updateData.photo = photo; 
-// ✅ CORRECTION : utilisation de hasOwnProperty (pas de '!') 
-if (req.body.hasOwnProperty('isSeller')) { 
+// ✅ UTILISATION DE 'in' A LA PLACE DE '!=' OU '!' 
+if ('isSeller' in req.body) { 
 updateData.isSeller = req.body.isSeller; 
 } 
 await db.collection('users').doc(userId).update(updateData); 
@@ -591,7 +591,7 @@ app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, dat
 
 //  
 // DEMARRAGE 
-//  
+// == 
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('BLK API running on port ' + PORT); 
 });
