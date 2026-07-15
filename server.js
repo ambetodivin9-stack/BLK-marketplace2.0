@@ -1,6 +1,8 @@
 const express = require('express'); 
 const cors = require('cors'); 
-const admin = require('firebase-admin');
+const admin = require('firebase-admin'); 
+const axios = require('axios'); 
+const FormData = require('form-data');
 
 const app = express(); 
 const PORT = process.env.PORT || 10000;
@@ -19,7 +21,14 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) }); 
 const db = admin.firestore();
 
-console.log('✅ BLK API - 100% RÉEL (simulation paiement)');
+//  
+// CONFIG 
+//  
+console.log('✅ BLK API - 100% RÉEL (simulation paiement)'); 
+console.log('✅ Admin Phone:', process.env.ADMIN_PHONE || '065918166');
+
+const COMMISSION_BUYER = 0.03; 
+const COMMISSION_SELLER = 0.04;
 
 //  
 // ROUTES 
@@ -89,9 +98,13 @@ const snapshot = await db.collection('articles')
 .orderBy('createdAt', 'desc') 
 .get(); 
 const articles = []; 
-snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
+snapshot.forEach(doc => { 
+articles.push({ id: doc.id, ...doc.data() }); 
+}); 
+console.log('📦 Articles actifs:', articles.length); 
 res.json({ success: true, data: articles }); 
 } catch (error) { 
+console.error('❌ Erreur récupération articles:', error.message); 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
@@ -101,11 +114,12 @@ try {
 const { sellerId } = req.params; 
 const snapshot = await db.collection('articles') 
 .where('sellerId', '', sellerId) 
-.where('status', '', 'active') 
 .orderBy('createdAt', 'desc') 
 .get(); 
 const articles = []; 
-snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
+snapshot.forEach(doc => { 
+articles.push({ id: doc.id, ...doc.data() }); 
+}); 
 res.json({ success: true, data: articles }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
@@ -132,8 +146,10 @@ views: 0,
 createdAt: new Date() 
 }; 
 const docRef = await db.collection('articles').add(article); 
+console.log('✅ Article publié:', article.title); 
 res.json({ success: true, id: docRef.id }); 
 } catch (error) { 
+console.error('❌ Erreur publication:', error.message); 
 res.status(500).json({ success: false, message: error.message }); 
 } 
 });
@@ -141,6 +157,12 @@ res.status(500).json({ success: false, message: error.message });
 app.delete('/api/articles/:id', async (req, res) => { 
 try { 
 const { id } = req.params; 
+const doc = await db.collection('articles').doc(id).get(); 
+if (!doc.exists) return res.status(404).json({ success: false, message: 'Article non trouvé' }); 
+const data = doc.data(); 
+if (data.status = 'sold') { 
+return res.status(400).json({ success: false, message: 'Cet article a déjà été vendu' }); 
+} 
 await db.collection('articles').doc(id).update({ status: 'inactive' }); 
 res.json({ success: true }); 
 } catch (error) { 
@@ -149,7 +171,34 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// STATISTIQUES (pour Mon Magasin) 
+// UPLOAD IMAGE (ImgBB) 
+//  
+app.post('/api/upload', async (req, res) => { 
+try { 
+const { base64 } = req.body; 
+if (!base64) return res.status(400).json({ success: false, message: 'Aucune image' }); 
+const API_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580'; 
+const base64Data = base64.includes('base64,') ? base64.split('base64,')[1] : base64; 
+const formData = new FormData(); 
+formData.append('key', API_KEY); 
+formData.append('image', base64Data); 
+const response = await axios.post('https://api.imgbb.com/1/upload', formData, { 
+headers: formData.getHeaders() 
+}); 
+if (response.data.success) { 
+res.json({ success: true, url: response.data.data.url }); 
+} else { 
+console.error('❌ Erreur ImgBB:', response.data); 
+res.status(400).json({ success: false, message: 'Erreur ImgBB' }); 
+} 
+} catch (error) { 
+console.error('❌ Erreur upload:', error.message); 
+res.status(500).json({ success: false, message: 'Erreur upload' }); 
+} 
+});
+
+//  
+// STATISTIQUES 
 //  
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
@@ -298,15 +347,195 @@ res.status(500).json({ success: false, message: error.message });
 // ORDRES (simplifiées) 
 //  
 app.post('/api/orders/create', async (req, res) => { 
-res.json({ success: true, orderId: 'mock-' + Date.now() }); 
+console.log('📦 Commande reçue:', req.body); 
+try { 
+const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
+if (!articleId || !buyerId || !sellerId || !amount) { 
+return res.status(400).json({ success: false, message: 'Champs requis' }); 
+} 
+// Vérifier le solde de l'acheteur 
+const buyerDoc = await db.collection('users').doc(buyerId).get(); 
+const buyerBalance = buyerDoc.data()?.walletBalance || 0; 
+const buyerCommission = Math.round(amount * COMMISSION_BUYER); 
+const totalAmount = amount + buyerCommission; 
+if (buyerBalance < totalAmount) { 
+return res.status(400).json({ 
+success: false, 
+message: '❌ Solde insuffisant', 
+balance: buyerBalance, 
+required: totalAmount, 
+difference: totalAmount - buyerBalance 
+}); 
+} 
+await buyerDoc.ref.update({ walletBalance: buyerBalance - totalAmount }); 
+// Créer la commande 
+const order = { 
+articleId, 
+buyerId, 
+sellerId, 
+buyerPhone: buyerPhone || buyerDoc.data()?.phone || '', 
+amount: parseInt(amount), 
+buyerCommission, 
+totalAmount, 
+sellerCommission: Math.round(amount * COMMISSION_SELLER), 
+status: 'en attente de confirmation', 
+buyerConfirmed: false, 
+buyerConfirmedAt: null, 
+flamesGiven: false, 
+expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), 
+createdAt: new Date() 
+}; 
+const orderRef = await db.collection('orders').add(order); 
+const orderId = orderRef.id; 
+// Marquer l'article comme vendu (mais pas encore confirmé) 
+await db.collection('articles').doc(articleId).update({ status: 'sold' }); 
+// Notification 
+await db.collection('notifications').add({ 
+userId: sellerId, 
+message: 🛒 Nouvelle commande #${orderId.slice(0,8)} - ${amount} FCFA, 
+type: 'new_order', 
+read: false, 
+orderId: orderId, 
+createdAt: new Date() 
+}); 
+res.json({ 
+success: true, 
+orderId, 
+message: '✅ Commande créée !', 
+totalAmount, 
+buyerCommission, 
+sellerCommission: Math.round(amount * COMMISSION_SELLER), 
+expiresAt: order.expiresAt 
+}); 
+} catch (error) { 
+console.error('Order Error:', error.message); 
+res.status(500).json({ success: false, message: error.message }); 
+} 
 });
 
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
-res.json({ success: true, message: 'Commande confirmée par QR (simulée)' }); 
+console.log('📩 Confirmation QR reçue:', req.body); 
+try { 
+const { orderId, buyerId } = req.body; 
+if (!orderId || !buyerId) { 
+return res.status(400).json({ success: false, message: 'orderId et buyerId requis' }); 
+} 
+const orderRef = db.collection('orders').doc(orderId); 
+const orderDoc = await orderRef.get(); 
+if (!orderDoc.exists) { 
+return res.status(404).json({ success: false, message: 'Commande non trouvée' }); 
+} 
+const order = orderDoc.data(); 
+if (order.buyerId ! buyerId) { 
+return res.status(403).json({ success: false, message: 'Non autorisé' }); 
+} 
+if (order.status ! 'en attente de confirmation') { 
+return res.status(400).json({ success: false, message: 'Commande déjà traitée' }); 
+} 
+const now = new Date(); 
+const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt); 
+if (now > expiresAt) { 
+return res.status(400).json({ success: false, message: '⏰ Délai expiré' }); 
+} 
+// Calcul des commissions 
+const sellerCommission = order.sellerCommission || Math.round(order.amount * COMMISSION_SELLER); 
+const buyerCommission = order.buyerCommission || Math.round(order.amount * COMMISSION_BUYER); 
+const amountToSeller = order.amount - sellerCommission; 
+const adminTotal = buyerCommission + sellerCommission; 
+// Créditer le vendeur 
+const sellerRef = db.collection('users').doc(order.sellerId); 
+const sellerDoc = await sellerRef.get(); 
+const sellerBalance = sellerDoc.data()?.walletBalance || 0; 
+await sellerRef.update({ walletBalance: sellerBalance + amountToSeller }); 
+// Marquer la commande comme livrée 
+await orderRef.update({ 
+status: 'livré', 
+buyerConfirmed: true, 
+buyerConfirmedAt: new Date(), 
+sellerReceived: amountToSeller, 
+adminCommission: adminTotal 
+}); 
+// Notifications 
+await db.collection('notifications').add({ 
+userId: order.sellerId, 
+message: 💰 Vente confirmée par QR ! ${amountToSeller} FCFA crédités., 
+type: 'sale_confirmed', 
+read: false, 
+orderId: orderId, 
+createdAt: new Date() 
+}); 
+await db.collection('notifications').add({ 
+userId: order.buyerId, 
+message: ✅ Commande #${orderId.slice(0,8)} confirmée par QR., 
+type: 'order_confirmed', 
+read: false, 
+orderId: orderId, 
+createdAt: new Date() 
+}); 
+console.log(💰 Commission admin ${adminTotal} FCFA (simulée)); 
+res.json({ 
+success: true, 
+message: '✅ Commande confirmée par QR !', 
+sellerReceived: amountToSeller, 
+adminCommission: adminTotal, 
+sellerBalance: sellerBalance + amountToSeller 
+}); 
+} catch (error) { 
+console.error('❌ Erreur confirmation QR:', error.message); 
+res.status(500).json({ success: false, message: error.message }); 
+} 
 });
 
 app.get('/api/orders/:userId', async (req, res) => { 
-res.json([]); 
+try { 
+const { userId } = req.params; 
+const orders = []; 
+const buyerSnapshot = await db.collection('orders') 
+.where('buyerId', '', userId) 
+.orderBy('createdAt', 'desc') 
+.get(); 
+for (const doc of buyerSnapshot.docs) { 
+const order = doc.data(); 
+const articleDoc = await db.collection('articles').doc(order.articleId).get(); 
+const article = articleDoc.data(); 
+const sellerDoc = await db.collection('users').doc(order.sellerId).get(); 
+const seller = sellerDoc.data(); 
+orders.push({ 
+id: doc.id, 
+...order, 
+article: article ? { title: article.title, image: article.image, price: article.price } : null, 
+seller: seller ? { name: seller.name, photo: seller.photo || '' } : null 
+}); 
+} 
+const sellerSnapshot = await db.collection('orders') 
+.where('sellerId', '', userId) 
+.orderBy('createdAt', 'desc') 
+.get(); 
+for (const doc of sellerSnapshot.docs) { 
+const order = doc.data(); 
+if (!orders.find(o => o.id = doc.id)) { 
+const articleDoc = await db.collection('articles').doc(order.articleId).get(); 
+const article = articleDoc.data(); 
+const buyerDoc = await db.collection('users').doc(order.buyerId).get(); 
+const buyer = buyerDoc.data(); 
+orders.push({ 
+id: doc.id, 
+...order, 
+article: article ? { title: article.title, image: article.image, price: article.price } : null, 
+buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null 
+}); 
+} 
+} 
+orders.sort((a, b) => { 
+const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
+const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt); 
+return dateB - dateA; 
+}); 
+res.json(orders); 
+} catch (error) { 
+console.error('Orders Error:', error.message); 
+res.status(500).json([]); 
+} 
 });
 
 //  
@@ -322,7 +551,7 @@ app.post('/api/notifications/read/:id', (req, res) => res.json({ success: true }
 
 //  
 // DÉMARRAGE 
-//  
+// == 
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('✅ BLK API running on port', PORT); 
 });
