@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 10000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' }));
 
-// Firebase 
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) { 
 console.error('❌ FIREBASE_SERVICE_ACCOUNT manquant'); 
 process.exit(1); 
@@ -21,11 +20,9 @@ const db = admin.firestore();
 
 console.log('✅ BLK API - 100% RÉEL');
 
-// Routes principales 
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
 
-// --- UTILISATEURS --- 
 app.post('/api/users/online', async (req, res) => { 
 try { 
 const { userId, online } = req.body; 
@@ -47,11 +44,10 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// --- ARTICLES (collection "products") --- 
 app.get('/api/articles', async (req, res) => { 
 try { 
 const snapshot = await db.collection('products') 
-.where('status', '==', 'active') 
+.where('status', '', 'active') 
 .orderBy('createdAt', 'desc') 
 .get(); 
 const articles = []; 
@@ -89,6 +85,11 @@ res.status(500).json({ success: false, message: error.message });
 
 app.delete('/api/articles/:id', async (req, res) => { 
 try { 
+const doc = await db.collection('products').doc(req.params.id).get(); 
+if (!doc.exists) return res.status(404).json({ success: false, message: 'Article non trouvé' }); 
+if (doc.data().status = 'sold') { 
+return res.status(400).json({ success: false, message: 'Cet article a déjà été vendu' }); 
+} 
 await db.collection('products').doc(req.params.id).update({ status: 'inactive' }); 
 res.json({ success: true }); 
 } catch (error) { 
@@ -96,7 +97,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// --- UPLOAD IMAGE --- 
 app.post('/api/upload', async (req, res) => { 
 try { 
 const { base64 } = req.body; 
@@ -119,7 +119,6 @@ res.status(500).json({ success: false, message: 'Erreur upload' });
 } 
 });
 
-// --- WALLET (simulation) --- 
 app.get('/api/wallet/:userId', async (req, res) => { 
 try { 
 const doc = await db.collection('users').doc(req.params.userId).get(); 
@@ -165,15 +164,46 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-// --- ORDRES (simplifié) --- 
 app.post('/api/orders/create', async (req, res) => { 
-res.json({ success: true, orderId: 'mock-' + Date.now() }); 
+try { 
+const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
+if (!articleId || !buyerId || !sellerId || !amount) { 
+return res.status(400).json({ success: false, message: 'Champs requis' }); 
+} 
+const buyerDoc = await db.collection('users').doc(buyerId).get(); 
+const buyerBalance = buyerDoc.data()?.walletBalance || 0; 
+const buyerCommission = Math.round(amount * 0.03); 
+const totalAmount = amount + buyerCommission; 
+if (buyerBalance < totalAmount) { 
+return res.status(400).json({ success: false, message: '❌ Solde insuffisant' }); 
+} 
+await buyerDoc.ref.update({ walletBalance: buyerBalance - totalAmount }); 
+const order = { 
+articleId, 
+buyerId, 
+sellerId, 
+buyerPhone: buyerPhone || buyerDoc.data()?.phone || '', 
+amount: parseInt(amount), 
+buyerCommission, 
+totalAmount, 
+sellerCommission: Math.round(amount * 0.04), 
+status: 'en attente de confirmation', 
+buyerConfirmed: false, 
+buyerConfirmedAt: null, 
+flamesGiven: false, 
+expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), 
+createdAt: new Date() 
+}; 
+const orderRef = await db.collection('orders').add(order); 
+const orderId = orderRef.id; 
+await db.collection('products').doc(articleId).update({ status: 'sold' }); 
+res.json({ success: true, orderId, message: '✅ Commande créée !', totalAmount }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
 });
 
 app.get('/api/orders/:userId', (req, res) => res.json([])); 
-app.post('/api/orders/confirm-by-qr', (req, res) => res.json({ success: true }));
-
-// --- MESSAGES, FLAMMES, STATS (simplifiés) --- 
 app.get('/api/messages/:userId', (req, res) => res.json({ success: true, data: [] })); 
 app.post('/api/messages', (req, res) => res.json({ success: true, id: 'mock-' + Date.now() })); 
 app.post('/api/flames', (req, res) => res.json({ success: true })); 
