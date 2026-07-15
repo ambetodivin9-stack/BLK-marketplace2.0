@@ -21,11 +21,7 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) }); 
 const db = admin.firestore();
 
-//  
-// CONFIG 
-//  
-console.log('✅ BLK API - 100% RÉEL (simulation paiement)'); 
-console.log('✅ Admin Phone:', process.env.ADMIN_PHONE || '065918166');
+console.log('✅ BLK API - 100% RÉEL (simulation paiement)');
 
 const COMMISSION_BUYER = 0.03; 
 const COMMISSION_SELLER = 0.04;
@@ -89,11 +85,11 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ARTICLES 
+// ARTICLES (collection "products") 
 //  
 app.get('/api/articles', async (req, res) => { 
 try { 
-const snapshot = await db.collection('articles') 
+const snapshot = await db.collection('products') 
 .where('status', '', 'active') 
 .orderBy('createdAt', 'desc') 
 .get(); 
@@ -112,7 +108,7 @@ res.status(500).json({ success: false, message: error.message });
 app.get('/api/articles/seller/:sellerId', async (req, res) => { 
 try { 
 const { sellerId } = req.params; 
-const snapshot = await db.collection('articles') 
+const snapshot = await db.collection('products') 
 .where('sellerId', '', sellerId) 
 .orderBy('createdAt', 'desc') 
 .get(); 
@@ -129,41 +125,45 @@ res.status(500).json({ success: false, message: error.message });
 app.post('/api/articles', async (req, res) => { 
 try { 
 const { title, description, price, category, image, sellerId, sellerName, sellerPhoto } = req.body; 
-if (!title || !description || !price || !category || !sellerId) { 
-return res.status(400).json({ success: false, message: 'Champs requis' }); 
-} 
-const article = { 
-title, 
-description, 
-price: parseInt(price), 
-category, 
-image: image || '', 
-sellerId, 
-sellerName: sellerName || 'Anonyme', 
-sellerPhoto: sellerPhoto || '', 
-status: 'active', 
-views: 0, 
-createdAt: new Date() 
-}; 
-const docRef = await db.collection('articles').add(article); 
-console.log('✅ Article publié:', article.title); 
-res.json({ success: true, id: docRef.id }); 
-} catch (error) { 
-console.error('❌ Erreur publication:', error.message); 
-res.status(500).json({ success: false, message: error.message }); 
-} 
+console.log('📤 Réception article:', { title, description, price, category, sellerId });
+
+    if (!title || !description || !price || !category || !sellerId) {
+        return res.status(400).json({ success: false, message: 'Champs requis' });
+    }
+
+    const article = {
+        title,
+        description,
+        price: parseInt(price),
+        category,
+        image: image || '',
+        sellerId,
+        sellerName: sellerName || 'Anonyme',
+        sellerPhoto: sellerPhoto || '',
+        status: 'active',
+        views: 0,
+        createdAt: new Date()
+    };
+
+    const docRef = await db.collection('products').add(article);
+    console.log('✅ Article créé avec ID:', docRef.id);
+    res.json({ success: true, id: docRef.id });
+} catch (error) {
+    console.error('❌ Erreur publication:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+}
 });
 
 app.delete('/api/articles/:id', async (req, res) => { 
 try { 
 const { id } = req.params; 
-const doc = await db.collection('articles').doc(id).get(); 
+const doc = await db.collection('products').doc(id).get(); 
 if (!doc.exists) return res.status(404).json({ success: false, message: 'Article non trouvé' }); 
 const data = doc.data(); 
 if (data.status = 'sold') { 
 return res.status(400).json({ success: false, message: 'Cet article a déjà été vendu' }); 
 } 
-await db.collection('articles').doc(id).update({ status: 'inactive' }); 
+await db.collection('products').doc(id).update({ status: 'inactive' }); 
 res.json({ success: true }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
@@ -203,7 +203,7 @@ res.status(500).json({ success: false, message: 'Erreur upload' });
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
-const articlesSnapshot = await db.collection('articles') 
+const articlesSnapshot = await db.collection('products') 
 .where('sellerId', '', userId) 
 .where('status', '', 'active') 
 .get();
@@ -344,7 +344,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ORDRES (simplifiées) 
+// ORDRES 
 //  
 app.post('/api/orders/create', async (req, res) => { 
 console.log('📦 Commande reçue:', req.body); 
@@ -353,7 +353,6 @@ const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body;
 if (!articleId || !buyerId || !sellerId || !amount) { 
 return res.status(400).json({ success: false, message: 'Champs requis' }); 
 } 
-// Vérifier le solde de l'acheteur 
 const buyerDoc = await db.collection('users').doc(buyerId).get(); 
 const buyerBalance = buyerDoc.data()?.walletBalance || 0; 
 const buyerCommission = Math.round(amount * COMMISSION_BUYER); 
@@ -368,7 +367,6 @@ difference: totalAmount - buyerBalance
 }); 
 } 
 await buyerDoc.ref.update({ walletBalance: buyerBalance - totalAmount }); 
-// Créer la commande 
 const order = { 
 articleId, 
 buyerId, 
@@ -387,9 +385,7 @@ createdAt: new Date()
 }; 
 const orderRef = await db.collection('orders').add(order); 
 const orderId = orderRef.id; 
-// Marquer l'article comme vendu (mais pas encore confirmé) 
-await db.collection('articles').doc(articleId).update({ status: 'sold' }); 
-// Notification 
+await db.collection('products').doc(articleId).update({ status: 'sold' }); 
 await db.collection('notifications').add({ 
 userId: sellerId, 
 message: 🛒 Nouvelle commande #${orderId.slice(0,8)} - ${amount} FCFA, 
@@ -437,17 +433,14 @@ const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(o
 if (now > expiresAt) { 
 return res.status(400).json({ success: false, message: '⏰ Délai expiré' }); 
 } 
-// Calcul des commissions 
 const sellerCommission = order.sellerCommission || Math.round(order.amount * COMMISSION_SELLER); 
 const buyerCommission = order.buyerCommission || Math.round(order.amount * COMMISSION_BUYER); 
 const amountToSeller = order.amount - sellerCommission; 
 const adminTotal = buyerCommission + sellerCommission; 
-// Créditer le vendeur 
 const sellerRef = db.collection('users').doc(order.sellerId); 
 const sellerDoc = await sellerRef.get(); 
 const sellerBalance = sellerDoc.data()?.walletBalance || 0; 
 await sellerRef.update({ walletBalance: sellerBalance + amountToSeller }); 
-// Marquer la commande comme livrée 
 await orderRef.update({ 
 status: 'livré', 
 buyerConfirmed: true, 
@@ -455,7 +448,6 @@ buyerConfirmedAt: new Date(),
 sellerReceived: amountToSeller, 
 adminCommission: adminTotal 
 }); 
-// Notifications 
 await db.collection('notifications').add({ 
 userId: order.sellerId, 
 message: 💰 Vente confirmée par QR ! ${amountToSeller} FCFA crédités., 
@@ -496,14 +488,14 @@ const buyerSnapshot = await db.collection('orders')
 .get(); 
 for (const doc of buyerSnapshot.docs) { 
 const order = doc.data(); 
-const articleDoc = await db.collection('articles').doc(order.articleId).get(); 
-const article = articleDoc.data(); 
+const productDoc = await db.collection('products').doc(order.articleId).get(); 
+const product = productDoc.data(); 
 const sellerDoc = await db.collection('users').doc(order.sellerId).get(); 
 const seller = sellerDoc.data(); 
 orders.push({ 
 id: doc.id, 
 ...order, 
-article: article ? { title: article.title, image: article.image, price: article.price } : null, 
+article: product ? { title: product.title, image: product.image, price: product.price } : null, 
 seller: seller ? { name: seller.name, photo: seller.photo || '' } : null 
 }); 
 } 
@@ -514,14 +506,14 @@ const sellerSnapshot = await db.collection('orders')
 for (const doc of sellerSnapshot.docs) { 
 const order = doc.data(); 
 if (!orders.find(o => o.id = doc.id)) { 
-const articleDoc = await db.collection('articles').doc(order.articleId).get(); 
-const article = articleDoc.data(); 
+const productDoc = await db.collection('products').doc(order.articleId).get(); 
+const product = productDoc.data(); 
 const buyerDoc = await db.collection('users').doc(order.buyerId).get(); 
 const buyer = buyerDoc.data(); 
 orders.push({ 
 id: doc.id, 
 ...order, 
-article: article ? { title: article.title, image: article.image, price: article.price } : null, 
+article: product ? { title: product.title, image: product.image, price: product.price } : null, 
 buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null 
 }); 
 } 
