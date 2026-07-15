@@ -64,6 +64,9 @@
     .product-card .title { font-weight: 700; font-size: 14px; }
     .product-card .price { font-weight: 800; color: #E74C3C; }
     .product-card .seller { font-size: 12px; color: #999; }
+    .product-card .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; margin-top: 4px; }
+    .product-card .status-badge.sold { background: #2ECC71; color: white; }
+    .product-card .status-badge.pending { background: #f39c12; color: white; }
 
     .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: #E74C3C; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: white; }
     .wallet-balance { font-size: 32px; font-weight: 800; color: #2ECC71; }
@@ -82,13 +85,15 @@
     .admin-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; }
     .admin-card .btn { margin-top: 8px; }
 
-    /* Statistiques */
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
     .stat-card { background: rgba(255,255,255,0.8); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.4); }
     .stat-card .number { font-size: 28px; font-weight: 800; color: #E74C3C; }
     .stat-card .label { font-size: 12px; color: #999; }
     .chart-container { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 8px 0; }
     .chart-bar { flex: 1; background: #E74C3C; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .modal-box { background: white; border-radius: 20px; max-width: 400px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto; }
 
     @media (max-width: 480px) { .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
 </style>
@@ -220,7 +225,7 @@
     </div>
 </div>
 
-<!-- TABS (en bas) -->
+<!-- TABS -->
 <div class="tabs" id="tabs">
     <button class="tab-btn active" data-page="pageHome">Accueil</button>
     <button class="tab-btn" data-page="pageShop">Mon Magasin</button>
@@ -270,6 +275,21 @@
         if (!date) return '';
         var d = new Date(date);
         return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+
+    function openModal(html) {
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = '<div class="modal-box">' + html + '</div>';
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    function closeModal(overlay) {
+        if (overlay) overlay.remove();
     }
 
     // ============================================================
@@ -415,7 +435,13 @@
         filtered.forEach(function(p) {
             var card = document.createElement('div');
             card.className = 'product-card';
-            card.innerHTML = '<img src="' + (p.image || 'https://via.placeholder.com/150x150/F5F0E8/CCCCCC?text=BLK') + '" class="img" /><div class="info"><div class="title">' + (p.title || 'Sans titre') + '</div><div class="price">' + (p.price || 0) + ' FCFA</div><div class="seller">' + (p.sellerName || 'Anonyme') + '</div></div>';
+            var statusHtml = '';
+            if (p.status === 'sold') {
+                statusHtml = '<span class="status-badge sold">Vendu</span>';
+            } else if (p.status === 'inactive') {
+                statusHtml = '<span class="status-badge pending">Inactif</span>';
+            }
+            card.innerHTML = '<img src="' + (p.image || 'https://via.placeholder.com/150x150/F5F0E8/CCCCCC?text=BLK') + '" class="img" /><div class="info"><div class="title">' + (p.title || 'Sans titre') + '</div><div class="price">' + (p.price || 0) + ' FCFA</div><div class="seller">' + (p.sellerName || 'Anonyme') + '</div>' + statusHtml + '</div>';
             card.addEventListener('click', function() { showProductDetail(p); });
             grid.appendChild(card);
         });
@@ -433,10 +459,22 @@
     });
 
     function showProductDetail(product) {
-        var modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px;';
-        modal.innerHTML = '<div style="background:white; border-radius:20px; max-width:400px; width:100%; padding:24px; max-height:90vh; overflow-y:auto;"><button onclick="this.parentElement.parentElement.remove()" style="float:right; background:none; border:none; font-size:24px; cursor:pointer;">✕</button><img src="' + (product.image || 'https://via.placeholder.com/400x300/F5F0E8/CCCCCC?text=BLK') + '" style="width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:12px;" /><h3>' + (product.title || 'Sans titre') + '</h3><p style="color:#666; margin:8px 0;">' + (product.description || 'Aucune description') + '</p><p style="font-size:24px; font-weight:800; color:#E74C3C;">' + (product.price || 0) + ' FCFA</p><p style="font-size:12px; color:#999;">Vendeur: ' + (product.sellerName || 'Anonyme') + '</p><div style="display:flex; gap:8px; margin-top:12px;"><button class="btn btn-primary" onclick="buyProduct(\'' + product.id + '\', ' + product.price + ', \'' + product.sellerId + '\', \'' + product.sellerName + '\')" style="flex:1;">Acheter</button><button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="flex:1;">Fermer</button></div></div>';
-        document.body.appendChild(modal);
+        var html = '<button onclick="this.parentElement.parentElement.remove()" style="float:right; background:none; border:none; font-size:24px; cursor:pointer;">✕</button>';
+        html += '<img src="' + (product.image || 'https://via.placeholder.com/400x300/F5F0E8/CCCCCC?text=BLK') + '" style="width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:12px;" />';
+        html += '<h3>' + (product.title || 'Sans titre') + '</h3>';
+        html += '<p style="color:#666; margin:8px 0;">' + (product.description || 'Aucune description') + '</p>';
+        html += '<p style="font-size:24px; font-weight:800; color:#E74C3C;">' + (product.price || 0) + ' FCFA</p>';
+        html += '<p style="font-size:12px; color:#999;">Vendeur: ' + (product.sellerName || 'Anonyme') + '</p>';
+        if (product.status === 'sold') {
+            html += '<p style="color:#2ECC71; font-weight:600;">✅ Cet article a été vendu.</p>';
+        } else {
+            html += '<div style="display:flex; gap:8px; margin-top:12px;">';
+            html += '<button class="btn btn-primary" onclick="buyProduct(\'' + product.id + '\', ' + product.price + ', \'' + product.sellerId + '\', \'' + product.sellerName + '\')" style="flex:1;">Acheter</button>';
+            html += '<button class="btn btn-outline" onclick="openDiscussion(\'' + product.sellerId + '\', \'' + product.sellerName + '\')" style="flex:1;">💬 Contacter</button>';
+            html += '</div>';
+        }
+        html += '<button class="btn btn-outline" style="margin-top:8px;" onclick="this.parentElement.parentElement.remove()">Fermer</button>';
+        openModal(html);
     }
 
     window.buyProduct = function(articleId, price, sellerId, sellerName) {
@@ -562,10 +600,8 @@
     // QR CODE
     // ============================================================
     window.generateQR = function(orderId) {
-        var modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px;';
-        modal.innerHTML = '<div style="background:white; border-radius:20px; max-width:400px; width:100%; padding:24px; text-align:center;"><h3>🔲 QR Code</h3><p>Montrez ce code à l\'acheteur.</p><div id="qrCode" style="margin:12px auto;"></div><p style="font-size:12px; color:#999;">Commande #' + orderId.slice(0,8) + '</p><button class="btn btn-primary" onclick="this.parentElement.parentElement.remove()">Fermer</button></div>';
-        document.body.appendChild(modal);
+        var html = '<h3 style="text-align:center;">🔲 QR Code</h3><p style="text-align:center;">Montrez ce code à l\'acheteur.</p><div id="qrCode" style="margin:12px auto; text-align:center;"></div><p style="font-size:12px; color:#999; text-align:center;">Commande #' + orderId.slice(0,8) + '</p><button class="btn btn-primary" onclick="this.parentElement.parentElement.remove()">Fermer</button>';
+        var overlay = openModal(html);
         var qrDiv = document.getElementById('qrCode');
         new QRCode(qrDiv, {
             text: orderId,
@@ -681,7 +717,12 @@
                 data.data.forEach(function(a) {
                     var div = document.createElement('div');
                     div.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.5); border-radius:12px; padding:12px; margin-bottom:8px;';
-                    div.innerHTML = '<img src="' + (a.image || 'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px; height:50px; object-fit:cover; border-radius:8px;" /><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA</div><button class="btn btn-danger btn-sm" onclick="deleteArticle(\'' + a.id + '\')">Supprimer</button>';
+                    var statusText = a.status === 'active' ? '✅ En vente' : (a.status === 'sold' ? '✅ Vendu' : '⏸ Inactif');
+                    var deleteBtn = '';
+                    if (a.status === 'active') {
+                        deleteBtn = '<button class="btn btn-danger btn-sm" onclick="deleteArticle(\'' + a.id + '\')">Supprimer</button>';
+                    }
+                    div.innerHTML = '<img src="' + (a.image || 'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px; height:50px; object-fit:cover; border-radius:8px;" /><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px; color:#999;">' + statusText + '</span></div>' + deleteBtn;
                     container.appendChild(div);
                 });
             })
@@ -694,7 +735,7 @@
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showAlert('Article supprimé', 'success');
+                    showAlert('✅ Article supprimé !', 'success');
                     loadShopArticles();
                     loadProducts();
                     loadStats();
@@ -705,11 +746,22 @@
             .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
     };
 
+    // ============================================================
+    // PUBLIER UN ARTICLE
+    // ============================================================
     document.getElementById('btnPublish').addEventListener('click', function() {
-        var modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px;';
-        modal.innerHTML = '<div style="background:white; border-radius:20px; max-width:400px; width:100%; padding:24px; max-height:90vh; overflow-y:auto;"><h3 style="margin-bottom:16px;">📤 Publier un article</h3><input type="text" id="pubTitle" placeholder="Titre" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"><textarea id="pubDesc" placeholder="Description" rows="3" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"></textarea><input type="number" id="pubPrice" placeholder="Prix (FCFA)" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"><select id="pubCategory" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"><option value="vêtements">Vêtements</option><option value="chaussures">Chaussures</option><option value="sacs">Sacs</option><option value="bijoux">Bijoux</option><option value="accessoires">Accessoires</option></select><input type="file" id="pubImage" accept="image/*" style="width:100%; padding:8px; margin-bottom:8px;"><button class="btn btn-primary" id="pubSubmit">Publier</button><button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button></div>';
-        document.body.appendChild(modal);
+        var html = '<h3 style="margin-bottom:16px;">📤 Publier un article</h3>';
+        html += '<input type="text" id="pubTitle" placeholder="Titre" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;">';
+        html += '<textarea id="pubDesc" placeholder="Description" rows="3" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"></textarea>';
+        html += '<input type="number" id="pubPrice" placeholder="Prix (FCFA)" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;">';
+        html += '<select id="pubCategory" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;">';
+        html += '<option value="vêtements">Vêtements</option><option value="chaussures">Chaussures</option><option value="sacs">Sacs</option><option value="bijoux">Bijoux</option><option value="accessoires">Accessoires</option>';
+        html += '</select>';
+        html += '<input type="file" id="pubImage" accept="image/*" style="width:100%; padding:8px; margin-bottom:8px;">';
+        html += '<button class="btn btn-primary" id="pubSubmit">Publier</button>';
+        html += '<button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button>';
+
+        var overlay = openModal(html);
 
         document.getElementById('pubSubmit').addEventListener('click', function() {
             var title = document.getElementById('pubTitle').value.trim();
@@ -717,11 +769,44 @@
             var price = document.getElementById('pubPrice').value;
             var category = document.getElementById('pubCategory').value;
             var imageFile = document.getElementById('pubImage').files[0];
+
             if (!title || !description || !price) {
                 showAlert('Remplis tous les champs', 'error');
                 return;
             }
-            var imageUrl = '';
+
+            function submitArticleWithImage(imageUrl) {
+                fetch(BACKEND_URL + '/api/articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        price: parseInt(price),
+                        category: category,
+                        image: imageUrl || '',
+                        sellerId: currentUserId,
+                        sellerName: currentUser.name,
+                        sellerPhoto: ''
+                    })
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        showAlert('✅ Article publié avec succès !', 'success');
+                        closeModal(overlay);
+                        loadShopArticles();
+                        loadProducts();
+                        loadStats();
+                    } else {
+                        showAlert('❌ ' + data.message, 'error');
+                    }
+                })
+                .catch(function(e) {
+                    showAlert('❌ Erreur: ' + e.message, 'error');
+                });
+            }
+
             if (imageFile) {
                 var reader = new FileReader();
                 reader.onload = function(e) {
@@ -734,50 +819,21 @@
                     .then(function(res) { return res.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            imageUrl = data.url;
-                            submitArticle(title, description, price, category, imageUrl);
+                            submitArticleWithImage(data.url);
                         } else {
                             showAlert('Erreur upload image', 'error');
                         }
                     })
-                    .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
+                    .catch(function(e) {
+                        showAlert('Erreur upload: ' + e.message, 'error');
+                    });
                 };
                 reader.readAsDataURL(imageFile);
             } else {
-                submitArticle(title, description, price, category, '');
+                submitArticleWithImage('');
             }
         });
     });
-
-    function submitArticle(title, description, price, category, imageUrl) {
-        fetch(BACKEND_URL + '/api/articles', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                title: title,
-                description: description,
-                price: parseInt(price),
-                category: category,
-                image: imageUrl,
-                sellerId: currentUserId,
-                sellerName: currentUser.name,
-                sellerPhoto: ''
-            })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data.success) {
-                showAlert('✅ Article publié !', 'success');
-                loadShopArticles();
-                loadProducts();
-                loadStats();
-                document.querySelector('.modal').remove();
-            } else {
-                showAlert('❌ ' + data.message, 'error');
-            }
-        })
-        .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
-    }
 
     // ============================================================
     // MESSAGES
@@ -836,7 +892,27 @@
             .catch(function(e) { console.error(e); });
     }
 
-    function openDiscussion(contactId, contactName) {
+    window.openDiscussion = function(contactId, contactName) {
+        // Ajouter le contact si nécessaire
+        addContact(contactId, contactName || 'Utilisateur', '');
+        // Basculer vers l'onglet Messages
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        var targetTab = document.querySelector('.tab-btn[data-page="pageMessages"]');
+        if (targetTab) {
+            targetTab.classList.add('active');
+            document.getElementById('pageMessages').classList.add('active');
+        }
+        activeConversationId = contactId;
+        loadMessages();
+        // Si la discussion n'est pas encore ouverte, on l'ouvre
+        setTimeout(function() {
+            var chip = document.querySelector('.contact-chip[data-id="' + contactId + '"]');
+            if (chip) chip.click();
+        }, 300);
+    };
+
+    function openDiscussionById(contactId, contactName) {
         var view = document.getElementById('discussionView');
         var empty = document.getElementById('emptyMessages');
         view.style.display = 'block';
@@ -1000,7 +1076,7 @@
         });
     }
 
-    console.log('✅ BLK Marketplace - Version finale');
+    console.log('✅ BLK Marketplace - Version finale avec publication et suppression');
     console.log('🔗 Backend URL:', BACKEND_URL);
 </script>
 </body>
