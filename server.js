@@ -67,6 +67,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ✅ ROUTE PUT CORRIGEE (LE PROBLEME ETAIT ICI) 
+//  
 app.put('/api/users/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -76,8 +79,8 @@ if (name) updateData.name = name;
 if (email) updateData.email = email; 
 if (phone) updateData.phone = phone; 
 if (photo) updateData.photo = photo; 
-// ✅ LIGNE CORRIGÉE CI-DESSOUS 
-if (isSeller ! undefined) updateData.isSeller = isSeller; 
+// ✅ CORRECTION : on utilise typeof pour vérifier sans erreur de syntaxe 
+if (typeof isSeller ! 'undefined') updateData.isSeller = isSeller; 
 await db.collection('users').doc(userId).update(updateData); 
 res.json({ success: true }); 
 } catch (error) { 
