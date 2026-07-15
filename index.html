@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BLK Marketplace</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,7 +13,8 @@
         .btn-success { background: #2ECC71; color: white; }
         .btn-danger { background: #E74C3C; color: white; }
         .btn-outline { background: transparent; border: 2px solid #E74C3C; color: #E74C3C; }
-        .glass { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
+        .glass { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 20px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.4); }
         .auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #FFD700, #FF8C00); }
         .auth-page .card { background: rgba(255,255,255,0.85); padding: 32px; border-radius: 24px; max-width: 400px; width: 100%; }
         .auth-page h1 { text-align: center; font-size: 32px; }
@@ -41,7 +42,22 @@
         .empty { text-align: center; color: #999; padding: 20px; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .modal-box { background: white; border-radius: 20px; max-width: 400px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto; }
-    </style>
+
+    /* Statistiques */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: rgba(255,255,255,0.8); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.4); }
+    .stat-card .number { font-size: 28px; font-weight: 800; color: #E74C3C; }
+    .stat-card .label { font-size: 12px; color: #999; }
+    .chart-container { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 8px 0; }
+    .chart-bar { flex: 1; background: #E74C3C; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+
+    /* Profil utilisateur */
+    .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: #E74C3C; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: white; }
+    .profile-stats { display: flex; gap: 16px; font-size: 14px; }
+    .profile-stats span { font-weight: 600; }
+    .follow-btn { margin-top: 8px; }
+</style>
 </head>
 <body>
     <div class="kente"></div>
@@ -70,7 +86,7 @@
 <div class="app" id="appContainer">
     <div id="alertBox" class="alert"></div>
 
-    <!-- ACCUEIL -->
+    <!-- ACCUEIL (flux des abonnés + tous les articles) -->
     <div class="page active" id="pageHome">
         <div class="search-bar">
             <input type="text" id="searchInput" placeholder="Rechercher...">
@@ -83,6 +99,10 @@
             <button class="btn btn-sm btn-outline" style="padding:6px 14px; font-size:12px; width:auto;" data-cat="bijoux">Bijoux</button>
             <button class="btn btn-sm btn-outline" style="padding:6px 14px; font-size:12px; width:auto;" data-cat="accessoires">Accessoires</button>
         </div>
+        <div id="feedToggle" style="margin-bottom:12px;">
+            <button class="btn btn-sm btn-primary" id="showFeedBtn" style="width:auto;">📰 Flux des abonnés</button>
+            <button class="btn btn-sm btn-outline" id="showAllBtn" style="width:auto;">🌐 Tous les articles</button>
+        </div>
         <div id="productsGrid" class="grid"></div>
         <div id="emptyHome" class="empty" style="display:none;">Aucun article</div>
     </div>
@@ -91,6 +111,21 @@
     <div class="page" id="pageShop">
         <h2 style="color:#E74C3C;">Mon Magasin</h2>
         <button class="btn btn-primary" id="btnPublish">📤 Publier un article</button>
+
+        <div id="statsContainer" style="margin-top:16px;">
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="number" id="statSales">0</div><div class="label">Ventes</div></div>
+                <div class="stat-card"><div class="number" id="statRevenue">0</div><div class="label">Revenus (FCFA)</div></div>
+                <div class="stat-card"><div class="number" id="statArticles">0</div><div class="label">Articles</div></div>
+                <div class="stat-card"><div class="number" id="statPurchases">0</div><div class="label">Achats</div></div>
+            </div>
+            <div class="glass">
+                <h4 style="margin-bottom:8px;">📈 Évolution des ventes</h4>
+                <div id="chartContainer" class="chart-container"></div>
+                <div id="statsEmpty" class="empty" style="display:none;">Aucune donnée</div>
+            </div>
+        </div>
+
         <div id="shopArticles" style="margin-top:12px;"></div>
     </div>
 
@@ -112,10 +147,20 @@
     <div class="page" id="pageProfile">
         <h2 style="color:#E74C3C;">Mon Profil</h2>
         <div class="glass">
-            <h3 id="profileName">Utilisateur</h3>
-            <p id="profileEmail">email@example.com</p>
-            <p id="profilePhone">+242 06 XXX XXXX</p>
-            <p>🔥 <span id="profileFlames">0</span> flammes</p>
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div>
+                    <h3 id="profileName">Utilisateur</h3>
+                    <p id="profileEmail">email@example.com</p>
+                    <p id="profilePhone">+242 06 XXX XXXX</p>
+                    <div class="profile-stats">
+                        <span>🔥 <span id="profileFlames">0</span></span>
+                        <span>👥 <span id="followersCount">0</span> abonnés</span>
+                        <span>📌 <span id="followingCount">0</span> abonnements</span>
+                    </div>
+                    <button class="btn btn-sm btn-primary follow-btn" id="followProfileBtn" style="display:none; width:auto;">S'abonner</button>
+                </div>
+            </div>
         </div>
         <div class="glass">
             <h3 style="color:#2ECC71;">💰 Wallet BLK</h3>
@@ -140,12 +185,14 @@
     // ============================================================
     // CONFIGURATION
     // ============================================================
-    var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com';
+    // 🔥 METS ICI LA BONNE URL RENDER (celle que tu vois dans Render)
+    var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
     var STORAGE_KEY = 'blk_user_id';
     var currentUser = null;
     var currentUserId = null;
     var allProducts = [];
     var selectedCategory = 'all';
+    var viewedUserId = null; // pour les profils d'autres utilisateurs
 
     function showAlert(message, type) {
         var box = document.getElementById('alertBox');
@@ -204,16 +251,23 @@
     function showMainApp() {
         document.getElementById('appContainer').classList.add('active');
         document.getElementById('tabs').classList.add('show');
-        document.getElementById('profileName').textContent = currentUser.name;
-        document.getElementById('profileEmail').textContent = currentUser.email;
-        document.getElementById('profilePhone').textContent = currentUser.phone;
-        document.getElementById('profileFlames').textContent = 0;
-        document.getElementById('walletBalance').textContent = currentUser.walletBalance;
+        updateProfileUI(currentUser);
         loadProducts();
         loadWallet();
         loadOrders();
         loadMessages();
         loadShopArticles();
+        loadStats();
+        loadFollowCounts(currentUserId);
+    }
+
+    function updateProfileUI(user) {
+        document.getElementById('profileName').textContent = user.name || 'Utilisateur';
+        document.getElementById('profileEmail').textContent = user.email || 'email@example.com';
+        document.getElementById('profilePhone').textContent = user.phone || '+242 06 XXX XXXX';
+        document.getElementById('profileFlames').textContent = user.flames || 0;
+        document.getElementById('profileAvatar').textContent = (user.name || 'U').charAt(0).toUpperCase();
+        document.getElementById('walletBalance').textContent = user.walletBalance || 0;
     }
 
     // ============================================================
@@ -227,14 +281,132 @@
             document.getElementById(this.dataset.page).classList.add('active');
             if (this.dataset.page === 'pageOrders') loadOrders();
             if (this.dataset.page === 'pageMessages') loadMessages();
-            if (this.dataset.page === 'pageShop') loadShopArticles();
+            if (this.dataset.page === 'pageShop') { loadShopArticles(); loadStats(); }
+            if (this.dataset.page === 'pageProfile') loadFollowCounts(currentUserId);
         });
     });
 
     // ============================================================
-    // PRODUCTS
+    // STATISTIQUES
     // ============================================================
+    function loadStats() {
+        if (!currentUserId) return;
+        fetch(BACKEND_URL + '/api/stats/' + currentUserId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var stats = data.data;
+                    document.getElementById('statSales').textContent = stats.totalSales || 0;
+                    document.getElementById('statRevenue').textContent = stats.totalRevenue || 0;
+                    document.getElementById('statArticles').textContent = stats.totalArticles || 0;
+                    document.getElementById('statPurchases').textContent = stats.totalPurchases || 0;
+
+                    var container = document.getElementById('chartContainer');
+                    var empty = document.getElementById('statsEmpty');
+                    container.innerHTML = '';
+                    if (stats.history && stats.history.length > 0) {
+                        empty.style.display = 'none';
+                        var max = Math.max(...stats.history.map(function(h) { return h.revenu; }), 1);
+                        stats.history.slice(-6).forEach(function(h) {
+                            var bar = document.createElement('div');
+                            bar.className = 'chart-bar';
+                            bar.style.height = Math.max((h.revenu / max) * 100, 5) + 'px';
+                            bar.title = h.month + ': ' + h.revenu + ' FCFA (' + h.ventes + ' ventes)';
+                            container.appendChild(bar);
+                        });
+                    } else {
+                        empty.style.display = 'block';
+                    }
+                }
+            })
+            .catch(function(e) { console.error(e); });
+    }
+
+    // ============================================================
+    // ABONNEMENTS (FOLLOW)
+    // ============================================================
+    function loadFollowCounts(userId) {
+        if (!userId) return;
+        fetch(BACKEND_URL + '/api/users/' + userId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    document.getElementById('followersCount').textContent = data.data.followersCount || 0;
+                    document.getElementById('followingCount').textContent = data.data.followingCount || 0;
+                }
+            })
+            .catch(function(e) { console.error(e); });
+    }
+
+    function followUser(followingId) {
+        if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
+        if (followingId === currentUserId) { showAlert('Vous ne pouvez pas vous abonner à vous-même', 'error'); return; }
+        fetch(BACKEND_URL + '/api/follow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ followerId: currentUserId, followingId: followingId })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showAlert('✅ ' + data.message, 'success');
+                loadFollowCounts(followingId);
+                loadFollowCounts(currentUserId);
+            } else {
+                showAlert('❌ ' + data.message, 'error');
+            }
+        })
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
+    }
+
+    function unfollowUser(followingId) {
+        if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
+        fetch(BACKEND_URL + '/api/follow', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ followerId: currentUserId, followingId: followingId })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showAlert('✅ ' + data.message, 'success');
+                loadFollowCounts(followingId);
+                loadFollowCounts(currentUserId);
+            } else {
+                showAlert('❌ ' + data.message, 'error');
+            }
+        })
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
+    }
+
+    // Vérifier si on suit déjà un utilisateur
+    function checkFollowStatus(followingId) {
+        if (!currentUserId || followingId === currentUserId) return Promise.resolve(false);
+        return fetch(BACKEND_URL + '/api/following/' + currentUserId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    return data.data.some(function(f) { return f.followingId === followingId; });
+                }
+                return false;
+            })
+            .catch(function() { return false; });
+    }
+
+    // ============================================================
+    // PRODUCTS (avec flux des abonnés)
+    // ============================================================
+    var feedMode = 'all'; // 'all' ou 'feed'
+
     function loadProducts() {
+        if (feedMode === 'feed') {
+            loadFeed();
+        } else {
+            loadAllProducts();
+        }
+    }
+
+    function loadAllProducts() {
         fetch(BACKEND_URL + '/api/articles')
             .then(function(res) { return res.json(); })
             .then(function(data) {
@@ -243,6 +415,35 @@
             })
             .catch(function() { allProducts = []; renderProducts(allProducts); });
     }
+
+    function loadFeed() {
+        if (!currentUserId) { loadAllProducts(); return; }
+        fetch(BACKEND_URL + '/api/feed/' + currentUserId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                allProducts = (data.success && data.data) ? data.data : [];
+                renderProducts(allProducts);
+                if (allProducts.length === 0) {
+                    document.getElementById('emptyHome').textContent = 'Aucun article de vos abonnés';
+                    document.getElementById('emptyHome').style.display = 'block';
+                }
+            })
+            .catch(function() { allProducts = []; renderProducts(allProducts); });
+    }
+
+    document.getElementById('showFeedBtn').addEventListener('click', function() {
+        feedMode = 'feed';
+        document.getElementById('showFeedBtn').className = 'btn btn-sm btn-primary';
+        document.getElementById('showAllBtn').className = 'btn btn-sm btn-outline';
+        loadProducts();
+    });
+
+    document.getElementById('showAllBtn').addEventListener('click', function() {
+        feedMode = 'all';
+        document.getElementById('showAllBtn').className = 'btn btn-sm btn-primary';
+        document.getElementById('showFeedBtn').className = 'btn btn-sm btn-outline';
+        loadProducts();
+    });
 
     function renderProducts(products) {
         var grid = document.getElementById('productsGrid');
@@ -265,7 +466,7 @@
         filtered.forEach(function(p) {
             var card = document.createElement('div');
             card.className = 'product-card';
-            card.innerHTML = '<img src="' + (p.image || 'https://via.placeholder.com/150x150/F5F0E8/CCCCCC?text=BLK') + '" /><div class="info"><div class="title">' + (p.title || 'Sans titre') + '</div><div class="price">' + (p.price || 0) + ' FCFA</div></div>';
+            card.innerHTML = '<img src="' + (p.image || 'https://via.placeholder.com/150x150/F5F0E8/CCCCCC?text=BLK') + '" /><div class="info"><div class="title">' + (p.title || 'Sans titre') + '</div><div class="price">' + (p.price || 0) + ' FCFA</div><div class="seller">' + (p.sellerName || 'Anonyme') + '</div></div>';
             card.addEventListener('click', function() { showProductDetail(p); });
             grid.appendChild(card);
         });
@@ -288,9 +489,11 @@
         html += '<h3>' + (product.title || 'Sans titre') + '</h3>';
         html += '<p style="color:#666;">' + (product.description || 'Aucune description') + '</p>';
         html += '<p style="font-size:24px; font-weight:800; color:#E74C3C;">' + (product.price || 0) + ' FCFA</p>';
-        html += '<p style="font-size:12px; color:#999;">Vendeur: ' + (product.sellerName || 'Anonyme') + '</p>';
-        html += '<div style="display:flex; gap:8px; margin-top:12px;">';
+        html += '<p style="font-size:12px; color:#999;">Vendeur: <strong>' + (product.sellerName || 'Anonyme') + '</strong></p>';
+        // Boutons Acheter + Voir le profil (pour s'abonner)
+        html += '<div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">';
         html += '<button class="btn btn-primary" onclick="buyProduct(\'' + product.id + '\', ' + product.price + ', \'' + product.sellerId + '\')" style="flex:1;">Acheter</button>';
+        html += '<button class="btn btn-outline" onclick="viewProfile(\'' + product.sellerId + '\')" style="flex:1;">👤 Voir le profil</button>';
         html += '</div>';
         openModal(html);
     }
@@ -324,6 +527,59 @@
     }
 
     // ============================================================
+    // VOIR LE PROFIL D'UN AUTRE UTILISATEUR
+    // ============================================================
+    function viewProfile(userId) {
+        if (!userId) return;
+        viewedUserId = userId;
+        // Aller à l'onglet Profil
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        var targetTab = document.querySelector('.tab-btn[data-page="pageProfile"]');
+        if (targetTab) {
+            targetTab.classList.add('active');
+            document.getElementById('pageProfile').classList.add('active');
+        }
+        // Charger les infos de l'utilisateur
+        fetch(BACKEND_URL + '/api/users/' + userId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var user = data.data;
+                    document.getElementById('profileName').textContent = user.name || 'Utilisateur';
+                    document.getElementById('profileEmail').textContent = user.email || '';
+                    document.getElementById('profilePhone').textContent = user.phone || '';
+                    document.getElementById('profileFlames').textContent = user.flames || 0;
+                    document.getElementById('profileAvatar').textContent = (user.name || 'U').charAt(0).toUpperCase();
+                    document.getElementById('walletBalance').textContent = user.walletBalance || 0;
+                    document.getElementById('followersCount').textContent = user.followersCount || 0;
+                    document.getElementById('followingCount').textContent = user.followingCount || 0;
+
+                    // Afficher le bouton Follow/Unfollow si ce n'est pas soi-même
+                    var followBtn = document.getElementById('followProfileBtn');
+                    if (userId !== currentUserId) {
+                        followBtn.style.display = 'inline-block';
+                        // Vérifier si déjà abonné
+                        checkFollowStatus(userId).then(function(isFollowing) {
+                            followBtn.textContent = isFollowing ? 'Se désabonner' : 'S'abonner';
+                            followBtn.className = 'btn btn-sm ' + (isFollowing ? 'btn-danger' : 'btn-primary') + ' follow-btn';
+                            followBtn.onclick = function() {
+                                if (isFollowing) {
+                                    unfollowUser(userId);
+                                } else {
+                                    followUser(userId);
+                                }
+                            };
+                        });
+                    } else {
+                        followBtn.style.display = 'none';
+                    }
+                }
+            })
+            .catch(function(e) { console.error(e); });
+    }
+
+    // ============================================================
     // WALLET
     // ============================================================
     function loadWallet() {
@@ -332,6 +588,7 @@
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 document.getElementById('walletBalance').textContent = data.balance || 0;
+                if (currentUser) currentUser.walletBalance = data.balance || 0;
             })
             .catch(function(e) { console.error(e); });
     }
@@ -383,7 +640,8 @@
                     var card = document.createElement('div');
                     card.className = 'glass';
                     card.style.marginBottom = '12px';
-                    card.innerHTML = '<div><strong>' + (order.article?.title || 'Article') + '</strong><br>' + (order.totalAmount || order.amount) + ' FCFA</div>';
+                    var statusText = order.status === 'livré' ? '✅ Livré' : (order.status === 'en attente de confirmation' ? '⏳ En attente' : order.status);
+                    card.innerHTML = '<div><strong>' + (order.article?.title || 'Article') + '</strong><br>' + (order.totalAmount || order.amount) + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText + '</span></div>';
                     container.appendChild(card);
                 });
             })
@@ -391,30 +649,7 @@
     }
 
     // ============================================================
-    // MESSAGES
-    // ============================================================
-    function loadMessages() {
-        if (!currentUserId) return;
-        fetch(BACKEND_URL + '/api/messages/' + currentUserId)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                var container = document.getElementById('contactsList');
-                var empty = document.getElementById('emptyMessages');
-                if (!data.success || !data.data || data.data.length === 0) {
-                    container.innerHTML = '';
-                    empty.style.display = 'block';
-                    return;
-                }
-                empty.style.display = 'none';
-                container.innerHTML = data.data.map(function(msg) {
-                    return '<div style="padding:8px 16px; background:rgba(255,255,255,0.8); border-radius:20px; margin:4px; display:inline-block;">' + (msg.senderName || 'Utilisateur') + '</div>';
-                }).join('');
-            })
-            .catch(function(e) { console.error(e); });
-    }
-
-    // ============================================================
-    // SHOP
+    // SHOP ARTICLES (avec suppression)
     // ============================================================
     function loadShopArticles() {
         if (!currentUserId) return;
@@ -430,7 +665,8 @@
                 data.data.forEach(function(a) {
                     var div = document.createElement('div');
                     div.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.5); border-radius:12px; padding:12px; margin-bottom:8px;';
-                    div.innerHTML = '<img src="' + (a.image || 'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px; height:50px; object-fit:cover; border-radius:8px;" /><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA</div>';
+                    var statusText = a.status === 'active' ? '✅ En vente' : (a.status === 'sold' ? '✅ Vendu' : '⏸ Inactif');
+                    div.innerHTML = '<img src="' + (a.image || 'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px; height:50px; object-fit:cover; border-radius:8px;" /><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px; color:#999;">' + statusText + '</span></div>';
                     if (a.status === 'active') {
                         var delBtn = document.createElement('button');
                         delBtn.className = 'btn btn-danger btn-sm';
@@ -455,8 +691,9 @@
                     showAlert('✅ Article supprimé !', 'success');
                     loadShopArticles();
                     loadProducts();
+                    loadStats();
                 } else {
-                    showAlert('❌ Erreur', 'error');
+                    showAlert('❌ ' + data.message, 'error');
                 }
             })
             .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
@@ -512,6 +749,7 @@
                         overlay.remove();
                         loadShopArticles();
                         loadProducts();
+                        loadStats();
                     } else {
                         showAlert('❌ ' + data.message, 'error');
                     }
@@ -550,6 +788,29 @@
     });
 
     // ============================================================
+    // MESSAGES (simplifiés)
+    // ============================================================
+    function loadMessages() {
+        if (!currentUserId) return;
+        fetch(BACKEND_URL + '/api/messages/' + currentUserId)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                var container = document.getElementById('contactsList');
+                var empty = document.getElementById('emptyMessages');
+                if (!data.success || !data.data || data.data.length === 0) {
+                    container.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+                container.innerHTML = data.data.map(function(msg) {
+                    return '<div style="padding:8px 16px; background:rgba(255,255,255,0.8); border-radius:20px; margin:4px; display:inline-block;">' + (msg.senderName || 'Utilisateur') + '</div>';
+                }).join('');
+            })
+            .catch(function(e) { console.error(e); });
+    }
+
+    // ============================================================
     // LOGOUT
     // ============================================================
     document.getElementById('btnLogout').addEventListener('click', function() {
@@ -557,7 +818,58 @@
         location.reload();
     });
 
-    console.log('✅ BLK Marketplace - Version minimale');
+    // ============================================================
+    // ADMIN PAGE
+    // ============================================================
+    if (window.location.hash === '#admin') {
+        document.getElementById('authPage').style.display = 'none';
+        document.getElementById('appContainer').classList.add('active');
+        document.getElementById('tabs').classList.add('show');
+        document.getElementById('tabs').style.display = 'none';
+
+        var adminHtml = '<div style="max-width:500px; margin:40px auto; background:white; padding:24px; border-radius:20px;"><h2 style="color:#E74C3C;">🔐 Admin BLK</h2><p>Créditer un wallet après réception du virement.</p><div id="adminLogin"><input type="password" id="adminPassword" placeholder="Mot de passe" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-primary" id="btnAdminLogin">Accéder</button></div><div id="adminPanel" style="display:none; margin-top:16px;"><input type="text" id="adminUserId" placeholder="ID utilisateur (ex: user_...)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><input type="number" id="adminAmount" placeholder="Montant (FCFA)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-success" id="btnAdminCredit">💰 Créditer</button><div id="adminResult"></div></div></div>';
+        document.getElementById('appContainer').innerHTML = adminHtml;
+
+        document.getElementById('btnAdminLogin').addEventListener('click', function() {
+            var pwd = document.getElementById('adminPassword').value;
+            if (pwd === 'BLK2026') {
+                document.getElementById('adminLogin').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                showAlert('Accès accordé', 'success');
+            } else {
+                showAlert('Mot de passe incorrect', 'error');
+            }
+        });
+
+        document.getElementById('btnAdminCredit').addEventListener('click', function() {
+            var userId = document.getElementById('adminUserId').value.trim();
+            var amount = parseInt(document.getElementById('adminAmount').value);
+            if (!userId || !amount) {
+                showAlert('User ID et montant requis', 'error');
+                return;
+            }
+            fetch(BACKEND_URL + '/api/wallet/admin-credit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId, amount: amount, phone: '065918166' })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showAlert('Wallet crédité de ' + amount + ' FCFA', 'success');
+                    document.getElementById('adminUserId').value = '';
+                    document.getElementById('adminAmount').value = '';
+                } else {
+                    showAlert('Erreur: ' + data.message, 'error');
+                }
+            })
+            .catch(function(e) {
+                showAlert('Erreur: ' + e.message, 'error');
+            });
+        });
+    }
+
+    console.log('✅ BLK Marketplace - Version complète avec statistiques, suppression et abonnements');
     console.log('🔗 Backend URL:', BACKEND_URL);
 </script>
 </body>
