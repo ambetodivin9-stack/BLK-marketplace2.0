@@ -1,489 +1,363 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BLK Marketplace</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    :root {
-      --primary: #E74C3C;
-      --success: #2ECC71;
-      --bg: #F5F0E8;
-      --radius: 24px;
-      --radius-sm: 14px;
-    }
-    body { font-family: -apple-system, sans-serif; background: var(--bg); color: #1a1a1a; min-height: 100vh; padding-bottom: 80px; }
-    .kente { height:6px; background:linear-gradient(90deg,#FFD700,#FFD700 20%,#2ECC71 20%,#2ECC71 40%,#E74C3C 40%,#E74C3C 60%,#FFD700 60%,#FFD700 80%,#2ECC71 80%,#2ECC71 100%); position:fixed; top:0; left:0; right:0; z-index:1000; }
-    .glass { background:rgba(255,255,255,0.65); backdrop-filter:blur(30px); border-radius:var(--radius); padding:24px; box-shadow:0 8px 32px rgba(0,0,0,0.08); border:1px solid rgba(255,255,255,0.4); }
-    .glass-sm { border-radius:var(--radius-sm); padding:16px; background:rgba(255,255,255,0.65); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.4); }
-    .btn { padding:14px 28px; border:none; border-radius:var(--radius-sm); font-weight:700; font-size:14px; cursor:pointer; width:100%; text-transform:uppercase; transition:all 0.3s; }
-    .btn:active { transform:scale(0.97); }
-    .btn-primary { background:var(--primary); color:#fff; }
-    .btn-success { background:var(--success); color:#fff; }
-    .btn-danger { background:#E74C3C; color:#fff; }
-    .btn-outline { background:transparent; color:var(--primary); border:2px solid var(--primary); }
-    .btn-sm { padding:6px 14px; font-size:11px; width:auto; }
-
-/* AUTH */
-.auth-page { position:fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; padding:20px; z-index:500; background:linear-gradient(135deg,#FFD700,#FF8C00); }
-.auth-page .glass { width:100%; max-width:420px; padding:32px 24px; background:rgba(255,255,255,0.7); backdrop-filter:blur(30px); }
-.auth-page h2 { text-align:center; font-size:28px; font-weight:800; margin-bottom:8px; }
-.auth-page .subtitle { text-align:center; font-size:14px; color:rgba(0,0,0,0.5); margin-bottom:24px; }
-.auth-page input { width:100%; padding:14px 16px; border:1px solid rgba(0,0,0,0.1); border-radius:var(--radius-sm); background:rgba(255,255,255,0.8); font-size:15px; margin-bottom:12px; }
-.auth-page input:focus { outline:none; border-color:var(--primary); background:#fff; }
-
-/* WELCOME */
-.welcome-screen { position:fixed; top:0; left:0; right:0; bottom:0; display:none; align-items:center; justify-content:center; z-index:600; background:linear-gradient(135deg,#FFD700,#2ECC71,#E74C3C); padding:40px; text-align:center; }
-.welcome-screen.active { display:flex; }
-.welcome-screen .logo-big { font-size:72px; font-weight:900; color:#fff; text-shadow:0 4px 20px rgba(0,0,0,0.2); }
-.welcome-screen .logo-big span { color:#1a1a1a; }
-.welcome-screen h1 { font-size:36px; color:#fff; font-weight:800; margin-bottom:8px; }
-.welcome-screen p { font-size:16px; color:rgba(255,255,255,0.85); max-width:320px; margin:0 auto 32px; }
-.welcome-screen .btn { background:#fff; color:#1a1a1a; max-width:280px; margin:0 auto; }
-
-/* HEADER */
-header { position:fixed; top:6px; left:0; right:0; z-index:200; padding:10px 16px; display:none; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.65); backdrop-filter:blur(30px); border-bottom:1px solid rgba(255,255,255,0.4); }
-header .logo { font-size:20px; font-weight:800; color:var(--primary); }
-header .user-avatar { width:36px; height:36px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; }
-header .user-name { font-size:13px; font-weight:600; }
-
-/* APP */
-.app-container { max-width:800px; margin:0 auto; padding:70px 16px 100px; display:none; }
-.app-container.active { display:block; }
-.page { display:none; }
-.page.active { display:block; }
-.page-title { font-size:22px; font-weight:800; color:var(--primary); margin-bottom:16px; }
-
-/* TABS */
-.tabs { position:fixed; bottom:0; left:0; right:0; display:none; background:rgba(255,255,255,0.5); backdrop-filter:blur(30px); border-top:1px solid rgba(255,255,255,0.8); padding:8px; z-index:150; }
-.tabs.active { display:flex; }
-.tab-btn { flex:1; display:flex; flex-direction:column; align-items:center; border:none; background:none; cursor:pointer; font-size:9px; font-weight:600; color:rgba(0,0,0,0.4); padding:4px; }
-.tab-btn.active { color:var(--primary); background:rgba(231,76,60,0.1); border-radius:10px; }
-.tab-btn .tab-icon { font-size:22px; }
-
-/* PRODUCTS */
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-top:12px; }
-.product-card { background:rgba(255,255,255,0.65); backdrop-filter:blur(20px); border-radius:var(--radius-sm); overflow:hidden; cursor:pointer; border:1px solid rgba(255,255,255,0.4); }
-.product-card .img { width:100%; height:150px; object-fit:cover; background:linear-gradient(135deg,#f0ebe3,#e8e0d8); }
-.product-card .info { padding:12px; }
-.product-card .title { font-weight:700; font-size:13px; }
-.product-card .price { font-weight:800; color:var(--primary); margin-top:4px; }
-.product-card .seller { font-size:11px; color:rgba(0,0,0,0.4); }
-
-/* PROFILE */
-.profile-avatar { width:80px; height:80px; border-radius:50%; background:var(--primary); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:800; color:#fff; }
-.wallet-balance { font-size:32px; font-weight:800; color:var(--success); }
-.badge { display:inline-block; background:var(--primary); color:#fff; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
-
-/* ALERT */
-.alert { padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:16px; font-size:13px; display:none; border-left:4px solid; }
-.alert.active { display:block; }
-.alert-success { background:rgba(46,204,113,0.1); color:#27AE60; border-left-color:var(--success); }
-.alert-error { background:rgba(231,76,60,0.1); color:#E74C3C; border-left-color:#E74C3C; }
-.empty-state { text-align:center; padding:40px 20px; color:rgba(0,0,0,0.3); }
-.empty-state .icon { font-size:48px; margin-bottom:12px; }
-.search-container { display:flex; gap:12px; background:rgba(255,255,255,0.5); backdrop-filter:blur(20px); border-radius:var(--radius-sm); padding:6px 16px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.8); }
-.search-container input { flex:1; padding:10px 0; border:none; background:transparent; font-size:14px; outline:none; }
-.category-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.contact-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; background:rgba(255,255,255,0.65); border-radius:20px; cursor:pointer; border:1px solid rgba(255,255,255,0.4); font-size:13px; }
-.transaction-item { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.04); }
-@media(max-width:480px){ .grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLK Marketplace</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f0e8; }
+        .kente { height:6px; background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%); }
+        .container { max-width:500px; margin:40px auto; padding:20px; background:rgba(255,255,255,0.9); border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+        h2 { color:#E74C3C; text-align:center; }
+        input { width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:8px; font-size:16px; }
+        .btn { width:100%; padding:14px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:16px; }
+        .btn-primary { background:#E74C3C; color:white; }
+        .btn-success { background:#2ECC71; color:white; }
+        .btn-danger { background:#E74C3C; color:white; }
+        .btn-primary:hover { background:#C0392B; }
+        .btn-success:hover { background:#27AE60; }
+        .alert { padding:12px; border-radius:8px; margin:12px 0; display:none; }
+        .alert-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+        .alert-error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+        .card { background:white; padding:16px; border-radius:12px; margin:12px 0; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .wallet-balance { font-size:32px; font-weight:bold; color:#2ECC71; }
+        .tabs { display:flex; gap:8px; margin:16px 0; flex-wrap:wrap; }
+        .tab-btn { flex:1; padding:10px; border:none; border-radius:8px; background:#eee; cursor:pointer; font-weight:bold; min-width:60px; }
+        .tab-btn.active { background:#E74C3C; color:white; }
+        .page { display:none; }
+        .page.active { display:block; }
+    </style>
 </head>
 <body>
-  <div class="kente"></div>
+<div class="kente"></div>
 
-  <!-- AUTH -->
-  <div id="authPage" class="auth-page">
-    <div class="glass">
-      <h2>BLK</h2>
-      <p class="subtitle">Bienvenue sur BLK Marketplace</p>
-      <input type="text" id="loginName" placeholder="Nom complet" value="Divin Ambeto" />
-      <input type="email" id="loginEmail" placeholder="Adresse e-mail" value="ambetodivin9@gmail.com" />
-      <button class="btn btn-primary" id="btnLogin">Se connecter</button>
+<!-- PAGE AUTH -->
+<div id="authPage" style="display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; background:linear-gradient(135deg,#FFD700,#FF8C00);">
+    <div class="container">
+        <h2>BLK</h2>
+        <p style="text-align:center; color:#666;">Bienvenue sur BLK Marketplace</p>
+        <input type="text" id="loginName" placeholder="Nom complet" value="Divin Ambeto">
+        <input type="email" id="loginEmail" placeholder="Adresse e-mail" value="ambetodivin9@gmail.com">
+        <button class="btn btn-primary" id="btnLogin">Se connecter</button>
+        <p style="text-align:center; margin-top:12px; font-size:12px; color:#999;">En vous inscrivant, vous acceptez nos conditions.</p>
     </div>
-  </div>
+</div>
 
-  <!-- WELCOME -->
-  <div class="welcome-screen" id="welcomeScreen">
-    <div>
-      <div class="logo-big">BLK<span>.</span></div>
-      <h1>Bienvenue dans<br>l'univers BLK</h1>
-      <p>La mode et les accessoires à portée de main.</p>
-      <button class="btn" id="welcomeBtn">Découvrir</button>
+<!-- BIENVENUE -->
+<div id="welcomeScreen" style="display:none; align-items:center; justify-content:center; min-height:100vh; padding:20px; background:linear-gradient(135deg,#FFD700,#2ECC71,#E74C3C);">
+    <div style="text-align:center; color:white;">
+        <h1 style="font-size:60px;">BLK.</h1>
+        <h2>Bienvenue dans l'univers BLK</h2>
+        <p>La mode et les accessoires à portée de main.</p>
+        <button class="btn" id="welcomeBtn" style="background:white; color:#333; max-width:280px; margin:20px auto;">Découvrir</button>
     </div>
-  </div>
+</div>
 
-  <!-- HEADER -->
-  <header id="header">
-    <span class="logo">BLK</span>
-    <div class="user-info">
-      <span class="user-name" id="headerName">Utilisateur</span>
-      <div class="user-avatar" id="headerAvatar">U</div>
-    </div>
-  </header>
+<!-- APPLICATION -->
+<div id="appContainer" style="display:none; max-width:600px; margin:0 auto; padding:70px 16px 100px;">
 
-  <!-- APP -->
-  <div class="app-container" id="appContainer">
-    <div id="alertBox" class="alert"></div>
+<div id="alertBox" class="alert"></div>
 
-<!-- HOME -->
+<!-- ONGLETS -->
+<div class="tabs" id="tabs">
+    <button class="tab-btn active" data-page="pageHome">🏠 Accueil</button>
+    <button class="tab-btn" data-page="pageProfile">👤 Profil</button>
+</div>
+
+<!-- ACCUEIL -->
 <div class="page active" id="pageHome">
-  <div class="search-container"><span style="font-weight:800;color:var(--primary);">BLK</span><input type="text" id="searchInput" placeholder="Rechercher..." /></div>
-  <div class="category-filters" id="categoryFilters">
-    <button class="btn btn-primary btn-sm" data-cat="all">Tous</button>
-    <button class="btn btn-outline btn-sm" data-cat="vêtements">Vêtements</button>
-    <button class="btn btn-outline btn-sm" data-cat="chaussures">Chaussures</button>
-    <button class="btn btn-outline btn-sm" data-cat="sacs">Sacs</button>
-    <button class="btn btn-outline btn-sm" data-cat="bijoux">Bijoux</button>
-    <button class="btn btn-outline btn-sm" data-cat="accessoires">Accessoires</button>
-  </div>
-  <div id="productsGrid" class="grid"></div>
-  <div id="emptyHome" class="empty-state" style="display:none;"><div class="icon">📭</div><h3>Aucun article</h3></div>
-</div>
-
-<!-- ORDERS -->
-<div class="page" id="pageOrders">
-  <h2 class="page-title">📦 Mes Commandes</h2>
-  <div id="ordersList"></div>
-  <div id="emptyOrders" class="empty-state" style="display:none;"><div class="icon">📭</div><h3>Aucune commande</h3></div>
-</div>
-
-<!-- MESSAGES -->
-<div class="page" id="pageMessages">
-  <h2 class="page-title">💬 Messagerie</h2>
-  <div id="contactsList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
-  <div id="discussionView" style="display:none;">
-    <h3 id="discussionName">Utilisateur</h3>
-    <div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div>
-    <input type="text" id="messageInput" placeholder="Écris ton message..." style="width:100%; padding:10px 12px; border:1px solid rgba(0,0,0,0.08); border-radius:var(--radius-sm); margin-top:8px;" />
-    <button class="btn btn-primary" id="btnSendMessage" style="margin-top:8px;">Envoyer</button>
-  </div>
-  <div id="emptyMessages" class="empty-state" style="display:block;"><div class="icon">💬</div><h3>Aucune discussion</h3></div>
-</div>
-
-<!-- SHOP -->
-<div class="page" id="pageShop">
-  <h2 class="page-title">🏪 Mon Magasin</h2>
-  <button class="btn btn-primary" id="btnPublish">📤 Publier un article</button>
-  <div id="shopArticles" style="margin-top:12px;"></div>
-</div>
-
-<!-- PROFILE -->
-<div class="page" id="pageProfile">
-  <h2 class="page-title">👤 Mon Profil</h2>
-  <div class="glass" style="text-align:center;">
-    <div class="profile-avatar" id="profileAvatar">U</div>
-    <h3 id="profileName">Utilisateur</h3>
-    <p style="color:rgba(0,0,0,0.4);" id="profileEmail">email@example.com</p>
-    <p style="color:rgba(0,0,0,0.4);" id="profilePhone">+242 06 XXX XXXX</p>
-    <div>🔥 <span id="profileFlames">0</span> flammes <span class="badge" id="profileSellerBadge" style="display:none;">Vendeur</span></div>
-  </div>
-  <div class="glass" style="margin-top:12px;">
-    <h3 style="color:var(--success);">💰 Wallet BLK</h3>
-    <p class="wallet-balance"><span id="walletBalance">0</span> FCFA</p>
-    <div style="display:flex; gap:8px;">
-      <button class="btn btn-success" style="flex:1;" id="btnDeposit">Déposer</button>
-      <button class="btn btn-primary" style="flex:1;" id="btnWithdraw">Retirer</button>
+    <div class="card">
+        <h3>📦 Articles</h3>
+        <div id="productsGrid"></div>
     </div>
-  </div>
-  <div class="glass" style="margin-top:12px;">
-    <h3>📋 Historique</h3>
-    <div id="transactionsList"></div>
-    <div id="emptyTransactions" class="empty-state" style="display:none; padding:20px 0;"><p>Aucune transaction</p></div>
-  </div>
-  <button class="btn btn-danger" style="margin-top:12px;" id="btnLogout">🚪 Déconnexion</button>
 </div>
-  </div>
 
-  <!-- TABS -->
-  <nav class="tabs" id="tabs">
-    <button class="tab-btn active" data-page="pageHome"><span class="tab-icon">🏠</span> Accueil</button>
-    <button class="tab-btn" data-page="pageOrders"><span class="tab-icon">📦</span> Commandes</button>
-    <button class="tab-btn" data-page="pageMessages"><span class="tab-icon">💬</span> Messages</button>
-    <button class="tab-btn" data-page="pageShop"><span class="tab-icon">🏪</span> Magasin</button>
-    <button class="tab-btn" data-page="pageProfile"><span class="tab-icon">👤</span> Profil</button>
-  </nav>
+<!-- PROFIL -->
+<div class="page" id="pageProfile">
+    <div class="card" style="text-align:center;">
+        <h3>👤 <span id="profileName">Utilisateur</span></h3>
+        <p style="color:#666;"><span id="profileEmail">email@example.com</span></p>
+        <p style="color:#666;"><span id="profilePhone">+242 06 XXX XXXX</span></p>
+        <p>🔥 <span id="profileFlames">0</span> flammes</p>
+    </div>
 
-  <script>
-    // 
-    // CONFIG
-    // 
-    const BACKEND_URL = 'https://blk-marketplace2-0.onrender.com';
-    const STORAGE_KEY = 'blk_user_id';
-    let currentUser = null, currentUserId = null;
-    let allProducts = [], selectedCategory = 'all';
+    <div class="card">
+        <h3 style="color:#2ECC71;">💰 Wallet BLK</h3>
+        <p class="wallet-balance"><span id="walletBalance">0</span> FCFA</p>
+        <button class="btn btn-success" id="btnDeposit">Déposer</button>
+        <button class="btn btn-primary" id="btnWithdraw" style="margin-top:8px;">Retirer</button>
+    </div>
 
-    function showAlert(msg, type) {
-      type = type || 'success';
-      var b = document.getElementById('alertBox');
-      b.textContent = msg;
-      b.className = 'alert active alert-' + type;
-      clearTimeout(b._timeout);
-      b._timeout = setTimeout(function() { b.classList.remove('active'); }, 4000);
-    }
+    <div class="card">
+        <h3>📋 Historique</h3>
+        <div id="transactionsList"></div>
+        <div id="emptyTransactions" style="display:none; text-align:center; color:#999; padding:20px;">Aucune transaction</div>
+    </div>
 
-    // 
-    // AUTH
-    // 
-    function handleLogin(name, email) {
-      var userId = localStorage.getItem(STORAGE_KEY);
-      if (!userId) {
+    <button class="btn btn-danger" id="btnLogout">🚪 Déconnexion</button>
+</div>
+</div>
+
+<script>
+// 
+// CONFIGURATION
+// 
+var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com';
+var STORAGE_KEY = 'blk_user_id';
+var currentUser = null;
+var currentUserId = null;
+
+// 
+// FONCTIONS UTILITAIRES
+// 
+function showAlert(message, type) {
+    var box = document.getElementById('alertBox');
+    box.textContent = message;
+    box.className = 'alert alert-' + (type || 'success');
+    box.style.display = 'block';
+    clearTimeout(box._timeout);
+    box._timeout = setTimeout(function() {
+        box.style.display = 'none';
+    }, 4000);
+}
+
+// 
+// CONNEXION
+// 
+function handleLogin(name, email) {
+    var userId = localStorage.getItem(STORAGE_KEY);
+    if (!userId) {
         userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         localStorage.setItem(STORAGE_KEY, userId);
-      }
-      currentUserId = userId;
-      currentUser = {
+    }
+    currentUserId = userId;
+    currentUser = {
         name: name || 'Utilisateur',
         email: email || 'user@example.com',
         phone: '+242 06 XXX XXXX',
         walletBalance: 0,
         id: userId
-      };
-      document.getElementById('authPage').style.display = 'none';
-      document.getElementById('welcomeScreen').classList.add('active');
-      document.getElementById('welcomeBtn').onclick = function() {
-        document.getElementById('welcomeScreen').classList.remove('active');
+    };
+
+    document.getElementById('authPage').style.display = 'none';
+    document.getElementById('welcomeScreen').style.display = 'flex';
+    document.getElementById('welcomeBtn').onclick = function() {
+        document.getElementById('welcomeScreen').style.display = 'none';
         showMainApp();
-        showAlert('✅ Bienvenue ' + currentUser.name + ' !', 'success');
+        showAlert('Bienvenue ' + currentUser.name + ' !', 'success');
         fetch(BACKEND_URL + '/api/users/online', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUserId, online: true })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUserId, online: true })
         });
-      };
-    }
+    };
+}
 
-    document.getElementById('btnLogin').addEventListener('click', function() {
-      var name = document.getElementById('loginName').value.trim() || 'Utilisateur';
-      var email = document.getElementById('loginEmail').value.trim() || 'user@example.com';
-      handleLogin(name, email);
-    });
+document.getElementById('btnLogin').addEventListener('click', function() {
+    var name = document.getElementById('loginName').value.trim() || 'Utilisateur';
+    var email = document.getElementById('loginEmail').value.trim() || 'user@example.com';
+    handleLogin(name, email);
+});
 
-    // 
-    // MAIN APP
-    // 
-    function showMainApp() {
-      document.getElementById('appContainer').classList.add('active');
-      document.getElementById('header').style.display = 'flex';
-      document.getElementById('tabs').classList.add('active');
-      document.getElementById('headerName').textContent = currentUser.name;
-      document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-      document.getElementById('profileName').textContent = currentUser.name;
-      document.getElementById('profileEmail').textContent = currentUser.email;
-      document.getElementById('profilePhone').textContent = currentUser.phone;
-      document.getElementById('profileFlames').textContent = 0;
-      document.getElementById('profileAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-      loadProducts();
-      loadWallet();
-      loadOrders();
-      loadMessages();
-      loadTransactions();
-    }
+// 
+// AFFICHAGE PRINCIPAL
+// 
+function showMainApp() {
+    document.getElementById('appContainer').style.display = 'block';
+    document.getElementById('profileName').textContent = currentUser.name;
+    document.getElementById('profileEmail').textContent = currentUser.email;
+    document.getElementById('profilePhone').textContent = currentUser.phone;
+    document.getElementById('profileFlames').textContent = 0;
 
-    document.querySelectorAll('.tab-btn').forEach(function(b) {
-      b.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+    loadProducts();
+    loadWallet();
+    loadTransactions();
+}
+
+// 
+// ONGLETS
+// 
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
         this.classList.add('active');
         document.getElementById(this.dataset.page).classList.add('active');
-        if (this.dataset.page = 'pageMessages') loadMessages();
-      });
     });
+});
 
-    // 
-    // PRODUCTS
-    // 
-    function loadProducts() {
-      fetch(BACKEND_URL + '/api/articles')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          allProducts = (d.success && d.data) ? d.data : [];
-          renderProducts(allProducts);
+// 
+// PRODUITS (simulés)
+// 
+function loadProducts() {
+    var grid = document.getElementById('productsGrid');
+    var produits = [
+        { title: 'Robe vintage', price: 15000, seller: 'Marie' },
+        { title: 'Chemise blanche', price: 8000, seller: 'Jean' },
+        { title: 'Sac à main', price: 25000, seller: 'Sophie' }
+    ];
+    grid.innerHTML = '';
+    produits.forEach(function(p) {
+        grid.innerHTML += '<div style="background:white; padding:12px; border-radius:8px; margin-bottom:8px; box-shadow:0 1px 4px rgba(0,0,0,0.05);"><strong>' + p.title + '</strong><br>' + p.price + ' FCFA<br><span style="font-size:12px; color:#999;">' + p.seller + '</span></div>';
+    });
+}
+
+// 
+// WALLET
+// 
+function loadWallet() {
+    if (!currentUserId) return;
+    fetch(BACKEND_URL + '/api/wallet/' + currentUserId)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            document.getElementById('walletBalance').textContent = data.balance || 0;
         })
-        .catch(function() { allProducts = []; renderProducts([]); });
-    }
-
-    function renderProducts(products) {
-      var grid = document.getElementById('productsGrid');
-      var empty = document.getElementById('emptyHome');
-      var filtered = products;
-      if (selectedCategory ! 'all') filtered = products.filter(function(p) { return p.category = selectedCategory; });
-      var q = document.getElementById('searchInput').value.toLowerCase();
-      if (q) filtered = filtered.filter(function(p) { return p.title && p.title.toLowerCase().includes(q); });
-      if (filtered.length = 0) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      grid.innerHTML = '';
-      filtered.forEach(function(p) {
-        var card = document.createElement('div');
-        card.className = 'product-card';
-        card.innerHTML = '<img src="' + (p.image || 'https://via.placeholder.com/150x150/F5F0E8/CCCCCC?text=BLK') + '" class="img" /><div class="info"><div class="title">' + (p.title || 'Sans titre') + '</div><div class="price">' + (p.price || 0) + ' FCFA</div><div class="seller">' + (p.sellerName || 'Anonyme') + '</div></div>';
-        grid.appendChild(card);
-      });
-    }
-
-    document.getElementById('searchInput').addEventListener('input', function() { renderProducts(allProducts); });
-    document.querySelectorAll('#categoryFilters .btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('#categoryFilters .btn').forEach(function(b) { b.className = 'btn btn-outline btn-sm'; });
-        this.className = 'btn btn-primary btn-sm';
-        selectedCategory = this.dataset.cat;
-        renderProducts(allProducts);
-      });
-    });
-
-    // 
-    // WALLET
-    // 
-    function loadWallet() {
-      if (!currentUserId) return;
-      fetch(BACKEND_URL + '/api/wallet/' + currentUserId)
-        .then(function(r) { return r.json(); })
-        .then(function(d) { document.getElementById('walletBalance').textContent = d.balance || 0; })
         .catch(function(e) { console.error(e); });
-    }
+}
 
-    // 
-    // DÉPÔT
-    // 
-    document.getElementById('btnDeposit').addEventListener('click', function() {
-      var amount = prompt('Montant (FCFA) :', '500');
-      if (!amount) return;
-      var phone = prompt('Numéro MTN :', '065918166');
-      if (!phone) return;
+// 
+// DÉPÔT (YABETOO)
+// 
+document.getElementById('btnDeposit').addEventListener('click', function() {
+    var amount = prompt('Montant (FCFA) :', '500');
+    if (!amount) return;
+    var phone = prompt('Numéro MTN :', '065918166');
+    if (!phone) return;
 
-      showAlert('⏳ Envoi de la demande...', 'info');
+    showAlert('Envoi de la demande...', 'success');
 
-      fetch(BACKEND_URL + '/api/wallet/deposit', {
+    fetch(BACKEND_URL + '/api/wallet/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
+        body: JSON.stringify({
+            userId: currentUserId,
+            amount: parseInt(amount),
+            phone: phone
+        })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
         if (data.success) {
-          showAlert('💰 ' + data.message, 'success');
-          loadWallet();
-          loadTransactions();
+            showAlert(data.message, 'success');
+            loadWallet();
+            loadTransactions();
         } else {
-          showAlert('❌ ' + data.message, 'error');
+            showAlert('Erreur: ' + data.message, 'error');
         }
-      })
-      .catch(function(e) {
-        showAlert('❌ Erreur: ' + e.message, 'error');
-      });
+    })
+    .catch(function(e) {
+        showAlert('Erreur: ' + e.message, 'error');
     });
+});
 
-    document.getElementById('btnWithdraw').addEventListener('click', function() {
-      showAlert('🔧 Retrait en développement', 'info');
-    });
+document.getElementById('btnWithdraw').addEventListener('click', function() {
+    showAlert('Fonction de retrait en développement', 'error');
+});
 
-    // 
-    // ORDERS
-    // 
-    function loadOrders() {
-      if (!currentUserId) return;
-      fetch(BACKEND_URL + '/api/orders/' + currentUserId)
-        .then(function(r) { return r.json(); })
-        .then(function(orders) {
-          var container = document.getElementById('ordersList');
-          var empty = document.getElementById('emptyOrders');
-          if (!orders || orders.length = 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
-          empty.style.display = 'none';
-          container.innerHTML = orders.map(function(o) {
-            return '<div class="glass-sm" style="margin-bottom:8px;"><strong>' + (o.article?.title || 'Article') + '</strong> - ' + (o.totalAmount || o.amount) + ' FCFA<br/><span style="font-size:12px;color:rgba(0,0,0,0.4);">Statut: ' + (o.status || 'en attente') + '</span></div>';
-          }).join('');
-        })
-        .catch(function(e) { console.error(e); });
-    }
-
-    // 
-    // MESSAGES
-    // 
-    function loadMessages() {
-      if (!currentUserId) return;
-      fetch(BACKEND_URL + '/api/messages/' + currentUserId)
-        .then(function(r) { return r.json(); })
+// 
+// TRANSACTIONS
+// 
+function loadTransactions() {
+    if (!currentUserId) return;
+    fetch(BACKEND_URL + '/api/transactions/' + currentUserId)
+        .then(function(res) { return res.json(); })
         .then(function(data) {
-          var container = document.getElementById('contactsList');
-          var empty = document.getElementById('emptyMessages');
-          var view = document.getElementById('discussionView');
-          if (!data.success || !data.data || data.data.length = 0) {
+            var container = document.getElementById('transactionsList');
+            var empty = document.getElementById('emptyTransactions');
+            if (!data.success || !data.data || data.data.length = 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
             container.innerHTML = '';
-            empty.style.display = 'block';
-            view.style.display = 'none';
-            return;
-          }
-          empty.style.display = 'none';
-          var contacts = {};
-          data.data.forEach(function(msg) {
-            var otherId = msg.senderId = currentUserId ? msg.receiverId : msg.senderId;
-            if (!contacts[otherId]) contacts[otherId] = { name: msg.senderName || 'Inconnu' };
-          });
-          container.innerHTML = Object.keys(contacts).map(function(id) {
-            return '<div class="contact-chip" data-id="' + id + '">' + (contacts[id].name || 'U') + '</div>';
-          }).join('');
-          document.querySelectorAll('.contact-chip').forEach(function(el) {
-            el.addEventListener('click', function() {
-              var id = this.dataset.id;
-              view.style.display = 'block';
-              document.getElementById('discussionName').textContent = contacts[id]?.name || 'Utilisateur';
-              document.getElementById('messagesList').innerHTML = '<p>💬 Discussion avec ' + (contacts[id]?.name || '') + '</p>';
+            data.data.slice(0, 10).forEach(function(t) {
+                container.innerHTML += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee;"><span>' + (t.description || t.type) + '</span><span>' + (t.amount || 0) + ' FCFA</span></div>';
             });
-          });
         })
         .catch(function(e) { console.error(e); });
-    }
+}
 
-    document.getElementById('btnSendMessage').addEventListener('click', function() {
-      showAlert('🔧 Envoi de message en développement', 'info');
+// 
+// DÉCONNEXION
+// 
+document.getElementById('btnLogout').addEventListener('click', function() {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+});
+
+// 
+// PAGE ADMIN (accessible via #admin)
+// 
+if (window.location.hash = '#admin') {
+    document.getElementById('authPage').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    document.getElementById('tabs').style.display = 'none';
+
+    var adminHtml = `
+        <div style="max-width:500px; margin:40px auto; background:white; padding:24px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+            <h2 style="color:#E74C3C;">🔐 Admin BLK</h2>
+            <p>Créditer un wallet après réception du virement MTN.</p>
+            <div id="adminLogin">
+                <input type="password" id="adminPassword" placeholder="Mot de passe" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:8px;" />
+                <button class="btn btn-primary" id="btnAdminLogin">Accéder</button>
+            </div>
+            <div id="adminPanel" style="display:none; margin-top:16px;">
+                <input type="text" id="adminUserId" placeholder="ID de l'utilisateur (ex: user_...)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:8px;" />
+                <input type="number" id="adminAmount" placeholder="Montant (FCFA)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:8px;" />
+                <button class="btn btn-success" id="btnAdminCredit">💰 Créditer le wallet</button>
+                <div id="adminResult" style="margin-top:12px;"></div>
+            </div>
+        </div>
+    `;
+    document.getElementById('appContainer').innerHTML = adminHtml;
+
+    document.getElementById('btnAdminLogin').addEventListener('click', function() {
+        var pwd = document.getElementById('adminPassword').value;
+        if (pwd = 'BLK2026') {
+            document.getElementById('adminLogin').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            showAlert('Accès admin accordé', 'success');
+        } else {
+            showAlert('Mot de passe incorrect', 'error');
+        }
     });
 
-    // 
-    // TRANSACTIONS
-    // 
-    function loadTransactions() {
-      if (!currentUserId) return;
-      fetch(BACKEND_URL + '/api/transactions/' + currentUserId)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          var container = document.getElementById('transactionsList');
-          var empty = document.getElementById('emptyTransactions');
-          if (!data.success || !data.data || data.data.length = 0) {
-            container.innerHTML = '';
-            empty.style.display = 'block';
+    document.getElementById('btnAdminCredit').addEventListener('click', function() {
+        var userId = document.getElementById('adminUserId').value.trim();
+        var amount = parseInt(document.getElementById('adminAmount').value);
+        if (!userId || !amount) {
+            showAlert('User ID et montant requis', 'error');
             return;
-          }
-          empty.style.display = 'none';
-          container.innerHTML = data.data.slice(0, 10).map(function(t) {
-            return '<div class="transaction-item"><span>' + (t.description || t.type) + '</span><span>' + (t.amount || 0) + ' FCFA</span></div>';
-          }).join('');
+        }
+        fetch(BACKEND_URL + '/api/wallet/admin-credit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userId, amount: amount, phone: '065918166' })
         })
-        .catch(function(e) { console.error(e); });
-    }
-
-    // 
-    // LOGOUT
-    // 
-    document.getElementById('btnLogout').addEventListener('click', function() {
-      localStorage.removeItem(STORAGE_KEY);
-      location.reload();
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showAlert('Wallet crédité de ' + amount + ' FCFA', 'success');
+                document.getElementById('adminUserId').value = '';
+                document.getElementById('adminAmount').value = '';
+            } else {
+                showAlert('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(function(e) {
+            showAlert('Erreur: ' + e.message, 'error');
+        });
     });
+}
 
-    // 
-    // PUBLISH
-    // 
-    document.getElementById('btnPublish').addEventListener('click', function() {
-      showAlert('🔧 Publication en développement', 'info');
-    });
-
-    // 
-    // INIT
-    // 
-    console.log('✅ BLK Marketplace - Version stable');
-    console.log('🔗 Backend URL:', BACKEND_URL);
-  </script>
+// 
+// INIT
+// ==
+console.log('✅ BLK Marketplace');
+console.log('🔗 Backend URL:', BACKEND_URL);
+</script>
 
 </body>
 </html>
