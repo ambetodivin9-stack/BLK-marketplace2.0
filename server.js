@@ -10,9 +10,6 @@ const PORT = process.env.PORT || 10000;
 app.use(cors()); 
 app.use(express.json({ limit: '10mb' }));
 
-//  
-// FIREBASE 
-//  
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) { 
 console.error('FIREBASE_SERVICE_ACCOUNT manquant'); 
 process.exit(1); 
@@ -23,20 +20,11 @@ const db = admin.firestore();
 
 console.log('BLK API demarree');
 
-//  
-// CONFIG MONEYUNIFY 
-//  
 const MONEYUNIFY_AUTH_ID = process.env.MONEYUNIFY_AUTH_ID || '01KXKPX5V8J7ARK619BT1A07GP';
 
-//  
-// ROUTES DE BASE 
-//  
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
 
-//  
-// UTILISATEURS 
-//  
 app.post('/api/users/online', async (req, res) => { 
 try { 
 const { userId, online } = req.body; 
@@ -91,9 +79,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// ARTICLES - CORRIGÉ (tri en mémoire) 
-//  
 app.get('/api/articles', async (req, res) => { 
 try { 
 const snapshot = await db.collection('products') 
@@ -175,9 +160,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// UPLOAD IMAGE (ImgBB) - CORRIGÉ 
-//  
 app.post('/api/upload', async (req, res) => { 
 try { 
 const { base64 } = req.body; 
@@ -211,9 +193,6 @@ if (!base64) return res.status(400).json({ success: false, message: 'Aucune imag
 }
 });
 
-//  
-// STATISTIQUES 
-//  
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -280,9 +259,6 @@ const articlesSnapshot = await db.collection('products')
 }
 });
 
-//  
-// WALLET 
-//  
 app.get('/api/wallet/:userId', async (req, res) => { 
 try { 
 const doc = await db.collection('users').doc(req.params.userId).get(); 
@@ -292,9 +268,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// MONEYUNIFY - INITIER UN PAIEMENT 
-//  
 app.post('/api/payment/initiate', async (req, res) => { 
 try { 
 const { userId, amount, phone } = req.body; 
@@ -357,9 +330,6 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
 }
 });
 
-//  
-// MONEYUNIFY - WEBHOOK 
-//  
 app.post('/api/payment/webhook', async (req, res) => { 
 try { 
 const { transaction_id, status, amount, phone, reference } = req.body; 
@@ -405,9 +375,6 @@ console.log('📥 Webhook reçu:', req.body);
 }
 });
 
-//  
-// ORDRES 
-//  
 app.post('/api/orders/create', async (req, res) => { 
 try { 
 const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
@@ -447,9 +414,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// CONFIRM-BY-QR - CORRIGÉ 
-//  
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 try { 
 const { orderId, buyerId } = req.body; 
@@ -460,7 +424,6 @@ const orderRef = db.collection('orders').doc(orderId);
 const orderDoc = await orderRef.get(); 
 if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvee' }); 
 const order = orderDoc.data(); 
-// ✅ CORRECTION ICI : '!' au lieu de '!=' 
 if (order.buyerId ! buyerId) { 
 return res.status(403).json({ success: false, message: 'Non autorise' }); 
 } 
@@ -530,9 +493,6 @@ res.status(500).json([]);
 } 
 });
 
-//  
-// MESSAGES 
-//  
 app.get('/api/messages/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -600,9 +560,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// FOLLOW 
-//  
 app.post('/api/follow', async (req, res) => { 
 try { 
 const { followerId, followingId } = req.body; 
@@ -696,9 +653,6 @@ app.post('/api/flames', (req, res) => res.json({ success: true }));
 app.get('/api/flames/:userId', (req, res) => res.json({ flames: 0 })); 
 app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] }));
 
-//  
-// WALLET - DEPOT MANUEL (pour admin) 
-//  
 app.post('/api/wallet/deposit', async (req, res) => { 
 try { 
 const userId = req.body.userId || req.body.userid; 
@@ -735,9 +689,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// DEMARRAGE 
-// == 
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('BLK API running on port ' + PORT); 
 });
