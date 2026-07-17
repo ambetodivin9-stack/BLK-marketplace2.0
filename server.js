@@ -81,6 +81,7 @@ if (name) updateData.name = name;
 if (email) updateData.email = email; 
 if (phone) updateData.phone = phone; 
 if (photo) updateData.photo = photo; 
+// ✅ Utilisation de 'in' au lieu de '!=' 
 if ('isSeller' in req.body) { 
 updateData.isSeller = req.body.isSeller; 
 } 
@@ -184,23 +185,21 @@ const { base64 } = req.body;
 if (!base64) return res.status(400).json({ success: false, message: 'Aucune image' });
 
     const API_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
-    // Nettoyer le base64
     const base64Data = base64.includes('base64,') ? base64.split('base64,')[1] : base64;
-    
-    // Limiter la taille de l'image (1 Mo)
+
     if (base64Data.length > 1.5 * 1024 * 1024) {
         return res.status(400).json({ success: false, message: 'Image trop volumineuse (max 1.5 Mo)' });
     }
-    
+
     const formData = new FormData();
     formData.append('key', API_KEY);
     formData.append('image', base64Data);
-    
+
     const response = await axios.post('https://api.imgbb.com/1/upload', formData, {
         headers: formData.getHeaders(),
         timeout: 10000
     });
-    
+
     if (response.data.success) {
         res.json({ success: true, url: response.data.data.url });
     } else {
@@ -295,7 +294,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ✅ MONEYUNIFY - INITIER UN PAIEMENT (AJOUTÉ) 
+// ✅ MONEYUNIFY - INITIER UN PAIEMENT 
 //  
 app.post('/api/payment/initiate', async (req, res) => { 
 try { 
@@ -304,7 +303,6 @@ if (!userId || !amount || !phone) {
 return res.status(400).json({ success: false, message: 'userId, amount et phone requis' }); 
 }
 
-    // Vérifier que l'utilisateur existe
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
     if (!userDoc.exists) {
@@ -313,7 +311,6 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
 
     console.log('📤 Envoi à MoneyUnify:', { phone, amount, auth_id: MONEYUNIFY_AUTH_ID });
 
-    // Appeler l'API MoneyUnify
     const response = await axios.post('https://api.moneyunify.one/payments/request', 
         new URLSearchParams({
             from_payer: phone,
@@ -331,7 +328,6 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
     console.log('✅ Réponse MoneyUnify:', response.data);
 
     if (response.data.status === 'success') {
-        // Créer une transaction en attente
         await db.collection('transactions').add({
             userId: userId,
             amount: parseInt(amount),
@@ -363,14 +359,13 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
 });
 
 //  
-// ✅ MONEYUNIFY - WEBHOOK (AJOUTÉ) 
+// ✅ MONEYUNIFY - WEBHOOK 
 //  
 app.post('/api/payment/webhook', async (req, res) => { 
 try { 
 const { transaction_id, status, amount, phone, reference } = req.body; 
 console.log('📥 Webhook reçu:', req.body);
 
-    // Trouver la transaction dans Firestore
     const snapshot = await db.collection('transactions')
         .where('transactionId', '==', transaction_id)
         .get();
@@ -383,7 +378,6 @@ console.log('📥 Webhook reçu:', req.body);
     const transactionDoc = snapshot.docs[0];
     const transactionData = transactionDoc.data();
 
-    // Si le paiement est réussi, créditer le wallet
     if (status === 'success') {
         const userRef = db.collection('users').doc(transactionData.userId);
         const userDoc = await userRef.get();
@@ -413,45 +407,8 @@ console.log('📥 Webhook reçu:', req.body);
 });
 
 //  
-// ORDRES, MESSAGES, FOLLOW (inchangés mais conservés) 
+// ORDRES 
 //  
-// ... (je garde tout le reste identique) 
-app.post('/api/wallet/deposit', async (req, res) => { 
-try { 
-const userId = req.body.userId || req.body.userid; 
-const amount = parseInt(req.body.amount); 
-const phone = req.body.phone; 
-if (!userId || !amount || !phone) { 
-return res.status(400).json({ success: false, message: 'userId, amount et phone requis' }); 
-} 
-const userRef = db.collection('users').doc(userId); 
-const doc = await userRef.get(); 
-const currentBalance = doc.data()?.walletBalance || 0; 
-const newBalance = currentBalance + amount; 
-await userRef.set({ walletBalance: newBalance, phone: phone, lastDeposit: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }); 
-await db.collection('transactions').add({ userId, amount, phone, type: 'deposit', status: 'completed', description: 'Depot (simule)', createdAt: new Date() }); 
-res.json({ success: true, message: 'Depot effectue', newBalance }); 
-} catch (error) { 
-res.status(500).json({ success: false, message: 'Erreur interne' }); 
-} 
-});
-
-app.post('/api/wallet/admin-credit', async (req, res) => { 
-try { 
-const { userId, amount, phone } = req.body; 
-if (!userId || !amount) return res.status(400).json({ success: false, message: 'userId et amount requis' }); 
-const userRef = db.collection('users').doc(userId); 
-const doc = await userRef.get(); 
-const currentBalance = doc.data()?.walletBalance || 0; 
-const newBalance = currentBalance + amount; 
-await userRef.set({ walletBalance: newBalance, phone: phone || doc.data()?.phone || '', lastDeposit: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }); 
-await db.collection('transactions').add({ userId, amount, phone: phone || '065918166', type: 'deposit', status: 'completed', description: 'Depot manuel (admin)', createdAt: new Date() }); 
-res.json({ success: true, message: 'Wallet credite', newBalance }); 
-} catch (error) { 
-res.status(500).json({ success: false, message: error.message }); 
-} 
-});
-
 app.post('/api/orders/create', async (req, res) => { 
 try { 
 const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
@@ -491,6 +448,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ✅ ROUTE CONFIRM-BY-QR CORRIGÉE (plus de '!') 
+//  
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 try { 
 const { orderId, buyerId } = req.body; 
@@ -501,11 +461,18 @@ const orderRef = db.collection('orders').doc(orderId);
 const orderDoc = await orderRef.get(); 
 if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvee' }); 
 const order = orderDoc.data(); 
-if (order.buyerId ! buyerId) return res.status(403).json({ success: false, message: 'Non autorise' }); 
-if (order.status ! 'en attente de confirmation') return res.status(400).json({ success: false, message: 'Commande deja traitee' }); 
+// ✅ CORRECTION : comparaison avec '!' (double égal) 
+if (order.buyerId ! buyerId) { 
+return res.status(403).json({ success: false, message: 'Non autorise' }); 
+} 
+if (order.status ! 'en attente de confirmation') { 
+return res.status(400).json({ success: false, message: 'Commande deja traitee' }); 
+} 
 const now = new Date(); 
 const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt); 
-if (now > expiresAt) return res.status(400).json({ success: false, message: 'Delai expire' });
+if (now > expiresAt) { 
+return res.status(400).json({ success: false, message: 'Delai expire' }); 
+}
 
     const sellerCommission = order.sellerCommission || Math.round(order.amount * 0.04);
     const buyerCommission = order.buyerCommission || Math.round(order.amount * 0.03);
@@ -564,6 +531,9 @@ res.status(500).json([]);
 } 
 });
 
+//  
+// MESSAGES 
+//  
 app.get('/api/messages/:userId', async (req, res) => { 
 try { 
 const { userId } = req.params; 
@@ -631,6 +601,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// FOLLOW 
+//  
 app.post('/api/follow', async (req, res) => { 
 try { 
 const { followerId, followingId } = req.body; 
@@ -725,8 +698,47 @@ app.get('/api/flames/:userId', (req, res) => res.json({ flames: 0 }));
 app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] }));
 
 //  
-// DEMARRAGE 
+// WALLET - DEPOT MANUEL (pour admin) 
 //  
+app.post('/api/wallet/deposit', async (req, res) => { 
+try { 
+const userId = req.body.userId || req.body.userid; 
+const amount = parseInt(req.body.amount); 
+const phone = req.body.phone; 
+if (!userId || !amount || !phone) { 
+return res.status(400).json({ success: false, message: 'userId, amount et phone requis' }); 
+} 
+const userRef = db.collection('users').doc(userId); 
+const doc = await userRef.get(); 
+const currentBalance = doc.data()?.walletBalance || 0; 
+const newBalance = currentBalance + amount; 
+await userRef.set({ walletBalance: newBalance, phone: phone, lastDeposit: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }); 
+await db.collection('transactions').add({ userId, amount, phone, type: 'deposit', status: 'completed', description: 'Depot (simule)', createdAt: new Date() }); 
+res.json({ success: true, message: 'Depot effectue', newBalance }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: 'Erreur interne' }); 
+} 
+});
+
+app.post('/api/wallet/admin-credit', async (req, res) => { 
+try { 
+const { userId, amount, phone } = req.body; 
+if (!userId || !amount) return res.status(400).json({ success: false, message: 'userId et amount requis' }); 
+const userRef = db.collection('users').doc(userId); 
+const doc = await userRef.get(); 
+const currentBalance = doc.data()?.walletBalance || 0; 
+const newBalance = currentBalance + amount; 
+await userRef.set({ walletBalance: newBalance, phone: phone || doc.data()?.phone || '', lastDeposit: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }); 
+await db.collection('transactions').add({ userId, amount, phone: phone || '065918166', type: 'deposit', status: 'completed', description: 'Depot manuel (admin)', createdAt: new Date() }); 
+res.json({ success: true, message: 'Wallet credite', newBalance }); 
+} catch (error) { 
+res.status(500).json({ success: false, message: error.message }); 
+} 
+});
+
+//  
+// DEMARRAGE 
+// == 
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('BLK API running on port ' + PORT); 
 });
