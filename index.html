@@ -610,7 +610,7 @@
     }
 
     // ============================================================
-    // WALLET - AVEC MONEYUNIFY
+    // WALLET - AVEC MONEYUNIFY REEL
     // ============================================================
     function loadWallet() {
         if (!currentUserId) return;
@@ -644,6 +644,8 @@
         .then(function(data) {
             if (data.success) {
                 showAlert('💰 Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
+                // Le webhook créditera le wallet automatiquement
+                // On vérifie après 30 secondes
                 setTimeout(function() {
                     loadWallet();
                     showAlert('✅ Vérification du solde effectuée.', 'success');
@@ -692,10 +694,11 @@
     }
 
     // ============================================================
-    // SHOP ARTICLES (avec suppression)
+    // SHOP ARTICLES - CORRIGÉ (URL sans "/user/")
     // ============================================================
     function loadShopArticles() {
         if (!currentUserId) return;
+        // ✅ URL corrigée : plus de "/user/"
         fetch(BACKEND_URL + '/api/articles/seller/' + currentUserId)
             .then(function(res) { return res.json(); })
             .then(function(data) {
