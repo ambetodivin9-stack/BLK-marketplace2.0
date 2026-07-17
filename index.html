@@ -591,7 +591,6 @@
                     if (userId !== currentUserId) {
                         followBtn.style.display = 'inline-block';
                         checkFollowStatus(userId).then(function(isFollowing) {
-                            // ✅ CORRECTION : guillemets doubles
                             followBtn.textContent = isFollowing ? 'Se désabonner' : "S'abonner";
                             followBtn.className = 'btn btn-sm ' + (isFollowing ? 'btn-danger' : 'btn-primary') + ' follow-btn';
                             followBtn.onclick = function() {
@@ -624,7 +623,6 @@
             .catch(function(e) { console.error(e); });
     }
 
-    // ✅ BOUTON DEPOSIT - MONEYUNIFY
     document.getElementById('btnDeposit').addEventListener('click', function() {
         var amount = prompt('Montant (FCFA) :', '500');
         if (!amount) return;
@@ -646,7 +644,6 @@
         .then(function(data) {
             if (data.success) {
                 showAlert('💰 Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
-                // Vérifier le wallet après 30 secondes
                 setTimeout(function() {
                     loadWallet();
                     showAlert('✅ Vérification du solde effectuée.', 'success');
