@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors'); 
 const admin = require('firebase-admin'); 
 const axios = require('axios'); 
-const FormData = require('form-data');
+const FormData = require('form-data'); 
+const { Storage } = require('@google-cloud/storage'); 
+const { v4: uuidv4 } = require('uuid');
 
 const app = express(); 
 const PORT = process.env.PORT || 10000;
@@ -22,6 +24,18 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 console.log('BLK API demarree');
+
+//  
+// FIREBASE STORAGE (pour les images) 
+//  
+const storage = new Storage({ 
+projectId: serviceAccount.project_id, 
+credentials: { 
+client_email: serviceAccount.client_email, 
+private_key: serviceAccount.private_key 
+} 
+}); 
+const bucket = storage.bucket(serviceAccount.project_id + '.appspot.com');
 
 //  
 // CONFIG MONEYUNIFY 
@@ -92,22 +106,17 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ARTICLES (filtrage en mémoire) 
+// ARTICLES (routes restaurées avec orderBy) 
 //  
 app.get('/api/articles', async (req, res) => { 
 try { 
-const snapshot = await db.collection('products').get(); 
+const snapshot = await db.collection('products') 
+.where('status', '', 'active') 
+.orderBy('createdAt', 'desc') 
+.get(); 
 const articles = []; 
 snapshot.forEach(doc => { 
-const data = doc.data(); 
-if (data.status = 'active') { 
-articles.push({ id: doc.id, ...data }); 
-} 
-}); 
-articles.sort((a, b) => { 
-const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
-const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt); 
-return dateB - dateA; 
+articles.push({ id: doc.id, ...doc.data() }); 
 }); 
 res.json({ success: true, data: articles }); 
 } catch (error) { 
@@ -121,19 +130,10 @@ try {
 const { sellerId } = req.params; 
 const snapshot = await db.collection('products') 
 .where('sellerId', '', sellerId) 
+.orderBy('createdAt', 'desc') 
 .get(); 
 const articles = []; 
-snapshot.forEach(doc => { 
-const data = doc.data(); 
-if (data.status = 'active') { 
-articles.push({ id: doc.id, ...data }); 
-} 
-}); 
-articles.sort((a, b) => { 
-const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
-const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt); 
-return dateB - dateA; 
-}); 
+snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
 res.json({ success: true, data: articles }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
@@ -182,7 +182,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// UPLOAD IMAGE - CORRIGÉ (nettoyage Base64) 
+// UPLOAD IMAGE - FIREBASE STORAGE (gratuit) 
 //  
 app.post('/api/upload', async (req, res) => { 
 try { 
@@ -191,45 +191,39 @@ if (!base64) {
 return res.status(400).json({ success: false, message: 'Aucune image fournie' }); 
 }
 
-    // Nettoyer la chaîne Base64
+    // Nettoyer le Base64
     let cleanBase64 = base64.includes('base64,') ? base64.split('base64,')[1] : base64;
     cleanBase64 = cleanBase64.replace(/\s/g, '');
 
-    // Valider le format Base64
+    // Valider le format
     const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
     if (!base64Regex.test(cleanBase64)) {
         return res.status(400).json({ success: false, message: 'Format d\'image invalide' });
     }
 
-    // Vérifier la taille de l'image (max 1.5 Mo)
+    // Vérifier la taille (max 1.5 Mo)
     const imageSize = Buffer.from(cleanBase64, 'base64').length;
     if (imageSize > 1.5 * 1024 * 1024) {
         return res.status(400).json({ success: false, message: 'Image trop volumineuse (max 1.5 Mo)' });
     }
 
-    // Envoyer à ImgBB
-    const API_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
-    const formData = new FormData();
-    formData.append('key', API_KEY);
-    formData.append('image', cleanBase64);
+    // Générer un nom unique pour le fichier
+    const filename = `products/${uuidv4()}.jpg`;
+    const file = bucket.file(filename);
 
-    const response = await axios.post('https://api.imgbb.com/1/upload', formData, {
-        headers: {
-            ...formData.getHeaders(),
-            'Content-Type': 'multipart/form-data',
+    // Upload dans Firebase Storage
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    await file.save(buffer, {
+        metadata: {
+            contentType: 'image/jpeg',
         },
-        timeout: 10000
+        public: true
     });
 
-    if (response.data.success) {
-        res.json({ success: true, url: response.data.data.url });
-    } else {
-        console.error('Erreur ImgBB:', response.data);
-        res.status(400).json({
-            success: false,
-            message: 'Erreur ImgBB: ' + (response.data.error?.message || 'inconnue')
-        });
-    }
+    // Récupérer l'URL publique
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+
+    res.json({ success: true, url: publicUrl });
 } catch (error) {
     console.error('Erreur upload:', error.message);
     res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
@@ -241,50 +235,46 @@ return res.status(400).json({ success: false, message: 'Aucune image fournie' })
 //  
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
-const { userId } = req.params;
-
-    const allArticlesSnapshot = await db.collection('products')
-        .where('sellerId', '==', userId)
-        .get();
-    let totalArticles = 0;
-    allArticlesSnapshot.forEach(doc => {
-        if (doc.data().status === 'active') totalArticles++;
-    });
+const { userId } = req.params; 
+const articlesSnapshot = await db.collection('products') 
+.where('sellerId', '', userId) 
+.where('status', '', 'active') 
+.get();
 
     const ordersSnapshot = await db.collection('orders')
         .where('sellerId', '==', userId)
+        .where('status', '==', 'livre')
         .get();
 
     let totalSales = 0;
     let totalRevenue = 0;
-    const history = {};
-    
     ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        if (order.status === 'livre') {
-            totalSales += 1;
-            totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
-            
-            const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
-            const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-            if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
-            history[month].ventes += 1;
-            history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
-        }
+        totalSales += 1;
+        totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
     });
 
     const purchasesSnapshot = await db.collection('orders')
         .where('buyerId', '==', userId)
+        .where('status', '==', 'livre')
         .get();
-    
+
     let totalPurchases = 0;
     let totalSpent = 0;
     purchasesSnapshot.forEach(doc => {
         const order = doc.data();
-        if (order.status === 'livre') {
-            totalPurchases += 1;
-            totalSpent += order.totalAmount || order.amount;
-        }
+        totalPurchases += 1;
+        totalSpent += order.totalAmount || order.amount;
+    });
+
+    const history = {};
+    ordersSnapshot.forEach(doc => {
+        const order = doc.data();
+        const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
+        const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
+        history[month].ventes += 1;
+        history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
     });
 
     const historyArray = Object.keys(history).sort().map(month => ({
@@ -296,7 +286,7 @@ const { userId } = req.params;
     res.json({
         success: true,
         data: {
-            totalArticles,
+            totalArticles: articlesSnapshot.size,
             totalSales,
             totalRevenue: Math.round(totalRevenue),
             totalPurchases,
@@ -305,7 +295,6 @@ const { userId } = req.params;
         }
     });
 } catch (error) {
-    console.error('Erreur stats:', error.message);
     res.status(500).json({ success: false, message: error.message });
 }
 });
@@ -635,9 +624,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// FOLLOW 
-//  
 app.post('/api/follow', async (req, res) => { 
 try { 
 const { followerId, followingId } = req.body; 
@@ -712,19 +698,13 @@ const articles = [];
 for (const id of followingIds) { 
 const snapshot = await db.collection('products') 
 .where('sellerId', '', id) 
+.where('status', '', 'active') 
+.orderBy('createdAt', 'desc') 
+.limit(10) 
 .get(); 
-snapshot.forEach(doc => { 
-const data = doc.data(); 
-if (data.status = 'active') { 
-articles.push({ id: doc.id, ...data }); 
+snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
 } 
-}); 
-} 
-articles.sort((a, b) => { 
-const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
-const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt); 
-return dateB - dateA; 
-}); 
+articles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); 
 res.json({ success: true, data: articles }); 
 } catch (error) { 
 res.status(500).json({ success: false, message: error.message }); 
@@ -735,9 +715,6 @@ app.post('/api/flames', (req, res) => res.json({ success: true }));
 app.get('/api/flames/:userId', (req, res) => res.json({ flames: 0 })); 
 app.get('/api/transactions/:userId', (req, res) => res.json({ success: true, data: [] }));
 
-//  
-// WALLET - DEPOT MANUEL (pour admin) 
-//  
 app.post('/api/wallet/deposit', async (req, res) => { 
 try { 
 const userId = req.body.userId || req.body.userid; 
@@ -774,9 +751,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// DEMARRAGE 
-// == 
 app.listen(PORT, '0.0.0.0', () => { 
 console.log('BLK API running on port ' + PORT); 
 });
