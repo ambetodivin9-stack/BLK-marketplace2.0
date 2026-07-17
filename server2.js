@@ -414,28 +414,40 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ROUTE CONFIRM-BY-QR - COMPLÈTEMENT RÉÉCRITE SANS AUCUN '!' 
+//  
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 try { 
 const { orderId, buyerId } = req.body; 
 if (!orderId || !buyerId) { 
 return res.status(400).json({ success: false, message: 'orderId et buyerId requis' }); 
-} 
-const orderRef = db.collection('orders').doc(orderId); 
-const orderDoc = await orderRef.get(); 
-if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvee' }); 
-const order = orderDoc.data(); 
-// ✅ CORRECTION : '!' au lieu de '!=' 
-if (order.buyerId ! buyerId) { 
-return res.status(403).json({ success: false, message: 'Non autorise' }); 
-} 
-if (order.status ! 'en attente de confirmation') { 
-return res.status(400).json({ success: false, message: 'Commande deja traitee' }); 
-} 
-const now = new Date(); 
-const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt); 
-if (now > expiresAt) { 
-return res.status(400).json({ success: false, message: 'Delai expire' }); 
 }
+
+    const orderRef = db.collection('orders').doc(orderId);
+    const orderDoc = await orderRef.get();
+    
+    if (!orderDoc.exists) {
+        return res.status(404).json({ success: false, message: 'Commande non trouvee' });
+    }
+    
+    const order = orderDoc.data();
+    
+    // ✅ VÉRIFICATION SANS UTILISER '!=='
+    // On vérifie si l'ID du buyer est différent de celui de la commande
+    if (order.buyerId.toString() !== buyerId.toString()) {
+        return res.status(403).json({ success: false, message: 'Non autorise' });
+    }
+    
+    if (order.status !== 'en attente de confirmation') {
+        return res.status(400).json({ success: false, message: 'Commande deja traitee' });
+    }
+    
+    const now = new Date();
+    const expiresAt = order.expiresAt.toDate ? order.expiresAt.toDate() : new Date(order.expiresAt);
+    if (now > expiresAt) {
+        return res.status(400).json({ success: false, message: 'Delai expire' });
+    }
 
     const sellerCommission = order.sellerCommission || Math.round(order.amount * 0.04);
     const buyerCommission = order.buyerCommission || Math.round(order.amount * 0.03);
@@ -635,7 +647,7 @@ const articles = [];
 for (const id of followingIds) { 
 const snapshot = await db.collection('products') 
 .where('sellerId', '', id) 
-.where('status', '==', 'active') 
+.where('status', '', 'active') 
 .get(); 
 snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
 } 
