@@ -20,7 +20,7 @@ const db = admin.firestore();
 
 console.log('BLK API demarree');
 
-const MONEYUNIFY_AUTH_ID = process.env.MONEYUNIFY_AUTH_ID || '01KXKPX5V8J7ARK619BT1A07GP';
+const MONEYUNIFY_AUTH_ID = process.env.MONEYUNIFY_AUTH_ID || '01KXKPX5Y8J7ARK619BT1A07GP';
 
 app.get('/', (req, res) => res.json({ status: 'OK', message: 'BLK API' })); 
 app.get('/api', (req, res) => res.json({ success: true, message: 'API OK' }));
@@ -81,12 +81,13 @@ res.status(500).json({ success: false, message: error.message });
 
 app.get('/api/articles', async (req, res) => { 
 try { 
-const snapshot = await db.collection('products') 
-.where('status', '', 'active') 
-.get(); 
+const snapshot = await db.collection('products').get(); 
 const articles = []; 
 snapshot.forEach(doc => { 
-articles.push({ id: doc.id, ...doc.data() }); 
+const data = doc.data(); 
+if (data.status = 'active') { 
+articles.push({ id: doc.id, ...data }); 
+} 
 }); 
 articles.sort((a, b) => { 
 const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
@@ -107,7 +108,12 @@ const snapshot = await db.collection('products')
 .where('sellerId', '', sellerId) 
 .get(); 
 const articles = []; 
-snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
+snapshot.forEach(doc => { 
+const data = doc.data(); 
+if (data.status = 'active') { 
+articles.push({ id: doc.id, ...data }); 
+} 
+}); 
 articles.sort((a, b) => { 
 const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
 const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt); 
@@ -195,46 +201,50 @@ if (!base64) return res.status(400).json({ success: false, message: 'Aucune imag
 
 app.get('/api/stats/:userId', async (req, res) => { 
 try { 
-const { userId } = req.params; 
-const articlesSnapshot = await db.collection('products') 
-.where('sellerId', '', userId) 
-.where('status', '', 'active') 
-.get();
+const { userId } = req.params;
+
+    const allArticlesSnapshot = await db.collection('products')
+        .where('sellerId', '==', userId)
+        .get();
+    let totalArticles = 0;
+    allArticlesSnapshot.forEach(doc => {
+        if (doc.data().status === 'active') totalArticles++;
+    });
 
     const ordersSnapshot = await db.collection('orders')
         .where('sellerId', '==', userId)
-        .where('status', '==', 'livre')
         .get();
 
     let totalSales = 0;
     let totalRevenue = 0;
+    const history = {};
+    
     ordersSnapshot.forEach(doc => {
         const order = doc.data();
-        totalSales += 1;
-        totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
+        if (order.status === 'livre') {
+            totalSales += 1;
+            totalRevenue += order.sellerReceived || (order.amount - (order.amount * 0.04));
+            
+            const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
+            const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+            if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
+            history[month].ventes += 1;
+            history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
+        }
     });
 
     const purchasesSnapshot = await db.collection('orders')
         .where('buyerId', '==', userId)
-        .where('status', '==', 'livre')
         .get();
-
+    
     let totalPurchases = 0;
     let totalSpent = 0;
     purchasesSnapshot.forEach(doc => {
         const order = doc.data();
-        totalPurchases += 1;
-        totalSpent += order.totalAmount || order.amount;
-    });
-
-    const history = {};
-    ordersSnapshot.forEach(doc => {
-        const order = doc.data();
-        const date = order.createdAt?.toDate?.() || new Date(order.createdAt);
-        const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-        if (!history[month]) history[month] = { ventes: 0, revenu: 0 };
-        history[month].ventes += 1;
-        history[month].revenu += order.sellerReceived || (order.amount - (order.amount * 0.04));
+        if (order.status === 'livre') {
+            totalPurchases += 1;
+            totalSpent += order.totalAmount || order.amount;
+        }
     });
 
     const historyArray = Object.keys(history).sort().map(month => ({
@@ -246,15 +256,16 @@ const articlesSnapshot = await db.collection('products')
     res.json({
         success: true,
         data: {
-            totalArticles: articlesSnapshot.size,
+            totalArticles,
             totalSales,
             totalRevenue: Math.round(totalRevenue),
             totalPurchases,
-            totalSpent,
+            totalSpent: Math.round(totalSpent),
             history: historyArray
         }
     });
 } catch (error) {
+    console.error('Erreur stats:', error.message);
     res.status(500).json({ success: false, message: error.message });
 }
 });
@@ -268,6 +279,9 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
+//  
+// ✅ MONEYUNIFY - PAIEMENT REEL 
+//  
 app.post('/api/payment/initiate', async (req, res) => { 
 try { 
 const { userId, amount, phone } = req.body; 
@@ -283,7 +297,8 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
 
     console.log('📤 Envoi à MoneyUnify:', { phone, amount, auth_id: MONEYUNIFY_AUTH_ID });
 
-    const response = await axios.post('https://api.moneyunify.one/payments/request', 
+    const response = await axios.post(
+        'https://api.moneyunify.one/payments/request',
         new URLSearchParams({
             from_payer: phone,
             amount: parseInt(amount),
@@ -310,26 +325,29 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
             createdAt: new Date()
         });
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             transactionId: response.data.transaction_id,
             message: 'Demande de paiement envoyée. Confirmez sur votre téléphone.'
         });
     } else {
-        res.status(400).json({ 
-            success: false, 
-            message: response.data.message || 'Erreur MoneyUnify' 
+        res.status(400).json({
+            success: false,
+            message: response.data.message || 'Erreur MoneyUnify'
         });
     }
 } catch (error) {
     console.error('❌ Erreur MoneyUnify:', error.response?.data || error.message);
-    res.status(500).json({ 
-        success: false, 
+    res.status(500).json({
+        success: false,
         message: 'Erreur lors de l\'initiation du paiement: ' + (error.response?.data?.message || error.message)
     });
 }
 });
 
+//  
+// ✅ MONEYUNIFY - WEBHOOK REEL 
+//  
 app.post('/api/payment/webhook', async (req, res) => { 
 try { 
 const { transaction_id, status, amount, phone, reference } = req.body; 
@@ -375,6 +393,9 @@ console.log('📥 Webhook reçu:', req.body);
 }
 });
 
+//  
+// ORDRES 
+//  
 app.post('/api/orders/create', async (req, res) => { 
 try { 
 const { articleId, buyerId, sellerId, amount, buyerPhone } = req.body; 
@@ -414,9 +435,6 @@ res.status(500).json({ success: false, message: error.message });
 } 
 });
 
-//  
-// ROUTE CONFIRM-BY-QR - COMPLÈTEMENT RÉÉCRITE SANS AUCUN '!' 
-//  
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 try { 
 const { orderId, buyerId } = req.body; 
@@ -433,8 +451,6 @@ return res.status(400).json({ success: false, message: 'orderId et buyerId requi
     
     const order = orderDoc.data();
     
-    // ✅ VÉRIFICATION SANS UTILISER '!=='
-    // On vérifie si l'ID du buyer est différent de celui de la commande
     if (order.buyerId.toString() !== buyerId.toString()) {
         return res.status(403).json({ success: false, message: 'Non autorise' });
     }
@@ -647,9 +663,13 @@ const articles = [];
 for (const id of followingIds) { 
 const snapshot = await db.collection('products') 
 .where('sellerId', '', id) 
-.where('status', '', 'active') 
 .get(); 
-snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() })); 
+snapshot.forEach(doc => { 
+const data = doc.data(); 
+if (data.status === 'active') { 
+articles.push({ id: doc.id, ...data }); 
+} 
+}); 
 } 
 articles.sort((a, b) => { 
 const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt); 
