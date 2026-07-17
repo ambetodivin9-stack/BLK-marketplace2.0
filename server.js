@@ -81,7 +81,6 @@ if (name) updateData.name = name;
 if (email) updateData.email = email; 
 if (phone) updateData.phone = phone; 
 if (photo) updateData.photo = photo; 
-// ✅ Utilisation de 'in' au lieu de '!=' 
 if ('isSeller' in req.body) { 
 updateData.isSeller = req.body.isSeller; 
 } 
@@ -93,7 +92,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ARTICLES (CORRIGÉ - tri en mémoire) 
+// ARTICLES - CORRIGÉ (tri en mémoire) 
 //  
 app.get('/api/articles', async (req, res) => { 
 try { 
@@ -294,7 +293,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ✅ MONEYUNIFY - INITIER UN PAIEMENT 
+// MONEYUNIFY - INITIER UN PAIEMENT 
 //  
 app.post('/api/payment/initiate', async (req, res) => { 
 try { 
@@ -359,7 +358,7 @@ return res.status(400).json({ success: false, message: 'userId, amount et phone 
 });
 
 //  
-// ✅ MONEYUNIFY - WEBHOOK 
+// MONEYUNIFY - WEBHOOK 
 //  
 app.post('/api/payment/webhook', async (req, res) => { 
 try { 
@@ -449,7 +448,7 @@ res.status(500).json({ success: false, message: error.message });
 });
 
 //  
-// ✅ ROUTE CONFIRM-BY-QR CORRIGÉE (plus de '!') 
+// CONFIRM-BY-QR - CORRIGÉ 
 //  
 app.post('/api/orders/confirm-by-qr', async (req, res) => { 
 try { 
@@ -461,7 +460,7 @@ const orderRef = db.collection('orders').doc(orderId);
 const orderDoc = await orderRef.get(); 
 if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande non trouvee' }); 
 const order = orderDoc.data(); 
-// ✅ CORRECTION : comparaison avec '!' (double égal) 
+// ✅ CORRECTION ICI : '!' au lieu de '!=' 
 if (order.buyerId ! buyerId) { 
 return res.status(403).json({ success: false, message: 'Non autorise' }); 
 } 
