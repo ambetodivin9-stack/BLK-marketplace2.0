@@ -43,31 +43,28 @@
         .empty { text-align: center; color: #999; padding: 20px; }
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .modal-box { background: white; border-radius: 20px; max-width: 400px; width: 100%; padding: 24px; max-height: 90vh; overflow-y: auto; }
-
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat-card { background: rgba(255,255,255,0.8); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.4); }
-    .stat-card .number { font-size: 28px; font-weight: 800; color: #E74C3C; }
-    .stat-card .label { font-size: 12px; color: #999; }
-    .chart-container { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 8px 0; }
-    .chart-bar { flex: 1; background: #E74C3C; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
-
-    .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-    .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: #E74C3C; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: white; }
-    .profile-stats { display: flex; gap: 16px; font-size: 14px; }
-    .profile-stats span { font-weight: 600; }
-    .follow-btn { margin-top: 8px; }
-
-    .contact-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.8); border-radius: 20px; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); margin: 4px; font-size: 13px; font-weight: 600; }
-    .contact-chip.active { background: rgba(231,76,60,0.1); border-color: #E74C3C; color: #E74C3C; }
-    .message-bubble { display: flex; margin: 4px 0; }
-    .message-bubble .bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; }
-    .message-bubble.mine { justify-content: flex-end; }
-    .message-bubble.mine .bubble { background: #E74C3C; color: white; border-bottom-right-radius: 4px; }
-    .message-bubble.other { justify-content: flex-start; }
-    .message-bubble.other .bubble { background: white; color: #1a1a1a; border-bottom-left-radius: 4px; }
-    .message-bubble .sender { font-size: 11px; font-weight: 600; opacity: 0.7; }
-    .message-bubble .time { font-size: 10px; opacity: 0.5; display: block; text-align: right; margin-top: 2px; }
-</style>
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-card { background: rgba(255,255,255,0.8); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.4); }
+        .stat-card .number { font-size: 28px; font-weight: 800; color: #E74C3C; }
+        .stat-card .label { font-size: 12px; color: #999; }
+        .chart-container { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding: 8px 0; }
+        .chart-bar { flex: 1; background: #E74C3C; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+        .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+        .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: #E74C3C; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: white; }
+        .profile-stats { display: flex; gap: 16px; font-size: 14px; }
+        .profile-stats span { font-weight: 600; }
+        .follow-btn { margin-top: 8px; }
+        .contact-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.8); border-radius: 20px; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); margin: 4px; font-size: 13px; font-weight: 600; }
+        .contact-chip.active { background: rgba(231,76,60,0.1); border-color: #E74C3C; color: #E74C3C; }
+        .message-bubble { display: flex; margin: 4px 0; }
+        .message-bubble .bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; }
+        .message-bubble.mine { justify-content: flex-end; }
+        .message-bubble.mine .bubble { background: #E74C3C; color: white; border-bottom-right-radius: 4px; }
+        .message-bubble.other { justify-content: flex-start; }
+        .message-bubble.other .bubble { background: white; color: #1a1a1a; border-bottom-left-radius: 4px; }
+        .message-bubble .sender { font-size: 11px; font-weight: 600; opacity: 0.7; }
+        .message-bubble .time { font-size: 10px; opacity: 0.5; display: block; text-align: right; margin-top: 2px; }
+    </style>
 </head>
 <body>
     <div class="kente"></div>
@@ -122,7 +119,6 @@
     <div class="page" id="pageShop">
         <h2 style="color:#E74C3C;">Mon Magasin</h2>
         <button class="btn btn-primary" id="btnPublish">📤 Publier un article</button>
-
         <div id="statsContainer" style="margin-top:16px;">
             <div class="stats-grid" id="statsGrid">
                 <div class="stat-card"><div class="number" id="statSales">0</div><div class="label">Ventes</div></div>
@@ -136,7 +132,6 @@
                 <div id="statsEmpty" class="empty" style="display:none;">Aucune donnée</div>
             </div>
         </div>
-
         <div id="shopArticles" style="margin-top:12px;"></div>
     </div>
 
@@ -189,8 +184,8 @@
         <div class="glass">
             <h3 style="color:#2ECC71;">💰 Wallet BLK</h3>
             <p class="wallet-balance"><span id="walletBalance">0</span> FCFA</p>
-            <button class="btn btn-success" id="btnDeposit">Déposer avec MoneyUnify</button>
-            <button class="btn btn-primary" id="btnWithdraw" style="margin-top:8px;">Retirer</button>
+            <button class="btn btn-success" id="btnDeposit">Déposer (simulé)</button>
+            <button class="btn btn-primary" id="btnWithdraw" style="margin-top:8px;">Retirer (simulé)</button>
         </div>
         <button class="btn btn-danger" id="btnLogout">🚪 Déconnexion</button>
     </div>
@@ -429,7 +424,7 @@
     }
 
     // ============================================================
-    // PRODUCTS - CORRIGÉ (tri en mémoire)
+    // PRODUCTS (affichage des articles)
     // ============================================================
     var feedMode = 'all';
 
@@ -610,7 +605,7 @@
     }
 
     // ============================================================
-    // WALLET - AVEC MONEYUNIFY REEL
+    // WALLET (simulé)
     // ============================================================
     function loadWallet() {
         if (!currentUserId) return;
@@ -629,9 +624,9 @@
         var phone = prompt('Numéro MTN ou Airtel :', '065918166');
         if (!phone) return;
 
-        showAlert('⏳ Envoi de la demande à MoneyUnify...', 'info');
+        showAlert('⏳ Traitement du dépôt simulé...', 'info');
 
-        fetch(BACKEND_URL + '/api/payment/initiate', {
+        fetch(BACKEND_URL + '/api/wallet/deposit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -643,13 +638,8 @@
         .then(function(res) { return res.json(); })
         .then(function(data) {
             if (data.success) {
-                showAlert('💰 Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
-                // Le webhook créditera le wallet automatiquement
-                // On vérifie après 30 secondes
-                setTimeout(function() {
-                    loadWallet();
-                    showAlert('✅ Vérification du solde effectuée.', 'success');
-                }, 30000);
+                showAlert('💰 ' + data.message, 'success');
+                loadWallet();
             } else {
                 showAlert('❌ ' + data.message, 'error');
             }
@@ -661,7 +651,35 @@
     });
 
     document.getElementById('btnWithdraw').addEventListener('click', function() {
-        showAlert('🔧 Retrait en développement', 'info');
+        var amount = prompt('Montant à retirer (FCFA) :', '500');
+        if (!amount) return;
+        var phone = prompt('Numéro MTN ou Airtel :', '065918166');
+        if (!phone) return;
+
+        showAlert('⏳ Traitement du retrait simulé...', 'info');
+
+        fetch(BACKEND_URL + '/api/wallet/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: currentUserId,
+                amount: parseInt(amount),
+                phone: phone
+            })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showAlert('💰 ' + data.message, 'success');
+                loadWallet();
+            } else {
+                showAlert('❌ ' + data.message, 'error');
+            }
+        })
+        .catch(function(e) {
+            showAlert('❌ Erreur: ' + e.message, 'error');
+            console.error('Erreur withdraw:', e);
+        });
     });
 
     // ============================================================
@@ -694,11 +712,10 @@
     }
 
     // ============================================================
-    // SHOP ARTICLES - CORRIGÉ (URL sans "/user/")
+    // SHOP ARTICLES
     // ============================================================
     function loadShopArticles() {
         if (!currentUserId) return;
-        // ✅ URL corrigée : plus de "/user/"
         fetch(BACKEND_URL + '/api/articles/seller/' + currentUserId)
             .then(function(res) { return res.json(); })
             .then(function(data) {
