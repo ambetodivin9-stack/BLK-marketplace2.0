@@ -50,7 +50,6 @@ const IMG_BB_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 
-// Base URL de l'API Yabetoo (production)
 const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 
 const COMMISSION_BUYER = 0.03;
@@ -376,7 +375,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// YABETOO - PAIEMENT REEL (CORRIGÉ)
+// YABETOO - PAIEMENT REEL (100% réel, sans fallback)
 // ============================================================
 app.post('/api/payment/initiate', async (req, res) => {
   try {
@@ -386,12 +385,13 @@ app.post('/api/payment/initiate', async (req, res) => {
     if (!userId || !amount || !phone) {
       return res.status(400).json({ success: false, message: 'userId, amount et phone requis' });
     }
-    if (!YABETOO_SECRET) {
-      console.error('❌ Clé Yabetoo manquante');
-      return res.status(500).json({ success: false, message: 'Clé Yabetoo non configurée' });
-    }
+
     if (!firebaseReady) {
-      return res.json({ success: true, message: 'Dépôt simulé (Firebase désactivé)', status: 'succeeded' });
+      return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+    }
+
+    if (!YABETOO_SECRET) {
+      return res.status(500).json({ success: false, message: 'Clé Yabetoo non configurée' });
     }
 
     const userRef = db.collection('users').doc(userId);
@@ -401,19 +401,21 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 
     const formattedPhone = formatPhoneForYabetoo(phone);
-    const operatorName = (operator || 'mtn').toUpperCase(); // ✅ Majuscules
+    const operatorName = (operator || 'mtn').toUpperCase();
     const userName = userDoc.data()?.name || 'Client BLK';
     const [firstName, ...rest] = userName.split(' ');
     const lastName = rest.join(' ') || 'BLK';
 
     console.log('📤 Création de l\'intention de paiement...');
+    const createPayload = {
+      amount: parseInt(amount),
+      currency: 'XAF',
+      description: `Dépôt wallet BLK - ${userId}`
+    };
+
     const createResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents`,
-      {
-        amount: parseInt(amount),
-        currency: 'XAF', // ✅ Majuscules
-        description: `Dépôt wallet BLK - ${userId}`
-      },
+      createPayload,
       {
         headers: {
           'Authorization': `Bearer ${YABETOO_SECRET}`,
@@ -423,37 +425,25 @@ app.post('/api/payment/initiate', async (req, res) => {
     );
 
     const intent = createResponse.data;
-    console.log('✅ Intention créée:', intent.id);
-
-    const transactionRef = await db.collection('transactions').add({
-      userId,
-      amount: parseInt(amount),
-      phone: formattedPhone,
-      operator: operatorName,
-      yabetooId: intent.id,
-      status: 'pending',
-      type: 'deposit',
-      createdAt: new Date()
-    });
+    console.log('✅ Intention créée:', JSON.stringify(intent, null, 2));
 
     console.log('📤 Confirmation de l\'intention...');
-    // ✅ Corps de la requête corrigé
     const confirmPayload = {
       client_secret: intent.client_secret,
-      first_name: firstName || 'Client',
+      first_name: firstName,
       last_name: lastName,
       receipt_email: userDoc.data()?.email || 'client@blk.com',
-      payment_method: { // ✅ Changé de payment_method_data à payment_method
-        type: 'MOBILE_MONEY', // ✅ Changé de 'momo' à 'MOBILE_MONEY'
-        mobile_money: { // ✅ Changé de 'momo' à 'mobile_money'
-          country: 'CG', // ✅ Majuscules
+      payment_method_data: {
+        type: 'momo',
+        momo: {
+          country: 'CG',
           msisdn: formattedPhone,
-          operator: operatorName // ✅ Changé de operator_name à operator
+          operator_name: operatorName
         }
       }
     };
 
-    console.log('📦 Payload envoyé à Yabetoo:', JSON.stringify(confirmPayload, null, 2));
+    console.log('📦 Payload confirmation:', JSON.stringify(confirmPayload, null, 2));
 
     const confirmResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents/${intent.id}/confirm`,
@@ -469,11 +459,24 @@ app.post('/api/payment/initiate', async (req, res) => {
     const confirmData = confirmResponse.data;
     console.log('✅ Réponse confirmation Yabetoo:', JSON.stringify(confirmData, null, 2));
 
+    // Enregistrer la transaction (pending)
+    const transactionRef = await db.collection('transactions').add({
+      userId,
+      amount: parseInt(amount),
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooId: intent.id,
+      status: 'pending',
+      type: 'deposit',
+      createdAt: new Date()
+    });
+
     await transactionRef.update({
       transactionId: confirmData.transactionId || confirmData.intentId || intent.id,
       status: confirmData.status || 'pending'
     });
 
+    // Si Yabetoo confirme immédiatement
     if (confirmData.status === 'succeeded' && confirmData.captured) {
       const currentBalance = userDoc.data()?.walletBalance || 0;
       await userRef.update({ walletBalance: currentBalance + parseInt(amount) });
@@ -485,6 +488,7 @@ app.post('/api/payment/initiate', async (req, res) => {
       });
     }
 
+    // Sinon, on attend le webhook
     res.json({
       success: true,
       message: 'Demande envoyée. Confirmez le paiement sur votre téléphone.',
@@ -492,15 +496,16 @@ app.post('/api/payment/initiate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur Yabetoo - DÉTAILS complets:');
+    console.error('❌ Erreur Yabetoo (détails complets):');
     console.error('Message:', error.message);
     console.error('Réponse:', JSON.stringify(error.response?.data, null, 2));
     console.error('Status:', error.response?.status);
 
-    // Envoyer la réponse d'erreur détaillée
+    // ✅ PAS DE FALLBACK : on renvoie l'erreur réelle
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de l\'initiation du paiement: ' + (error.response?.data?.message || error.response?.data?.error?.message || error.message),
+      message: 'Erreur lors de l\'initiation du paiement',
+      error: error.message,
       details: error.response?.data || null
     });
   }
