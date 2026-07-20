@@ -47,20 +47,12 @@ try {
 // ============================================================
 // CONFIGURATION
 // ============================================================
-// ⚠️ IMPORTANT : cette URL doit être IDENTIQUE partout :
-//  1. Ici (callback_url envoyé à Yabetoo)
-//  2. Dans le dashboard Yabetoo > Webhooks
-//  3. Dans BACKEND_URL du frontend (index.html)
-// Mets-la en variable d'environnement Render pour n'avoir qu'un seul endroit à changer.
-const BACKEND_URL = process.env.BACKEND_URL || 'https://blk-backend.onrender.com';
-
-const IMG_BB_KEY = process.env.IMG_BB_KEY || process.env.IMGBB_API_KEY || '08d90ac3321b7689d9e1c35e34a88b6c';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://blk-marketplace2-0-1.onrender.com';
+const IMG_BB_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
-const YABETOO_PUBLIC = process.env.YABETOO_PUBLIC_KEY || '';
 const YABETOO_WEBHOOK_SECRET = process.env.YABETOO_WEBHOOK_SECRET || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 
-// Base URL de l'API Yabetoo (production, puisque tes clés sont en sk_live_)
 const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 
 const COMMISSION_BUYER = 0.03;
@@ -78,7 +70,7 @@ console.log(`🔐 Yabetoo Webhook Secret: ${YABETOO_WEBHOOK_SECRET ? 'OK' : 'MAN
 console.log(`🔥 Firebase: ${firebaseReady ? 'OK' : 'DÉGRADÉ (SIMULATION)'}`);
 
 // ============================================================
-// HELPER - Formater un numéro congolais pour Yabetoo
+// HELPER - Formater un numéro pour Yabetoo
 // ============================================================
 function formatPhoneForYabetoo(phone) {
   let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
@@ -92,23 +84,18 @@ function formatPhoneForYabetoo(phone) {
 }
 
 // ============================================================
-// HELPER - Vérifier la signature d'un webhook Yabetoo
-// Format documenté : HMAC-SHA256( timestamp + "." + JSON.stringify(body), secret )
-// Header signature : X-Yabetoo-Webhook-Signature
-// Header timestamp  : X-Yabetoo-Webhook-Timestamp
-// ⚠️ Si les noms d'en-têtes réels diffèrent chez toi, ajuste-les ici
-// (vérifiable en loggant req.headers lors d'un test webhook depuis le dashboard).
+// HELPER - Vérifier la signature du webhook Yabetoo
 // ============================================================
 function verifyYabetooSignature(req) {
   if (!YABETOO_WEBHOOK_SECRET) {
     console.warn('⚠️ YABETOO_WEBHOOK_SECRET non configuré, vérification ignorée');
-    return true; // on n'écarte pas le webhook si le secret n'est pas encore posé, pour ne rien casser
+    return true;
   }
   const signature = req.headers['x-yabetoo-webhook-signature'] || req.headers['x-yabetoo-signature'];
   const timestamp = req.headers['x-yabetoo-webhook-timestamp'] || req.headers['x-yabetoo-timestamp'];
 
   if (!signature || !timestamp) {
-    console.warn('⚠️ En-têtes de signature webhook absents — payload accepté sans vérification. Vérifie les noms d\'en-têtes dans les docs Yabetoo si ce message persiste.');
+    console.warn('⚠️ En-têtes de signature webhook absents — payload accepté sans vérification.');
     return true;
   }
 
@@ -152,7 +139,7 @@ app.get('/api/categories', (req, res) => {
 });
 
 // ============================================================
-// ARTICLES (collection "products")
+// ARTICLES
 // ============================================================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) {
@@ -257,6 +244,7 @@ app.post('/api/upload', async (req, res) => {
         if (!base64) {
             return res.status(400).json({ success: false, message: 'Aucune image fournie' });
         }
+
         if (!IMG_BB_KEY) {
             console.error('❌ Clé ImgBB manquante');
             return res.status(500).json({ success: false, message: 'Clé ImgBB non configurée' });
@@ -279,6 +267,7 @@ app.post('/api/upload', async (req, res) => {
         }
 
         console.log('📤 Upload vers ImgBB...');
+
         const formData = new FormData();
         formData.append('key', IMG_BB_KEY);
         formData.append('image', cleanBase64);
@@ -421,7 +410,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// YABETOO - DÉPÔT (create + confirm en une seule requête)
+// YABETOO - PAIEMENT REEL
 // ============================================================
 app.post('/api/payment/initiate', async (req, res) => {
   try {
@@ -446,11 +435,10 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 
     const formattedPhone = formatPhoneForYabetoo(phone);
-    const operatorName = (operator || 'mtn').toLowerCase(); // 'mtn' ou 'airtel'
+    const operatorName = (operator || 'mtn').toLowerCase();
     const [firstName, ...rest] = (userDoc.data()?.name || 'Client BLK').split(' ');
     const lastName = rest.join(' ') || 'BLK';
 
-    // --- Étape 1 : créer l'intention de paiement ---
     console.log('📤 Création de l\'intention de paiement...');
     const createResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents`,
@@ -470,7 +458,6 @@ app.post('/api/payment/initiate', async (req, res) => {
     const intent = createResponse.data;
     console.log('✅ Intention créée:', intent.id);
 
-    // Enregistrer la transaction en "pending" tout de suite (avant confirmation)
     const transactionRef = await db.collection('transactions').add({
       userId,
       amount: parseInt(amount),
@@ -482,7 +469,6 @@ app.post('/api/payment/initiate', async (req, res) => {
       createdAt: new Date()
     });
 
-    // --- Étape 2 : confirmer l'intention (déclenche le push Mobile Money) ---
     console.log('📤 Confirmation de l\'intention...');
     const confirmResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents/${intent.id}/confirm`,
@@ -516,8 +502,6 @@ app.post('/api/payment/initiate', async (req, res) => {
       status: confirmData.status || 'pending'
     });
 
-    // Si Yabetoo confirme immédiatement le succès (rare pour momo, mais possible), on crédite tout de suite.
-    // Sinon, c'est le webhook /api/payment/callback qui créditera le wallet plus tard.
     if (confirmData.status === 'succeeded' && confirmData.captured) {
       const currentBalance = userDoc.data()?.walletBalance || 0;
       await userRef.update({ walletBalance: currentBalance + parseInt(amount) });
@@ -549,7 +533,7 @@ app.post('/api/payment/initiate', async (req, res) => {
 });
 
 // ============================================================
-// YABETOO - WEBHOOK / CALLBACK
+// YABETOO - WEBHOOK
 // ============================================================
 app.post('/api/payment/callback', async (req, res) => {
   try {
@@ -560,7 +544,6 @@ app.post('/api/payment/callback', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Signature invalide' });
     }
 
-    // Le payload peut être imbriqué ({ type, data: {...} }) ou plat selon l'événement.
     const eventId = req.body.id || req.body.eventId || null;
     const payload = req.body.data || req.body;
     const { id, status, amount, reference } = payload;
@@ -569,7 +552,6 @@ app.post('/api/payment/callback', async (req, res) => {
       return res.json({ success: true });
     }
 
-    // Idempotence : ignorer un événement déjà traité
     if (eventId) {
       const eventRef = db.collection('processedWebhookEvents').doc(eventId);
       const eventDoc = await eventRef.get();
@@ -592,7 +574,6 @@ app.post('/api/payment/callback', async (req, res) => {
     const transactionDoc = snapshot.docs[0];
     const transactionData = transactionDoc.data();
 
-    // Ne pas créditer deux fois une transaction déjà complétée
     if (transactionData.status === 'completed') {
       console.log('↩️ Transaction déjà complétée, ignorée:', id);
       return res.json({ success: true, duplicate: true });
@@ -621,7 +602,7 @@ app.post('/api/payment/callback', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - RETRAIT (envoie réellement l'argent via Yabetoo Disbursement)
+// WALLET - RETRAIT (Yabetoo Disbursement)
 // ============================================================
 app.post('/api/wallet/withdraw', async (req, res) => {
   if (!firebaseReady) {
@@ -649,8 +630,6 @@ app.post('/api/wallet/withdraw', async (req, res) => {
     const [firstName, ...rest] = (userDoc.data()?.name || 'Client BLK').split(' ');
     const lastName = rest.join(' ') || 'BLK';
 
-    // Débit immédiat du wallet interne pour éviter un double retrait,
-    // avec remboursement automatique si le disbursement échoue.
     const newBalance = currentBalance - parseInt(amount);
     await userRef.update({ walletBalance: newBalance });
 
@@ -685,7 +664,7 @@ app.post('/api/wallet/withdraw', async (req, res) => {
       );
 
       await transactionRef.update({
-        status: 'processing', // le disbursement est exécuté en J+1 côté Yabetoo
+        status: 'processing',
         yabetooId: disbursementResponse.data.id || null
       });
 
@@ -695,7 +674,6 @@ app.post('/api/wallet/withdraw', async (req, res) => {
         newBalance
       });
     } catch (disbursementError) {
-      // Échec de l'envoi : on rembourse le wallet interne
       console.error('❌ Erreur disbursement Yabetoo:', disbursementError.response?.data || disbursementError.message);
       await userRef.update({ walletBalance: currentBalance });
       await transactionRef.update({ status: 'failed', failedAt: new Date() });
@@ -1208,7 +1186,7 @@ app.post('/api/notifications/read/:id', async (req, res) => {
 });
 
 // ============================================================
-// WALLET - ADMIN CREDIT (manuel, via page #admin)
+// WALLET - ADMIN CREDIT
 // ============================================================
 app.post('/api/wallet/admin-credit', async (req, res) => {
   if (!firebaseReady) {
