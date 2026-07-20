@@ -376,7 +376,7 @@ app.get('/api/wallet/:userId', async (req, res) => {
 });
 
 // ============================================================
-// YABETOO - PAIEMENT REEL
+// YABETOO - PAIEMENT REEL (CORRIGÉ)
 // ============================================================
 app.post('/api/payment/initiate', async (req, res) => {
   try {
@@ -401,15 +401,17 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 
     const formattedPhone = formatPhoneForYabetoo(phone);
-    const operatorName = (operator || 'mtn').toLowerCase();
+    const operatorName = (operator || 'mtn').toUpperCase(); // ✅ Majuscules
     const userName = userDoc.data()?.name || 'Client BLK';
+    const [firstName, ...rest] = userName.split(' ');
+    const lastName = rest.join(' ') || 'BLK';
 
     console.log('📤 Création de l\'intention de paiement...');
     const createResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents`,
       {
         amount: parseInt(amount),
-        currency: 'xaf',
+        currency: 'XAF', // ✅ Majuscules
         description: `Dépôt wallet BLK - ${userId}`
       },
       {
@@ -435,22 +437,27 @@ app.post('/api/payment/initiate', async (req, res) => {
     });
 
     console.log('📤 Confirmation de l\'intention...');
+    // ✅ Corps de la requête corrigé
+    const confirmPayload = {
+      client_secret: intent.client_secret,
+      first_name: firstName || 'Client',
+      last_name: lastName,
+      receipt_email: userDoc.data()?.email || 'client@blk.com',
+      payment_method: { // ✅ Changé de payment_method_data à payment_method
+        type: 'MOBILE_MONEY', // ✅ Changé de 'momo' à 'MOBILE_MONEY'
+        mobile_money: { // ✅ Changé de 'momo' à 'mobile_money'
+          country: 'CG', // ✅ Majuscules
+          msisdn: formattedPhone,
+          operator: operatorName // ✅ Changé de operator_name à operator
+        }
+      }
+    };
+
+    console.log('📦 Payload envoyé à Yabetoo:', JSON.stringify(confirmPayload, null, 2));
+
     const confirmResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents/${intent.id}/confirm`,
-      {
-        client_secret: intent.client_secret,
-        first_name: userName.split(' ')[0] || 'Client',
-        last_name: userName.split(' ').slice(1).join(' ') || 'BLK',
-        receipt_email: userDoc.data()?.email || 'client@blk.com',
-        payment_method_data: {
-          type: 'momo',
-          momo: {
-            country: 'cg',
-            msisdn: formattedPhone,
-            operator_name: operatorName
-          }
-        }
-      },
+      confirmPayload,
       {
         headers: {
           'Authorization': `Bearer ${YABETOO_SECRET}`,
@@ -485,12 +492,12 @@ app.post('/api/payment/initiate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur Yabetoo - DÉTAILS:');
+    console.error('❌ Erreur Yabetoo - DÉTAILS complets:');
     console.error('Message:', error.message);
-    console.error('Réponse:', error.response?.data);
+    console.error('Réponse:', JSON.stringify(error.response?.data, null, 2));
     console.error('Status:', error.response?.status);
 
-    // Envoyer une réponse d'erreur plus détaillée
+    // Envoyer la réponse d'erreur détaillée
     res.status(500).json({
       success: false,
       message: 'Erreur lors de l\'initiation du paiement: ' + (error.response?.data?.message || error.response?.data?.error?.message || error.message),
