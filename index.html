@@ -9,7 +9,7 @@
         STYLES GÉNÉRAUX
          */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f0e8; padding-bottom: 80px; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #ffffff; padding-bottom: 80px; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
         .kente { height: 6px; background: linear-gradient(90deg, #FFD700 20%, #2ECC71 40%, #E74C3C 60%, #FFD700 80%); position: fixed; top: 0; left: 0; right: 0; z-index: 9999; }
         .btn { padding: 14px; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; width: 100%; background: #E74C3C; color: white; transition: all 0.3s ease; font-family: inherit; font-size: 16px; }
         .btn:active { transform: scale(0.96); }
@@ -20,6 +20,37 @@
         .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
         .glass { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 20px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
         .empty { text-align: center; color: #999; padding: 20px; }
+        .icon-inline { display: inline-flex; width: 14px; height: 14px; vertical-align: -2px; }
+        .icon-inline svg { width: 100%; height: 100%; }
+        .icon-inline-md { display: inline-flex; width: 18px; height: 18px; vertical-align: -4px; }
+        .icon-inline-md svg { width: 100%; height: 100%; }
+        .icon-inline-lg { display: inline-flex; width: 26px; height: 26px; }
+        .icon-inline-lg svg { width: 100%; height: 100%; }
+
+    .tab-intro-toast {
+        position: fixed;
+        top: 18px;
+        right: 14px;
+        max-width: 230px;
+        background: rgba(20,20,20,0.94);
+        color: #fff;
+        padding: 14px 16px;
+        border-radius: 16px;
+        font-size: 13px;
+        line-height: 1.45;
+        z-index: 5000;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+        opacity: 0;
+        transform: translateY(-12px);
+        transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        pointer-events: none;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .tab-intro-toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .tab-intro-toast .tab-intro-title { font-weight: 800; margin-bottom: 4px; color: #FFD700; font-size: 13px; }
+    .alert { display: none; align-items: center; gap: 10px; }
+    .alert-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .alert-icon svg { width: 100%; height: 100%; }
 
     /* ============================================================
     AUTH (inscription) - avec image de fond
@@ -169,46 +200,55 @@
     ============================================================ */
     .home-header {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background: rgba(255,255,255,0.6);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: 16px;
+        flex-direction: column;
+        gap: 10px;
+        padding: 4px 2px 6px;
         margin-bottom: 16px;
     }
+    .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-left: 4px;
+    }
+    .brand-logo-img { width: 54px; height: 54px; object-fit: contain; }
+    .brand-logo-text { font-size: 28px; font-weight: 800; color: #1a1a1a; letter-spacing: 0.3px; }
     .search-bar {
         display: flex;
         align-items: center;
-        flex: 1;
-        background: rgba(255,255,255,0.8);
-        border-radius: 14px;
-        padding: 6px 16px;
-        border: 1px solid rgba(255,255,255,0.4);
+        gap: 10px;
+        padding: 14px 20px;
+        border-radius: 30px;
+        background: linear-gradient(160deg, rgba(255,105,90,0.92) 0%, rgba(210,20,20,0.94) 55%, rgba(150,10,10,0.95) 100%);
+        box-shadow: 0 10px 26px rgba(200,20,20,0.35), inset 0 1px 1px rgba(255,255,255,0.35);
+        border: 1px solid rgba(255,255,255,0.25);
+        position: relative;
+        overflow: hidden;
     }
+    .search-bar::before {
+        content: '';
+        position: absolute;
+        top: 2px; left: 8%; right: 8%;
+        height: 40%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+        border-radius: 20px;
+        pointer-events: none;
+    }
+    .search-icon { width: 20px; height: 20px; color: rgba(255,225,205,0.95); flex-shrink: 0; position: relative; z-index: 1; }
+    .search-icon svg { width: 100%; height: 100%; }
     .search-bar input {
         flex: 1;
-        padding: 10px 0;
+        padding: 2px 0;
         border: none;
         background: transparent;
         font-size: 16px;
         outline: none;
         font-family: inherit;
+        color: #fff6ef;
+        position: relative;
+        z-index: 1;
     }
-    .logo-mini {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        overflow: hidden;
-        flex-shrink: 0;
-        margin-left: 8px;
-        background: #FFD700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .logo-mini img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+    .search-bar input::placeholder { color: rgba(255,236,227,0.75); }
 
     /* ============================================================
     PROFIL VENDEUR (intégré dans la liste des articles)
@@ -288,6 +328,10 @@
     .stat-revenue .stat-card-number { color: #f39c12; }
     .stat-orders { background: linear-gradient(135deg, rgba(231,76,60,0.12) 0%, rgba(231,76,60,0.04) 100%); border-color: rgba(231,76,60,0.2); }
     .stat-orders .stat-card-number { color: #c0392b; }
+    .stat-sales .stat-card-icon { color: #2980b9; }
+    .stat-published .stat-card-icon { color: #27ae60; }
+    .stat-revenue .stat-card-icon { color: #f39c12; }
+    .stat-orders .stat-card-icon { color: #c0392b; }
     .stat-card-icon { font-size: 28px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.6); border-radius: 12px; flex-shrink: 0; }
     .stat-card-content { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     .stat-card-number { font-size: 22px; font-weight: 800; line-height: 1.2; transition: all 0.3s ease; }
@@ -327,31 +371,68 @@
     .swipe-popup p { font-size: 14px; color: rgba(255,255,255,0.6); }
 
     /* ============================================================
-    BARRE DE NAVIGATION (TABS)
+    BARRE DE NAVIGATION (TABS) - effet glass rouge + bulle flottante
     ============================================================ */
     .tab-bar {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(255,255,255,0.92);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid rgba(255,255,255,0.2);
-        padding: 6px 0 10px;
+        bottom: 14px;
+        left: 12px;
+        right: 12px;
         z-index: 1000;
-        box-shadow: 0 -4px 30px rgba(0,0,0,0.08);
         display: none; /* Masqué par défaut */
     }
     .tab-bar.show { display: flex; }
-    .tab-slider { display: flex; justify-content: space-around; align-items: center; max-width: 600px; margin: 0 auto; position: relative; padding: 0 8px; width: 100%; }
-    .tab-slider-indicator { position: absolute; bottom: 0; left: 0; width: 20%; height: 3px; background: #1a1a1a; border-radius: 4px; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); transform: translateX(0%); }
-    .tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: none; border: none; padding: 4px 8px; cursor: pointer; position: relative; z-index: 2; flex: 1; transition: all 0.3s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-family: inherit; }
-    .tab-icon { font-size: 24px; line-height: 1.2; transition: transform 0.3s ease; }
-    .tab-label { font-size: 10px; font-weight: 500; color: #999; letter-spacing: 0.3px; transition: color 0.3s ease; white-space: nowrap; }
-    .tab-item.active .tab-icon { transform: scale(1.05); }
-    .tab-item.active .tab-label { color: #1a1a1a; font-weight: 600; }
+    .tab-slider {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        max-width: 600px;
+        margin: 0 auto;
+        position: relative;
+        padding: 10px 8px;
+        width: 100%;
+        border-radius: 32px;
+        background: linear-gradient(115deg, #EA6113 0%, #F88F22 38%, #FBB931 68%, #FFE3B3 100%);
+        box-shadow: 0 14px 34px rgba(234,97,19,0.4), 0 4px 10px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.45);
+        border: 1px solid rgba(255,255,255,0.3);
+        overflow: visible;
+    }
+    .tab-slider::before {
+        content: '';
+        position: absolute;
+        top: 3px; left: 10%; right: 10%;
+        height: 40%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+        border-radius: 30px;
+        pointer-events: none;
+    }
+    .tab-bubble {
+        position: absolute;
+        top: -26px;
+        left: 0;
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        background: radial-gradient(circle at 32% 28%, #3d3d3d, #0a0a0a 70%);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.45), 0 0 0 4px rgba(255,255,255,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        transform: translateX(0px);
+        z-index: 3;
+        pointer-events: none;
+    }
+    .tab-bubble-icon { width: 22px; height: 22px; color: #fff; display: flex; }
+    .tab-bubble-icon svg { width: 100%; height: 100%; }
+    .tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: none; padding: 4px 6px; cursor: pointer; position: relative; z-index: 2; flex: 1; transition: all 0.3s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-family: inherit; }
+    .tab-icon-svg { width: 22px; height: 22px; color: rgba(74,32,0,0.72); transition: opacity 0.25s ease, transform 0.25s ease; }
+    .tab-icon-svg svg { width: 100%; height: 100%; }
+    .tab-label { font-size: 10px; font-weight: 600; color: rgba(74,32,0,0.72); letter-spacing: 0.3px; transition: color 0.3s ease; white-space: nowrap; }
+    .tab-item.active .tab-icon-svg { opacity: 0; transform: scale(0.6); }
+    .tab-item.active .tab-label { color: #3a1d00; font-weight: 800; }
     .tab-item:active { transform: scale(0.92); transition: transform 0.1s ease; }
+
 
     /* ============================================================
     PAGE PROFIL - NOUVEAU DESIGN
@@ -378,12 +459,40 @@
     .profile-info-new p { font-size: 14px; color: #999; margin: 2px 0; }
     .wallet-card { background: linear-gradient(145deg, #1a1a1a, #2d2d2d); border-radius: 24px; padding: 24px 20px 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); margin-bottom: 24px; position: relative; z-index: 1; transition: transform 0.3s ease; border: 1px solid rgba(255,255,255,0.06); }
     .wallet-card:active { transform: scale(0.99); }
-    .wallet-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+    .wallet-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 4px; }
     .wallet-label { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
-    .wallet-balance-new { font-size: 42px; font-weight: 900; color: #FFD700; line-height: 1.1; transition: all 0.3s ease; }
+    .balance-cards { position: relative; height: 150px; margin: 16px 4px 22px; }
+    .balance-card-back {
+        position: absolute; top: 0; right: 6%; width: 78%; height: 66%;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #FF7A45, #E63900);
+        box-shadow: 0 14px 30px rgba(230,57,0,0.35);
+    }
+    .balance-card-front {
+        position: absolute; bottom: 0; left: 0; width: 82%; height: 74%;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.10);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(255,255,255,0.22);
+        padding: 16px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .balance-amount-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .balance-dashes { display: flex; gap: 8px; }
+    .balance-dashes span { width: 22px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.5); }
+    .wallet-balance-new { font-size: 32px; font-weight: 900; color: #FFD700; line-height: 1.1; transition: all 0.3s ease; }
     .wallet-balance-new.updated { animation: walletPulse 0.5s ease; }
     @keyframes walletPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); color: #FF8C00; } 100% { transform: scale(1); } }
     .wallet-currency { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.3); margin-top: 2px; }
+    .wallet-delta-badge { margin-top: 8px; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.06); }
+    .wallet-delta-badge.up { color: #2ECC71; }
+    .wallet-delta-badge.down { color: #E74C3C; }
+    .wallet-chart-wrap { height: 60px; margin: 4px 0 18px; }
+    .wallet-chart-wrap svg { width: 100%; height: 100%; display: block; }
     .wallet-actions { display: flex; gap: 10px; justify-content: center; }
     .wallet-btn { flex: 1; padding: 12px 8px; border: none; border-radius: 14px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.3s ease; font-family: inherit; background: rgba(255,255,255,0.06); color: white; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     .wallet-btn:active { transform: scale(0.94); }
@@ -408,7 +517,10 @@
     /* ============================================================
     ALERTES
     ============================================================ */
-    .alert { padding: 12px; border-radius: 12px; margin-bottom: 12px; display: none; font-size: 14px; }
+    .alert { padding: 12px; border-radius: 12px; margin-bottom: 12px; display: none; font-size: 14px; align-items: center; gap: 8px; }
+    .alert.active-flex { display: flex; }
+    .alert-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .alert-icon svg { width: 100%; height: 100%; }
     .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
     .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
@@ -467,9 +579,11 @@
         .stat-card-label { font-size: 10px; }
         .articles-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .article-card img { height: 120px; }
-        .tab-icon { font-size: 20px; }
+        .tab-icon-svg { width: 19px; height: 19px; }
         .tab-label { font-size: 9px; }
         .tab-item { padding: 2px 4px; }
+        .tab-bubble { width: 46px; height: 46px; top: -24px; border-radius: 16px; }
+        .tab-bubble-icon { width: 19px; height: 19px; }
         .modal-content img { height: 200px; }
         .watermark-text { font-size: 80px; }
         .wallet-balance-new { font-size: 32px; }
@@ -523,7 +637,7 @@ AUTH
                 <input type="email" id="loginEmail" placeholder="Adresse e-mail" value="ambetodivin9@gmail.com" required>
             </div>
             <button type="submit" class="auth-btn slide-up" style="animation-delay: 0.4s;" id="btnLogin">
-                Se connecter <span class="auth-btn-arrow">→</span>
+                Se connecter <span class="auth-btn-arrow icon-inline" data-ic="arrowRight"></span>
             </button>
         </form>
         <div id="authError"></div>
@@ -534,15 +648,19 @@ AUTH
 APP
 ============================================================ -->
 <div class="app" id="appContainer">
-    <div id="alertBox" class="alert"></div>
+    <div id="alertBox" class="alert"><span class="alert-icon" id="alertIcon"></span><span id="alertText"></span></div>
 
     <!-- PAGE ACCUEIL -->
     <div class="page active" id="pageHome">
-        <!-- BARRE DE RECHERCHE + LOGO -->
+        <!-- LOGO + BARRE DE RECHERCHE -->
         <div class="home-header">
+            <div class="brand-row">
+                <img src="" alt="BLK" id="logoMiniImg" class="brand-logo-img">
+                <span class="brand-logo-text">BLK</span>
+            </div>
             <div class="search-bar">
+                <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
                 <input type="text" id="searchInput" placeholder="Rechercher...">
-                <div class="logo-mini"><img src="" alt="BLK" id="logoMiniImg"></div>
             </div>
         </div>
 
@@ -566,14 +684,14 @@ APP
                     <h3 id="sellerNameSmall">Nom du vendeur</h3>
                     <p id="sellerUsernameSmall">@username</p>
                     <div class="seller-stats-small">
-                        <span>🔥 <span id="flamesCountSmall">0</span></span>
-                        <span>👥 <span id="followersCountSmall">0</span></span>
-                        <span>📦 <span id="articlesCountSmall">0</span></span>
+                        <span><span class="icon-inline" data-ic="flame"></span> <span id="flamesCountSmall">0</span></span>
+                        <span><span class="icon-inline" data-ic="users"></span> <span id="followersCountSmall">0</span></span>
+                        <span><span class="icon-inline" data-ic="box"></span> <span id="articlesCountSmall">0</span></span>
                     </div>
                 </div>
                 <div class="seller-actions-small">
                     <button class="btn-follow-small" id="followBtnSmall">S'abonner</button>
-                    <button class="btn-message-small" id="messageBtnSmall">💬</button>
+                    <button class="btn-message-small" id="messageBtnSmall"><span class="icon-inline-md" data-ic="chat"></span></button>
                 </div>
             </div>
         </div>
@@ -583,34 +701,34 @@ APP
     <!-- PAGE MON MAGASIN -->
     <div class="page" id="pageShop">
         <h2 style="color:#E74C3C; margin-bottom:8px;">Mon Magasin</h2>
-        <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;">📤 Publier un article</button>
+        <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;"><span class="icon-inline" data-ic="send"></span> Publier un article</button>
 
         <!-- STATISTIQUES -->
         <div class="shop-stats">
             <div class="shop-stats-grid">
                 <div class="stat-card stat-sales">
-                    <div class="stat-card-icon">📦</div>
+                    <div class="stat-card-icon"><span class="icon-inline-lg" data-ic="box"></span></div>
                     <div class="stat-card-content">
                         <span class="stat-card-number" id="statTotalSales">0</span>
                         <span class="stat-card-label">Articles vendus</span>
                     </div>
                 </div>
                 <div class="stat-card stat-published">
-                    <div class="stat-card-icon">📝</div>
+                    <div class="stat-card-icon"><span class="icon-inline-lg" data-ic="note"></span></div>
                     <div class="stat-card-content">
                         <span class="stat-card-number" id="statTotalArticles">0</span>
                         <span class="stat-card-label">Articles publiés</span>
                     </div>
                 </div>
                 <div class="stat-card stat-revenue">
-                    <div class="stat-card-icon">💰</div>
+                    <div class="stat-card-icon"><span class="icon-inline-lg" data-ic="coin"></span></div>
                     <div class="stat-card-content">
                         <span class="stat-card-number" id="statTotalRevenue">0</span>
                         <span class="stat-card-label">Chiffre d'affaires</span>
                     </div>
                 </div>
                 <div class="stat-card stat-orders">
-                    <div class="stat-card-icon">🛒</div>
+                    <div class="stat-card-icon"><span class="icon-inline-lg" data-ic="cart"></span></div>
                     <div class="stat-card-content">
                         <span class="stat-card-number" id="statTotalOrders">0</span>
                         <span class="stat-card-label">Commandes passées</span>
@@ -622,7 +740,7 @@ APP
         <!-- GRAPHIQUE TEMPS RÉEL -->
         <div class="glass stats-chart-card">
             <div class="stats-chart-header">
-                <h4>📈 Évolution de la boutique</h4>
+                <h4><span class="icon-inline-md" data-ic="chartUp"></span> Évolution de la boutique</h4>
                 <span class="stats-chart-live"><span class="live-dot"></span>Temps réel</span>
             </div>
             <div class="stats-chart-legend">
@@ -650,7 +768,7 @@ APP
             <div class="glass">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <h3 id="discussionName">Utilisateur</h3>
-                    <button class="btn btn-sm btn-outline" id="btnCloseDiscussion">✕</button>
+                    <button class="btn btn-sm btn-outline" id="btnCloseDiscussion"><span class="icon-inline" data-ic="cross"></span></button>
                 </div>
                 <div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div>
                 <div style="display:flex; gap:8px; margin-top:8px;">
@@ -685,19 +803,29 @@ APP
         <!-- CARTE WALLET -->
         <div class="wallet-card">
             <div class="wallet-header">
-                <span class="wallet-label">💰 Wallet BLK</span>
-                <span class="wallet-balance-new" id="walletBalanceNew">0</span>
-                <span class="wallet-currency">FCFA</span>
+                <span class="wallet-label"><span class="icon-inline-md" data-ic="coin"></span> Wallet BLK</span>
             </div>
+            <div class="balance-cards">
+                <div class="balance-card-back"></div>
+                <div class="balance-card-front">
+                    <div class="balance-amount-row">
+                        <span class="wallet-balance-new" id="walletBalanceNew">0</span>
+                        <span class="wallet-currency">FCFA</span>
+                    </div>
+                    <span class="wallet-delta-badge" id="walletDeltaBadge" style="display:none;"></span>
+                    <div class="balance-dashes"><span></span><span></span><span></span><span></span></div>
+                </div>
+            </div>
+            <div class="wallet-chart-wrap" id="walletChartWrap"></div>
             <div class="wallet-actions">
                 <button class="wallet-btn wallet-btn-deposit" id="btnDepositNew">
-                    <span class="wallet-btn-icon">📥</span> Déposer
+                    <span class="wallet-btn-icon icon-inline-md" data-ic="receive"></span> Déposer
                 </button>
                 <button class="wallet-btn wallet-btn-withdraw" id="btnWithdrawNew">
-                    <span class="wallet-btn-icon">📤</span> Retirer
+                    <span class="wallet-btn-icon icon-inline-md" data-ic="send"></span> Retirer
                 </button>
                 <button class="wallet-btn wallet-btn-transfer" id="btnTransferNew">
-                    <span class="wallet-btn-icon">↗️</span> Transférer
+                    <span class="wallet-btn-icon icon-inline-md" data-ic="transfer"></span> Transférer
                 </button>
             </div>
         </div>
@@ -706,19 +834,19 @@ APP
         <div class="profile-stats-new">
             <div class="stat-item-new">
                 <span class="stat-number-new" id="profileFlamesNew">0</span>
-                <span class="stat-label-new">🔥 Flammes</span>
+                <span class="stat-label-new"><span class="icon-inline" data-ic="flame"></span> Flammes</span>
             </div>
             <div class="stat-item-new">
                 <span class="stat-number-new" id="profileFollowersNew">0</span>
-                <span class="stat-label-new">👥 Abonnés</span>
+                <span class="stat-label-new"><span class="icon-inline" data-ic="users"></span> Abonnés</span>
             </div>
             <div class="stat-item-new">
                 <span class="stat-number-new" id="profileFollowingNew">0</span>
-                <span class="stat-label-new">📌 Abonnements</span>
+                <span class="stat-label-new"><span class="icon-inline" data-ic="pin"></span> Abonnements</span>
             </div>
         </div>
 
-        <button class="btn btn-danger" id="btnLogout" style="margin-top:20px;">🚪 Déconnexion</button>
+        <button class="btn btn-danger" id="btnLogout" style="margin-top:20px;"><span class="icon-inline" data-ic="logout"></span> Déconnexion</button>
     </div>
 </div>
 
@@ -727,12 +855,12 @@ BARRE DE NAVIGATION
 ============================================================ -->
 <div class="tab-bar" id="tabs">
     <div class="tab-slider" id="tabSlider">
-        <div class="tab-slider-indicator" id="sliderIndicator"></div>
-        <button class="tab-item active" data-tab="pageHome"><span class="tab-icon">🏠</span><span class="tab-label">Accueil</span></button>
-        <button class="tab-item" data-tab="pageShop"><span class="tab-icon">🛍️</span><span class="tab-label">Mon Magasin</span></button>
-        <button class="tab-item" data-tab="pageMessages"><span class="tab-icon">💬</span><span class="tab-label">Messagerie</span></button>
-        <button class="tab-item" data-tab="pageOrders"><span class="tab-icon">📦</span><span class="tab-label">Mes Commandes</span></button>
-        <button class="tab-item" data-tab="pageProfile"><span class="tab-icon">👤</span><span class="tab-label">Mon Profil</span></button>
+        <div class="tab-bubble" id="tabBubble"><span class="tab-bubble-icon" id="tabBubbleIcon"></span></div>
+        <button class="tab-item active" data-tab="pageHome" data-icon="home"><span class="tab-icon-svg"></span><span class="tab-label">Accueil</span></button>
+        <button class="tab-item" data-tab="pageShop" data-icon="shop"><span class="tab-icon-svg"></span><span class="tab-label">Mon Magasin</span></button>
+        <button class="tab-item" data-tab="pageMessages" data-icon="messages"><span class="tab-icon-svg"></span><span class="tab-label">Messagerie</span></button>
+        <button class="tab-item" data-tab="pageOrders" data-icon="orders"><span class="tab-icon-svg"></span><span class="tab-label">Mes Commandes</span></button>
+        <button class="tab-item" data-tab="pageProfile" data-icon="profile"><span class="tab-icon-svg"></span><span class="tab-label">Mon Profil</span></button>
     </div>
 </div>
 
@@ -741,15 +869,15 @@ MODAL
 ============================================================ -->
 <div class="modal-overlay" id="articleModal">
     <div class="modal-content">
-        <button class="modal-close" id="modalClose">✕</button>
+        <button class="modal-close" id="modalClose"><span class="icon-inline" data-ic="cross"></span></button>
         <img src="" alt="Article" id="modalImage">
         <div class="modal-info">
             <h3 id="modalTitle">Titre</h3>
             <p class="modal-price" id="modalPrice">0 FCFA</p>
             <div class="modal-stats">
-                <span>🔥 <span id="modalFlames">0</span></span>
-                <span>👥 <span id="modalFollowers">0</span></span>
-                <span>📦 <span id="modalArticles">0</span></span>
+                <span><span class="icon-inline" data-ic="flame"></span> <span id="modalFlames">0</span></span>
+                <span><span class="icon-inline" data-ic="users"></span> <span id="modalFollowers">0</span></span>
+                <span><span class="icon-inline" data-ic="box"></span> <span id="modalArticles">0</span></span>
             </div>
             <button class="btn-buy" id="modalBuyBtn">Acheter</button>
         </div>
@@ -761,7 +889,7 @@ SWIPE POPUP
 ============================================================ -->
 <div class="swipe-popup" id="swipePopup">
     <div class="swipe-content">
-        <span class="swipe-icon">✅</span>
+        <span class="swipe-icon icon-inline-lg" data-ic="check"></span>
         <h3>Vous êtes abonné !</h3>
         <p>Vous suivrez les nouvelles publications de ce vendeur.</p>
     </div>
@@ -782,6 +910,40 @@ SCRIPTS
     document.getElementById('authBackgroundDiv').style.backgroundImage = 'url(' + AUTH_BG_DATA_URI + ')';
 
     // ============================================================
+    // ICÔNES SVG (remplace tous les emojis de l'app)
+    // ============================================================
+    var ICONS = {
+        flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-6.8 0-2.7-1.7-4.6-2.8-6.4-.6 1.7-1.5 2.6-2.4 2.6.6-2.8-.8-5.6-3.2-7 .4 2.8-1 4.8-2.8 6.6-1.3 1.4-1.8 2.8-1.8 4.2C6 19.3 8 22 12 22Z"/></svg>',
+        users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c.7-3.5 3.4-5.5 6.5-5.5s5.8 2 6.5 5.5"/><circle cx="17.5" cy="8.8" r="2.3"/><path d="M16.3 14.7c2.4.5 4.1 2.2 4.7 4.8"/></svg>',
+        box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg>',
+        chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/><circle cx="9" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg>',
+        send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 8 5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>',
+        receive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>',
+        transfer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>',
+        note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v6h6"/><path d="M8 13h8M8 17h5"/></svg>',
+        coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9"/><path d="M9.3 9.3c0-1.1 1.1-1.8 2.7-1.8s2.7.8 2.7 1.8-1.2 1.5-2.7 2-2.7.8-2.7 2 1.2 1.8 2.7 1.8 2.7-.7 2.7-1.8"/></svg>',
+        cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="20" r="1.3" fill="currentColor" stroke="none"/><path d="M2.5 3h2.5l2.3 11.4a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L21 7H6"/></svg>',
+        chartUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+        pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5Z"/><circle cx="12" cy="7" r="2"/></svg>',
+        logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+        lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>',
+        cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>',
+        crossCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>',
+        info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.7" r="0.2" fill="currentColor" stroke="currentColor" stroke-width="1.6"/></svg>',
+        hourglass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12"/><path d="M6 2c0 5 3 6 6 8-3 2-6 3-6 8"/><path d="M18 2c0 5-3 6-6 8 3 2 6 3 6 8"/></svg>',
+        pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+        arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>',
+        arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg>',
+        arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+        wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.1L3 17.5V21h3.5l6.1-6.1a4 4 0 0 0 5.1-5.6l-2.8 2.8-2.5-2.5Z"/></svg>'
+    };
+    document.querySelectorAll('[data-ic]').forEach(function(el) {
+        el.innerHTML = ICONS[el.dataset.ic] || '';
+    });
+
+
+    // ============================================================
     // CONFIGURATION
     // ============================================================
     var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
@@ -797,11 +959,15 @@ SCRIPTS
     // ============================================================
     // UTILITAIRES
     // ============================================================
+    var ALERT_ICONS = { success: 'check', error: 'crossCircle', info: 'info' };
     function showAlert(message, type) {
         var box = document.getElementById('alertBox');
-        box.textContent = message;
-        box.className = 'alert alert-' + (type || 'success');
-        box.style.display = 'block';
+        var t = type || 'success';
+        box.innerHTML = '<span class="alert-icon" data-ic="' + (ALERT_ICONS[t] || 'info') + '"></span><span class="alert-text"></span>';
+        document.querySelectorAll('#alertBox [data-ic]').forEach(function(el) { el.innerHTML = ICONS[el.dataset.ic] || ''; });
+        box.querySelector('.alert-text').textContent = message;
+        box.className = 'alert alert-' + t;
+        box.style.display = 'flex';
         clearTimeout(box._timeout);
         box._timeout = setTimeout(function() { box.style.display = 'none'; }, 5000);
     }
@@ -902,6 +1068,7 @@ SCRIPTS
         loadFollowCounts(currentUserId);
         loadSellerProfile();
         initTabs();
+        setTimeout(function() { maybeShowTabIntro('pageHome'); }, 600);
         initSwipeFollow();
         startStatsAutoRefresh();
     }
@@ -925,24 +1092,94 @@ SCRIPTS
     }
 
     // ============================================================
-    // TABS
+    // EXPLICATIONS "PREMIÈRE FOIS" PAR ONGLET
     // ============================================================
+    var TAB_INTROS = {
+        pageHome: { title: 'Accueil', text: "Parcours les articles publiés et utilise la recherche pour trouver ce que tu veux." },
+        pageShop: { title: 'Mon Magasin', text: "Publie tes articles et suis tes ventes, ton chiffre d'affaires et tes stats en temps réel." },
+        pageMessages: { title: 'Messagerie', text: "Échange directement avec les vendeurs et tes acheteurs." },
+        pageOrders: { title: 'Mes Commandes', text: "Retrouve ici toutes tes commandes et leur statut de livraison." },
+        pageProfile: { title: 'Mon Profil', text: "Gère ton wallet, tes abonnés et tes informations personnelles." }
+    };
+    function maybeShowTabIntro(pageId) {
+        var info = TAB_INTROS[pageId];
+        if (!info) return;
+        var key = 'blk_intro_seen_' + pageId;
+        if (localStorage.getItem(key)) return;
+        localStorage.setItem(key, '1');
+        var toast = document.getElementById('tabIntroToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'tabIntroToast';
+            toast.className = 'tab-intro-toast';
+            document.body.appendChild(toast);
+            toast.addEventListener('click', function() { toast.classList.remove('visible'); });
+        }
+        clearTimeout(toast._hideTimeout);
+        toast.classList.remove('visible');
+        toast.innerHTML = '<div class="tab-intro-title">' + info.title + '</div><div>' + info.text + '</div>';
+        requestAnimationFrame(function() { requestAnimationFrame(function() { toast.classList.add('visible'); }); });
+        toast._hideTimeout = setTimeout(function() { toast.classList.remove('visible'); }, 5000);
+    }
+
+
+    var TAB_ICONS = {
+        home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-6h4v6"/></svg>',
+        shop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5h16v4"/><path d="M3 9l1.5-4.5h15L21 9"/><path d="M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg>',
+        messages: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/><circle cx="9" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg>',
+        orders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="m8.5 11 1.5 1.5L12.5 10"/><path d="M9 16h6"/></svg>',
+        profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4.5-6 7-6s6 2 7 6"/></svg>'
+    };
+
+    // Icônes SVG génériques utilisées partout à la place des emojis
+    var ICONS = {
+        flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1.5-1-2-1-3 2 1 3 3 3 5.5A5.5 5.5 0 0 1 11.5 18 5.5 5.5 0 0 1 6 12.5C6 8 9 6 12 2Z"/></svg>',
+        users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c.7-3 3-5 6-5s5.3 2 6 5"/><circle cx="17" cy="8" r="2.4"/><path d="M15.5 14.2c2 .3 3.6 1.9 4.2 4.8"/></svg>',
+        box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M3 8.5V16l9 4.5 9-4.5V8.5"/><path d="M12 13v7.5"/></svg>',
+        chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/><circle cx="9" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg>',
+        upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>',
+        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
+        doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><path d="M9.5 12h5M9.5 15.5h5"/></svg>',
+        wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1" fill="currentColor" stroke="none"/></svg>',
+        cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="20" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.2" fill="currentColor" stroke="none"/><path d="M2.5 3h2l2.2 11.2A2 2 0 0 0 8.7 16h8.4a2 2 0 0 0 2-1.6L21 7H6"/></svg>',
+        chartup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m6.5 15 4-4 3 3 5.5-6"/><path d="M15.5 8h3.5v3.5"/></svg>',
+        transfer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>',
+        pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-10.5A6.5 6.5 0 0 1 18.5 10.5C18.5 15.4 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.2"/></svg>',
+        logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/></svg>',
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>',
+        xcircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="m8.5 8.5 7 7M15.5 8.5l-7 7"/></svg>',
+        hourglass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12"/><path d="M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/></svg>',
+        wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 4.6L4 16.2V20h3.8l5.3-5.3a4 4 0 0 0 4.6-5.4l-2.6 2.6-2-2 2.6-2.6Z"/></svg>',
+        lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>',
+        pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>'
+    };
+    function icon(name) { return '<span class="inline-icon">' + (ICONS[name] || '') + '</span>'; }
+
+
     function initTabs() {
         var tabs = document.querySelectorAll('.tab-item');
-        var indicator = document.getElementById('sliderIndicator');
+        var bubble = document.getElementById('tabBubble');
+        var bubbleIcon = document.getElementById('tabBubbleIcon');
 
-        function moveIndicator(activeTab) {
+        tabs.forEach(function(tab) {
+            var iconSpan = tab.querySelector('.tab-icon-svg');
+            if (iconSpan) iconSpan.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
+        });
+
+        function moveBubble(activeTab) {
             var tabRect = activeTab.getBoundingClientRect();
             var sliderRect = activeTab.parentElement.getBoundingClientRect();
-            var offsetX = tabRect.left - sliderRect.left;
-            var percentage = (offsetX / sliderRect.width) * 100;
-            indicator.style.transform = 'translateX(' + percentage + '%)';
+            var tabCenter = (tabRect.left - sliderRect.left) + (tabRect.width / 2);
+            var offsetX = tabCenter - 26; // 26 = moitié de la largeur de la bulle (52px)
+            bubble.style.transform = 'translateX(' + offsetX + 'px)';
+            bubbleIcon.innerHTML = TAB_ICONS[activeTab.dataset.icon] || '';
         }
 
         function setActiveTab(tab) {
             tabs.forEach(function(t) { t.classList.remove('active'); });
             tab.classList.add('active');
-            moveIndicator(tab);
+            moveBubble(tab);
             var pageId = tab.dataset.tab;
             document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
             var targetPage = document.getElementById(pageId);
@@ -953,6 +1190,7 @@ SCRIPTS
                 if (pageId === 'pageShop') { loadShopArticles();
                     loadStats(); }
                 if (pageId === 'pageProfile') loadFollowCounts(currentUserId);
+                maybeShowTabIntro(pageId);
             }
         }
 
@@ -963,13 +1201,10 @@ SCRIPTS
             });
         });
 
-        var activeTab = document.querySelector('.tab-item.active');
+        var activeTab = document.querySelector('.tab-item.active') || tabs[0];
         if (activeTab) {
-            requestAnimationFrame(function() { moveIndicator(activeTab); });
-        } else {
-            var firstTab = tabs[0];
-            if (firstTab) { firstTab.classList.add('active');
-                requestAnimationFrame(function() { moveIndicator(firstTab); }); }
+            activeTab.classList.add('active');
+            requestAnimationFrame(function() { moveBubble(activeTab); });
         }
 
         var resizeTimeout;
@@ -977,7 +1212,7 @@ SCRIPTS
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(function() {
                 var currentActive = document.querySelector('.tab-item.active');
-                if (currentActive) moveIndicator(currentActive);
+                if (currentActive) moveBubble(currentActive);
             }, 200);
         });
     }
@@ -1056,13 +1291,13 @@ SCRIPTS
         .then(function(data) {
             if (data.success) {
                 isFollowing = true;
-                document.getElementById('followBtnSmall').textContent = 'Abonné ✅';
+                document.getElementById('followBtnSmall').innerHTML = 'Abonné <span class="icon-inline">' + ICONS.check + '</span>';
                 document.getElementById('followBtnSmall').classList.add('following');
-                showAlert('✅ ' + data.message, 'success');
+                showAlert(data.message, 'success');
                 loadFollowCounts(followingId);
                 loadFollowCounts(currentUserId);
             } else {
-                showAlert('❌ ' + data.message, 'error');
+                showAlert(data.message, 'error');
             }
         })
         .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
@@ -1081,11 +1316,11 @@ SCRIPTS
                 isFollowing = false;
                 document.getElementById('followBtnSmall').textContent = 'S\'abonner';
                 document.getElementById('followBtnSmall').classList.remove('following');
-                showAlert('✅ ' + data.message, 'success');
+                showAlert(data.message, 'success');
                 loadFollowCounts(followingId);
                 loadFollowCounts(currentUserId);
             } else {
-                showAlert('❌ ' + data.message, 'error');
+                showAlert(data.message, 'error');
             }
         })
         .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
@@ -1123,7 +1358,7 @@ SCRIPTS
                     checkFollowStatus(sellerId).then(function(following) {
                         isFollowing = following;
                         var btn = document.getElementById('followBtnSmall');
-                        if (following) { btn.textContent = 'Abonné ✅';
+                        if (following) { btn.innerHTML = 'Abonné <span class="icon-inline">' + ICONS.check + '</span>';
                             btn.classList.add('following'); } else { btn.textContent = 'S\'abonner';
                             btn.classList.remove('following'); }
                     });
@@ -1222,7 +1457,7 @@ SCRIPTS
     // ============================================================
     function buyProduct(articleId, price, sellerId) {
         if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
-        showAlert('⏳ Création de la commande...', 'info');
+        showAlert('Création de la commande...', 'info');
         fetch(BACKEND_URL + '/api/orders/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1231,12 +1466,12 @@ SCRIPTS
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            if (data.success) { showAlert('✅ Commande créée !', 'success');
+            if (data.success) { showAlert('Commande créée !', 'success');
                 loadWallet();
                 loadOrders();
-                loadProducts(); } else { showAlert('❌ ' + data.message, 'error'); }
+                loadProducts(); } else { showAlert(data.message, 'error'); }
         })
-        .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
     }
 
     // ============================================================
@@ -1262,7 +1497,7 @@ SCRIPTS
     document.getElementById('btnWithdrawNew').addEventListener('click', function() { document.getElementById('btnWithdraw')
             .click(); });
     document.getElementById('btnTransferNew').addEventListener('click', function() {
-        showAlert('🔧 Fonctionnalité de transfert en développement', 'info');
+        showAlert('Fonctionnalité de transfert en développement', 'info');
     });
 
     document.getElementById('btnDeposit') && document.getElementById('btnDeposit').addEventListener('click', function() {
@@ -1273,7 +1508,7 @@ SCRIPTS
         var operator = prompt('Opérateur : tape "mtn" ou "airtel"', 'mtn');
         if (!operator) return;
         operator = operator.trim().toLowerCase();
-        showAlert('⏳ Envoi de la demande à Yabetoo...', 'info');
+        showAlert('Envoi de la demande à Yabetoo...', 'info');
         fetch(BACKEND_URL + '/api/payment/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1282,14 +1517,14 @@ SCRIPTS
         .then(function(res) { return res.json(); })
         .then(function(data) {
             if (data.success) {
-                if (data.status === 'succeeded') { showAlert('✅ Dépôt confirmé immédiatement !', 'success');
+                if (data.status === 'succeeded') { showAlert('Dépôt confirmé immédiatement !', 'success');
                     loadWallet(); } else {
-                    showAlert('💰 Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
+                    showAlert('Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
                     setTimeout(function() { loadWallet();
-                        showAlert('✅ Vérification du solde effectuée.', 'success'); }, 30000); }
-            } else { showAlert('❌ ' + data.message, 'error'); }
+                        showAlert('Vérification du solde effectuée.', 'success'); }, 30000); }
+            } else { showAlert(data.message, 'error'); }
         })
-        .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error');
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error');
             console.error('Erreur deposit:', e); });
     });
 
@@ -1301,7 +1536,7 @@ SCRIPTS
         var operator = prompt('Opérateur : tape "mtn" ou "airtel"', 'mtn');
         if (!operator) return;
         operator = operator.trim().toLowerCase();
-        showAlert('⏳ Traitement du retrait...', 'info');
+        showAlert('Traitement du retrait...', 'info');
         fetch(BACKEND_URL + '/api/wallet/withdraw', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1309,10 +1544,10 @@ SCRIPTS
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            if (data.success) { showAlert('💰 ' + data.message, 'success');
-                loadWallet(); } else { showAlert('❌ ' + data.message, 'error'); }
+            if (data.success) { showAlert(data.message, 'success');
+                loadWallet(); } else { showAlert(data.message, 'error'); }
         })
-        .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error');
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error');
             console.error('Erreur withdraw:', e); });
     });
 
@@ -1331,9 +1566,50 @@ SCRIPTS
                     document.getElementById('statTotalRevenue').textContent = formatNumber(stats.totalRevenue || 0);
                     document.getElementById('statTotalOrders').textContent = stats.totalPurchases || 0;
                     renderShopChart(stats.history || [], stats.totalSales || 0, stats.totalRevenue || 0);
+                    renderWalletChart(stats.history || []);
                 }
             })
             .catch(function(e) { console.error(e); });
+    }
+
+    // Mini-graphique "temps réel" de la carte Wallet (sans chiffres affichés dessus, juste la courbe)
+    function renderWalletChart(history) {
+        var wrap = document.getElementById('walletChartWrap');
+        var badge = document.getElementById('walletDeltaBadge');
+        if (!wrap) return;
+        if (!history || history.length === 0) {
+            wrap.innerHTML = '';
+            badge.style.display = 'none';
+            return;
+        }
+        var data = history.slice(-8);
+        var vals = data.map(function(h) { return h.revenu || 0; });
+        var n = vals.length;
+        var W = wrap.clientWidth || 280, H = 60, pad = 4;
+        var maxVal = Math.max.apply(null, vals.concat([1]));
+        function xAt(i) { return n > 1 ? pad + (i / (n - 1)) * (W - pad * 2) : W / 2; }
+        function yAt(v) { return pad + (H - pad * 2) - (v / maxVal) * (H - pad * 2); }
+        var linePath = vals.map(function(v, i) { return (i === 0 ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1); }).join(' ');
+        var areaPath = linePath + ' L' + xAt(n - 1).toFixed(1) + ',' + H + ' L' + xAt(0).toFixed(1) + ',' + H + ' Z';
+        var dots = vals.map(function(v, i) {
+            return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="2.2" fill="#FFD700"/>';
+        }).join('');
+        wrap.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+            '<defs><linearGradient id="walletGrad" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0%" stop-color="#FFD700" stop-opacity="0.35"/>' +
+            '<stop offset="100%" stop-color="#FFD700" stop-opacity="0"/></linearGradient></defs>' +
+            '<path d="' + areaPath + '" fill="url(#walletGrad)" stroke="none"/>' +
+            '<path d="' + linePath + '" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+            dots + '</svg>';
+
+        if (n >= 2 && vals[n - 2] > 0) {
+            var pct = Math.round(((vals[n - 1] - vals[n - 2]) / vals[n - 2]) * 100);
+            badge.style.display = 'inline-block';
+            badge.innerHTML = '<span class="icon-inline">' + (pct >= 0 ? ICONS.arrowUp : ICONS.arrowDown) + '</span>' + (pct >= 0 ? ' +' : ' ') + pct + '%';
+            badge.className = 'wallet-delta-badge ' + (pct >= 0 ? 'up' : 'down');
+        } else {
+            badge.style.display = 'none';
+        }
     }
 
     // Graphique interactif temps réel : Ventes (bleu) vs Revenu (rouge), avec survol type "tooltip"
@@ -1361,7 +1637,7 @@ SCRIPTS
             var curr = arr[arr.length - 1][key] || 0;
             if (prev === 0) { el.textContent = ''; return; }
             var pct = Math.round(((curr - prev) / prev) * 100);
-            el.textContent = (pct >= 0 ? '▲ +' : '▼ ') + pct + '%';
+            el.innerHTML = '<span class="icon-inline">' + (pct >= 0 ? ICONS.arrowUp : ICONS.arrowDown) + '</span>' + (pct >= 0 ? ' +' : ' ') + pct + '%';
             el.className = 'legend-delta ' + (pct >= 0 ? 'up' : 'down');
         }
         setDelta('chartVentesDelta', data, 'ventes');
@@ -1457,7 +1733,9 @@ SCRIPTS
     function startStatsAutoRefresh() {
         stopStatsAutoRefresh();
         statsRefreshInterval = setInterval(function() {
-            if (document.getElementById('pageShop').classList.contains('active')) loadStats();
+            var shopActive = document.getElementById('pageShop').classList.contains('active');
+            var profileActive = document.getElementById('pageProfile').classList.contains('active');
+            if (shopActive || profileActive) loadStats();
         }, 15000);
     }
     function stopStatsAutoRefresh() {
@@ -1485,9 +1763,9 @@ SCRIPTS
                     var card = document.createElement('div');
                     card.className = 'glass';
                     card.style.marginBottom = '12px';
-                    var statusText = '⏳ En attente';
-                    if (order.status === 'livré') statusText = '✅ Livré';
-                    else if (order.status === 'en attente de confirmation') statusText = '⏳ En attente';
+                    var statusText = '<span class="icon-inline">' + ICONS.hourglass + '</span> En attente';
+                    if (order.status === 'livré') statusText = '<span class="icon-inline">' + ICONS.check + '</span> Livré';
+                    else if (order.status === 'en attente de confirmation') statusText = '<span class="icon-inline">' + ICONS.hourglass + '</span> En attente';
                     else if (order.status) statusText = order.status;
                     var articleTitle = 'Article';
                     if (order.article && order.article.title) articleTitle = order.article.title;
@@ -1519,7 +1797,7 @@ SCRIPTS
                     var div = document.createElement('div');
                     div.style.cssText =
                         'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.5); border-radius:12px; padding:12px; margin-bottom:8px;';
-                    var statusText = a.status === 'active' ? '✅ En vente' : (a.status === 'sold' ? '✅ Vendu' : '⏸ Inactif');
+                    var statusText = a.status === 'active' ? '<span class="icon-inline">' + ICONS.check + '</span> En vente' : (a.status === 'sold' ? '<span class="icon-inline">' + ICONS.check + '</span> Vendu' : '<span class="icon-inline">' + ICONS.pause + '</span> Inactif');
                     div.innerHTML = '<img src="' + (a.image ||
                         'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px; height:50px; object-fit:cover; border-radius:8px;" /><div style="flex:1;"><strong>' +
                         a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px; color:#999;">' + statusText +
@@ -1544,19 +1822,19 @@ SCRIPTS
         fetch(BACKEND_URL + '/api/articles/' + articleId, { method: 'DELETE' })
             .then(function(res) { return res.json(); })
             .then(function(data) {
-                if (data.success) { showAlert('✅ Article supprimé !', 'success');
+                if (data.success) { showAlert('Article supprimé !', 'success');
                     loadShopArticles();
                     loadProducts();
-                    loadStats(); } else { showAlert('❌ ' + data.message, 'error'); }
+                    loadStats(); } else { showAlert(data.message, 'error'); }
             })
-            .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
+            .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
     }
 
     // ============================================================
     // PUBLIER
     // ============================================================
     document.getElementById('btnPublish').addEventListener('click', function() {
-        var html = '<h3>📤 Publier un article</h3>';
+        var html = '<h3><span class="icon-inline-md">' + ICONS.send + '</span> Publier un article</h3>';
         html += '<input type="text" id="pubTitle" placeholder="Titre" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;">';
         html += '<textarea id="pubDesc" placeholder="Description" rows="3" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;"></textarea>';
         html += '<input type="number" id="pubPrice" placeholder="Prix (FCFA)" style="width:100%; padding:12px; margin-bottom:8px; border:1px solid #ddd; border-radius:10px;">';
@@ -1585,13 +1863,13 @@ SCRIPTS
                 })
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
-                    if (data.success) { showAlert('✅ Article publié !', 'success');
+                    if (data.success) { showAlert('Article publié !', 'success');
                         overlay.remove();
                         loadShopArticles();
                         loadProducts();
-                        loadStats(); } else { showAlert('❌ ' + data.message, 'error'); }
+                        loadStats(); } else { showAlert(data.message, 'error'); }
                 })
-                .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
+                .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
             }
             if (imageFile) {
                 var reader = new FileReader();
@@ -1679,7 +1957,7 @@ SCRIPTS
         if (!view) {
             var html = '<div id="discussionView" style="display:block;"><div class="glass"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><h3 id="discussionName">' +
                 contactName +
-                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;">✕</button></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
+                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;"><span class="icon-inline">' + ICONS.cross + '</span></button></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
             document.getElementById('pageMessages').innerHTML += html;
             view = document.getElementById('discussionView');
         }
@@ -1731,9 +2009,9 @@ SCRIPTS
         .then(function(data) {
             if (data.success) { document.getElementById('messageInput').value = '';
                 loadConversation(activeConversationId);
-                loadMessages(); } else { showAlert('❌ ' + data.message, 'error'); }
+                loadMessages(); } else { showAlert(data.message, 'error'); }
         })
-        .catch(function(e) { showAlert('❌ Erreur: ' + e.message, 'error'); });
+        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
     });
 
     document.getElementById('messageInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') document
@@ -1756,7 +2034,7 @@ SCRIPTS
         document.getElementById('tabs').classList.add('show');
         document.getElementById('tabs').style.display = 'none';
         var adminHtml =
-            '<div style="max-width:500px; margin:40px auto; background:white; padding:24px; border-radius:20px;"><h2 style="color:#E74C3C;">🔐 Admin BLK</h2><p>Créditer un wallet après réception du virement.</p><div id="adminLogin"><input type="password" id="adminPassword" placeholder="Mot de passe" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-primary" id="btnAdminLogin">Accéder</button></div><div id="adminPanel" style="display:none; margin-top:16px;"><input type="text" id="adminUserId" placeholder="ID utilisateur (ex: user_...)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><input type="number" id="adminAmount" placeholder="Montant (FCFA)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-success" id="btnAdminCredit">💰 Créditer</button><div id="adminResult"></div></div></div>';
+            '<div style="max-width:500px; margin:40px auto; background:white; padding:24px; border-radius:20px;"><h2 style="color:#E74C3C;"><span class="icon-inline-md">' + ICONS.lock + '</span> Admin BLK</h2><p>Créditer un wallet après réception du virement.</p><div id="adminLogin"><input type="password" id="adminPassword" placeholder="Mot de passe" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-primary" id="btnAdminLogin">Accéder</button></div><div id="adminPanel" style="display:none; margin-top:16px;"><input type="text" id="adminUserId" placeholder="ID utilisateur (ex: user_...)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><input type="number" id="adminAmount" placeholder="Montant (FCFA)" style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:10px;"><button class="btn btn-success" id="btnAdminCredit"><span class="icon-inline">' + ICONS.coin + '</span> Créditer</button><div id="adminResult"></div></div></div>';
         document.getElementById('appContainer').innerHTML = adminHtml;
         document.getElementById('btnAdminLogin').addEventListener('click', function() {
             var pwd = document.getElementById('adminPassword').value;
