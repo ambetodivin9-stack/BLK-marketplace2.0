@@ -364,12 +364,6 @@
     /* ============================================================
     SWIPE POPUP
     ============================================================ */
-    .swipe-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.8); background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 20px; padding: 32px 40px; color: white; text-align: center; z-index: 9998; display: none; opacity: 0; transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1); }
-    .swipe-popup.active { display: block; opacity: 1; transform: translate(-50%,-50%) scale(1); }
-    .swipe-popup .swipe-icon { font-size: 48px; display: block; margin-bottom: 12px; }
-    .swipe-popup h3 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    .swipe-popup p { font-size: 14px; color: rgba(255,255,255,0.6); }
-
     /* ============================================================
     BARRE DE NAVIGATION (TABS) - effet glass rouge + bulle flottante
     ============================================================ */
@@ -674,27 +668,8 @@ APP
             <button class="btn btn-sm btn-outline" data-cat="accessoires">Accessoires</button>
         </div>
 
-        <!-- ARTICLES (le profil vendeur est injecté comme 1ère carte de la grille, mélangé aux articles) -->
-        <div id="productsGrid" class="articles-grid">
-            <div id="sellerProfileCard" class="seller-profile-card" style="display:none;">
-                <div class="seller-avatar-small" id="sellerAvatarSmall">
-                    <img src="default-avatar.png" alt="Avatar" id="sellerAvatarImgSmall" onerror="this.style.display='none';">
-                </div>
-                <div class="seller-info-small">
-                    <h3 id="sellerNameSmall">Nom du vendeur</h3>
-                    <p id="sellerUsernameSmall">@username</p>
-                    <div class="seller-stats-small">
-                        <span><span class="icon-inline" data-ic="flame"></span> <span id="flamesCountSmall">0</span></span>
-                        <span><span class="icon-inline" data-ic="users"></span> <span id="followersCountSmall">0</span></span>
-                        <span><span class="icon-inline" data-ic="box"></span> <span id="articlesCountSmall">0</span></span>
-                    </div>
-                </div>
-                <div class="seller-actions-small">
-                    <button class="btn-follow-small" id="followBtnSmall">S'abonner</button>
-                    <button class="btn-message-small" id="messageBtnSmall"><span class="icon-inline-md" data-ic="chat"></span></button>
-                </div>
-            </div>
-        </div>
+        <!-- ARTICLES -->
+        <div id="productsGrid" class="articles-grid"></div>
         <div id="emptyHome" class="empty" style="display:none;">Aucun article</div>
     </div>
 
@@ -885,17 +860,6 @@ MODAL
 </div>
 
 <!-- ============================================================
-SWIPE POPUP
-============================================================ -->
-<div class="swipe-popup" id="swipePopup">
-    <div class="swipe-content">
-        <span class="swipe-icon icon-inline-lg" data-ic="check"></span>
-        <h3>Vous êtes abonné !</h3>
-        <p>Vous suivrez les nouvelles publications de ce vendeur.</p>
-    </div>
-</div>
-
-<!-- ============================================================
 SCRIPTS
 ============================================================ -->
 <script>
@@ -1066,10 +1030,8 @@ SCRIPTS
         loadShopArticles();
         loadStats();
         loadFollowCounts(currentUserId);
-        loadSellerProfile();
         initTabs();
         setTimeout(function() { maybeShowTabIntro('pageHome'); }, 600);
-        initSwipeFollow();
         startStatsAutoRefresh();
     }
 
@@ -1218,49 +1180,7 @@ SCRIPTS
     }
 
     // ============================================================
-    // SWIPE FOLLOW
-    // ============================================================
-    function initSwipeFollow() {
-        var profile = document.getElementById('sellerProfileCard');
-        var followBtn = document.getElementById('followBtnSmall');
-        var startX = 0;
-        var isSwiping = false;
-        if (!profile) return;
-
-        profile.addEventListener('touchstart', function(e) {
-            startX = e.touches[0].clientX;
-            isSwiping = false;
-        }, { passive: true });
-
-        profile.addEventListener('touchmove', function(e) {
-            var deltaX = e.touches[0].clientX - startX;
-            if (deltaX > 50 && !isSwiping) {
-                isSwiping = true;
-                if (!isFollowing) {
-                    followUser(viewedUserId || currentUserId);
-                    showSwipePopup();
-                }
-            }
-        }, { passive: true });
-
-        followBtn.addEventListener('click', function() {
-            if (!isFollowing) {
-                followUser(viewedUserId || currentUserId);
-                showSwipePopup();
-            } else {
-                unfollowUser(viewedUserId || currentUserId);
-            }
-        });
-    }
-
-    function showSwipePopup() {
-        var popup = document.getElementById('swipePopup');
-        popup.classList.add('active');
-        setTimeout(function() { popup.classList.remove('active'); }, 2500);
-    }
-
-    // ============================================================
-    // FOLLOW
+    // FOLLOW (stats du profil)
     // ============================================================
     function loadFollowCounts(userId) {
         if (!userId) return;
@@ -1270,99 +1190,8 @@ SCRIPTS
                 if (data.success) {
                     var followers = data.data.followersCount || 0;
                     var following = data.data.followingCount || 0;
-                    document.getElementById('followersCountSmall').textContent = followers;
-                    document.getElementById('followingCountSmall') && (document.getElementById('followingCountSmall').textContent = following);
                     document.getElementById('profileFollowersNew').textContent = followers;
                     document.getElementById('profileFollowingNew').textContent = following;
-                }
-            })
-            .catch(function(e) { console.error(e); });
-    }
-
-    function followUser(followingId) {
-        if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
-        if (followingId === currentUserId) { showAlert('Vous ne pouvez pas vous abonner à vous-même', 'error'); return; }
-        fetch(BACKEND_URL + '/api/follow', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ followerId: currentUserId, followingId: followingId })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data.success) {
-                isFollowing = true;
-                document.getElementById('followBtnSmall').innerHTML = 'Abonné <span class="icon-inline">' + ICONS.check + '</span>';
-                document.getElementById('followBtnSmall').classList.add('following');
-                showAlert(data.message, 'success');
-                loadFollowCounts(followingId);
-                loadFollowCounts(currentUserId);
-            } else {
-                showAlert(data.message, 'error');
-            }
-        })
-        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
-    }
-
-    function unfollowUser(followingId) {
-        if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
-        fetch(BACKEND_URL + '/api/follow', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ followerId: currentUserId, followingId: followingId })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data.success) {
-                isFollowing = false;
-                document.getElementById('followBtnSmall').textContent = 'S\'abonner';
-                document.getElementById('followBtnSmall').classList.remove('following');
-                showAlert(data.message, 'success');
-                loadFollowCounts(followingId);
-                loadFollowCounts(currentUserId);
-            } else {
-                showAlert(data.message, 'error');
-            }
-        })
-        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
-    }
-
-    function checkFollowStatus(followingId) {
-        if (!currentUserId || followingId === currentUserId) return Promise.resolve(false);
-        return fetch(BACKEND_URL + '/api/following/' + currentUserId)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data.success) return data.data.some(function(f) { return f.followingId === followingId; });
-                return false;
-            })
-            .catch(function() { return false; });
-    }
-
-    // ============================================================
-    // PROFIL VENDEUR (intégré dans la grille d'articles)
-    // ============================================================
-    function loadSellerProfile() {
-        var sellerId = currentUserId || 'default_seller';
-        fetch(BACKEND_URL + '/api/users/' + sellerId)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    var user = data.data;
-                    var card = document.getElementById('sellerProfileCard');
-                    card.style.display = 'flex';
-                    document.getElementById('sellerNameSmall').textContent = user.name || 'Vendeur';
-                    document.getElementById('sellerUsernameSmall').textContent = '@' + (user.username || 'vendeur');
-                    document.getElementById('flamesCountSmall').textContent = user.flames || 0;
-                    document.getElementById('followersCountSmall').textContent = user.followersCount || 0;
-                    document.getElementById('articlesCountSmall').textContent = user.articlesCount || 0;
-                    if (user.photo) document.getElementById('sellerAvatarImgSmall').src = user.photo;
-                    checkFollowStatus(sellerId).then(function(following) {
-                        isFollowing = following;
-                        var btn = document.getElementById('followBtnSmall');
-                        if (following) { btn.innerHTML = 'Abonné <span class="icon-inline">' + ICONS.check + '</span>';
-                            btn.classList.add('following'); } else { btn.textContent = 'S\'abonner';
-                            btn.classList.remove('following'); }
-                    });
-                    viewedUserId = sellerId;
                 }
             })
             .catch(function(e) { console.error(e); });
@@ -1386,16 +1215,12 @@ SCRIPTS
     function renderProducts(products) {
         var grid = document.getElementById('productsGrid');
         var empty = document.getElementById('emptyHome');
-        var sellerCard = document.getElementById('sellerProfileCard');
         var filtered = products || [];
         if (selectedCategory !== 'all') filtered = filtered.filter(function(p) { return p.category === selectedCategory; });
         var q = document.getElementById('searchInput').value.toLowerCase();
         if (q) filtered = filtered.filter(function(p) { return p.title && p.title.toLowerCase().includes(q); });
 
-        // On retire les anciennes cartes d'articles mais on garde la carte vendeur en tête de grille
-        Array.prototype.slice.call(grid.children).forEach(function(child) {
-            if (child.id !== 'sellerProfileCard') child.remove();
-        });
+        grid.innerHTML = '';
 
         if (filtered.length === 0) {
             empty.style.display = 'block';
@@ -1500,55 +1325,123 @@ SCRIPTS
         showAlert('Fonctionnalité de transfert en développement', 'info');
     });
 
+    var WALLET_ICON_DATA_URI = 'data:image/jpeg;base64,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';
+
+    function openMoneyForm(kind) {
+        // kind: 'deposit' ou 'withdraw'
+        var isDeposit = kind === 'deposit';
+        var html = '<div style="text-align:center;">' +
+            '<img src="' + WALLET_ICON_DATA_URI + '" alt="Wallet" style="width:140px;height:auto;margin:0 auto 12px;display:block;">' +
+            '<h3 style="margin-bottom:4px;">' + (isDeposit ? 'Déposer sur ton wallet' : 'Retirer de ton wallet') + '</h3>' +
+            '<p style="color:#999;font-size:13px;margin-bottom:16px;">' + (isDeposit ? "Yabetoo t'enverra une demande de confirmation par SMS/USSD sur ce numéro." : "Le montant sera envoyé sur ce numéro Mobile Money.") + '</p>' +
+            '</div>';
+        html += '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
+            '<button type="button" class="btn btn-sm money-op-btn active" data-op="mtn" style="flex:1;">MTN</button>' +
+            '<button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button>' +
+            '</div>';
+        html += '<input type="tel" id="moneyPhone" placeholder="Numéro (ex: 065918166)" value="' + ((currentUser && currentUser.phone) || '') + '" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+        html += '<input type="number" id="moneyAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+        html += '<button class="btn btn-primary" id="moneySubmit">' + (isDeposit ? 'Confirmer le dépôt' : 'Confirmer le retrait') + '</button>';
+        html += '<button class="btn btn-outline" id="moneyCancel" style="margin-top:8px;">Annuler</button>';
+        html += '<div id="moneyStatus" style="margin-top:12px;font-size:13px;color:#999;text-align:center;"></div>';
+
+        var overlay = openModal(html);
+        var selectedOp = 'mtn';
+        overlay.querySelectorAll('.money-op-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                overlay.querySelectorAll('.money-op-btn').forEach(function(b) { b.className = 'btn btn-sm btn-outline money-op-btn'; });
+                this.className = 'btn btn-sm money-op-btn active';
+                selectedOp = this.dataset.op;
+            });
+        });
+        overlay.querySelector('#moneyCancel').addEventListener('click', function() { overlay.remove(); });
+
+        overlay.querySelector('#moneySubmit').addEventListener('click', function() {
+            var phone = overlay.querySelector('#moneyPhone').value.trim();
+            var amount = overlay.querySelector('#moneyAmount').value;
+            var statusEl = overlay.querySelector('#moneyStatus');
+            if (!phone || !amount || parseInt(amount) <= 0) {
+                statusEl.textContent = 'Renseigne un numéro et un montant valides.';
+                statusEl.style.color = '#E74C3C';
+                return;
+            }
+            this.disabled = true;
+            var submitBtn = this;
+
+            if (isDeposit) {
+                statusEl.style.color = '#999';
+                statusEl.textContent = 'Envoi de la demande à Yabetoo...';
+                fetch(BACKEND_URL + '/api/payment/initiate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: selectedOp })
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    submitBtn.disabled = false;
+                    if (data.success) {
+                        if (data.status === 'succeeded') {
+                            statusEl.style.color = '#27ae60';
+                            statusEl.textContent = 'Dépôt confirmé immédiatement !';
+                            loadWallet();
+                            setTimeout(function() { overlay.remove(); }, 1500);
+                        } else {
+                            statusEl.style.color = '#27ae60';
+                            statusEl.textContent = 'Demande envoyée. Confirme ton code PIN reçu par SMS/USSD sur ton téléphone...';
+                            setTimeout(function() {
+                                loadWallet();
+                                statusEl.textContent = 'Vérification du solde effectuée.';
+                                setTimeout(function() { overlay.remove(); }, 1500);
+                            }, 30000);
+                        }
+                    } else {
+                        statusEl.style.color = '#E74C3C';
+                        statusEl.textContent = data.message || 'Le dépôt a échoué.';
+                    }
+                })
+                .catch(function(e) {
+                    submitBtn.disabled = false;
+                    statusEl.style.color = '#E74C3C';
+                    statusEl.textContent = 'Erreur: ' + e.message;
+                    console.error('Erreur deposit:', e);
+                });
+            } else {
+                statusEl.style.color = '#999';
+                statusEl.textContent = 'Traitement du retrait...';
+                fetch(BACKEND_URL + '/api/wallet/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: selectedOp })
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    submitBtn.disabled = false;
+                    if (data.success) {
+                        statusEl.style.color = '#27ae60';
+                        statusEl.textContent = data.message || 'Retrait effectué.';
+                        loadWallet();
+                        setTimeout(function() { overlay.remove(); }, 1500);
+                    } else {
+                        statusEl.style.color = '#E74C3C';
+                        statusEl.textContent = data.message || 'Le retrait a échoué.';
+                    }
+                })
+                .catch(function(e) {
+                    submitBtn.disabled = false;
+                    statusEl.style.color = '#E74C3C';
+                    statusEl.textContent = 'Erreur: ' + e.message;
+                    console.error('Erreur withdraw:', e);
+                });
+            }
+        });
+    }
+
     document.getElementById('btnDeposit') && document.getElementById('btnDeposit').addEventListener('click', function() {
-        var amount = prompt('Montant (FCFA) :', '500');
-        if (!amount) return;
-        var phone = prompt('Numéro MTN ou Airtel :', '065918166');
-        if (!phone) return;
-        var operator = prompt('Opérateur : tape "mtn" ou "airtel"', 'mtn');
-        if (!operator) return;
-        operator = operator.trim().toLowerCase();
-        showAlert('Envoi de la demande à Yabetoo...', 'info');
-        fetch(BACKEND_URL + '/api/payment/initiate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: operator })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data.success) {
-                if (data.status === 'succeeded') { showAlert('Dépôt confirmé immédiatement !', 'success');
-                    loadWallet(); } else {
-                    showAlert('Demande de paiement envoyée ! Confirmez sur votre téléphone.', 'success');
-                    setTimeout(function() { loadWallet();
-                        showAlert('Vérification du solde effectuée.', 'success'); }, 30000); }
-            } else { showAlert(data.message, 'error'); }
-        })
-        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error');
-            console.error('Erreur deposit:', e); });
+        openMoneyForm('deposit');
     });
 
     document.getElementById('btnWithdraw') && document.getElementById('btnWithdraw').addEventListener('click', function() {
-        var amount = prompt('Montant à retirer (FCFA) :', '500');
-        if (!amount) return;
-        var phone = prompt('Numéro MTN ou Airtel :', '065918166');
-        if (!phone) return;
-        var operator = prompt('Opérateur : tape "mtn" ou "airtel"', 'mtn');
-        if (!operator) return;
-        operator = operator.trim().toLowerCase();
-        showAlert('Traitement du retrait...', 'info');
-        fetch(BACKEND_URL + '/api/wallet/withdraw', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: operator })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data.success) { showAlert(data.message, 'success');
-                loadWallet(); } else { showAlert(data.message, 'error'); }
-        })
-        .catch(function(e) { showAlert('Erreur: ' + e.message, 'error');
-            console.error('Erreur withdraw:', e); });
+        openMoneyForm('withdraw');
     });
 
     // ============================================================
