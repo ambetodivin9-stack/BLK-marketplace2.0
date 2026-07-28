@@ -100,6 +100,49 @@ app.get('/', (req, res) => {
 app.get('/ping', (req, res) => res.send('pong'));
 
 // ============================================================
+// DIAGNOSTIC (à retirer une fois le problème résolu)
+// ============================================================
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    YABETOO_SECRET_KEY_present: !!process.env.YABETOO_SECRET_KEY,
+    YABETOO_SECRET_KEY_length: (process.env.YABETOO_SECRET_KEY || '').length,
+    YABETOO_SECRET_KEY_preview: process.env.YABETOO_SECRET_KEY
+      ? process.env.YABETOO_SECRET_KEY.slice(0, 4) + '...' + process.env.YABETOO_SECRET_KEY.slice(-2)
+      : null,
+    all_env_keys_containing_yabetoo: Object.keys(process.env).filter(k => k.toLowerCase().includes('yabetoo')),
+    firebaseReady,
+    YABETOO_API_BASE
+  });
+});
+
+// ============================================================
+// TEST DIRECT DE L'APPEL YABETOO (sans passer par un dépôt complet)
+// ============================================================
+app.get('/api/debug/yabetoo-ping', async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${YABETOO_API_BASE}/payment-intents`,
+      { amount: 100, currency: 'XAF', description: 'Test ping BLK' },
+      {
+        headers: {
+          'Authorization': `Bearer ${YABETOO_SECRET}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+    res.json({ success: true, status: response.status, data: response.data });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      http_status: error.response?.status || null,
+      yabetoo_error: error.response?.data || null,
+      message: error.message
+    });
+  }
+});
+
+// ============================================================
 // CATÉGORIES
 // ============================================================
 app.get('/api/categories', (req, res) => {
