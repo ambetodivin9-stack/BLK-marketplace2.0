@@ -910,7 +910,7 @@ SCRIPTS
     // ============================================================
     // CONFIGURATION
     // ============================================================
-    var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
+    var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com';
     var STORAGE_KEY = 'blk_user_id';
     var currentUser = null;
     var currentUserId = null;
@@ -1317,10 +1317,8 @@ SCRIPTS
             .catch(function(e) { console.error(e); });
     }
 
-    document.getElementById('btnDepositNew').addEventListener('click', function() { document.getElementById('btnDeposit')
-            .click(); });
-    document.getElementById('btnWithdrawNew').addEventListener('click', function() { document.getElementById('btnWithdraw')
-            .click(); });
+    document.getElementById('btnDepositNew').addEventListener('click', function() { openMoneyForm('deposit'); });
+    document.getElementById('btnWithdrawNew').addEventListener('click', function() { openMoneyForm('withdraw'); });
     document.getElementById('btnTransferNew').addEventListener('click', function() {
         showAlert('Fonctionnalité de transfert en développement', 'info');
     });
@@ -1435,14 +1433,6 @@ SCRIPTS
             }
         });
     }
-
-    document.getElementById('btnDeposit') && document.getElementById('btnDeposit').addEventListener('click', function() {
-        openMoneyForm('deposit');
-    });
-
-    document.getElementById('btnWithdraw') && document.getElementById('btnWithdraw').addEventListener('click', function() {
-        openMoneyForm('withdraw');
-    });
 
     // ============================================================
     // STATS
