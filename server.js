@@ -50,8 +50,8 @@ const IMG_BB_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 
-// ✅ URL CORRECTE SELON LA DOC YABETOO
-const YABETOO_API_BASE = 'https://pay-api.yabetoopay.com/v1';
+// ✅ URL CORRECTE SELON LA DOC YABETOO (production = pay.api, PAS pay-api)
+const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.04;
@@ -430,7 +430,7 @@ app.post('/api/payment/initiate', async (req, res) => {
     // ✅ FORMAT DU NUMERO : selon la doc Yabetoo, on utilise le msisdn sans préfixe
     // Ils attendent un numéro comme 242065918166 (sans +)
     const formattedPhone = formatPhoneForYabetoo(phone);
-    const operatorName = (operator || 'mtn').toUpperCase();
+    const operatorName = (operator || 'mtn').toLowerCase();
 
     console.log('📱 Numéro formaté pour Yabetoo:', formattedPhone);
 
@@ -466,7 +466,7 @@ app.post('/api/payment/initiate', async (req, res) => {
       payment_method_data: {
         type: 'momo',
         momo: {
-          country: 'CG',
+          country: 'cg',
           msisdn: formattedPhone,
           operator_name: operatorName
         }
