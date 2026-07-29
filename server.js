@@ -476,6 +476,8 @@ app.post('/api/payment/initiate', async (req, res) => {
     console.log('📤 Confirmation...');
     const confirmPayload = {
       client_secret: clientSecret,
+      amount: parseInt(amount),
+      currency: 'xaf',
       first_name: 'Client',
       last_name: 'BLK',
       receipt_email: userDoc.data()?.email || 'client@blk.com',
