@@ -122,7 +122,7 @@ app.get('/api/debug/yabetoo-ping', async (req, res) => {
   try {
     const response = await axios.post(
       `${YABETOO_API_BASE}/payment-intents`,
-      { amount: 100, currency: 'XAF', description: 'Test ping BLK' },
+      { amount: 100, currency: 'xaf', description: 'Test ping BLK' },
       {
         headers: {
           'Authorization': `Bearer ${YABETOO_SECRET}`,
@@ -442,7 +442,7 @@ app.post('/api/payment/initiate', async (req, res) => {
       `${YABETOO_API_BASE}/payment-intents`,
       {
         amount: parseInt(amount),
-        currency: 'XAF',
+        currency: 'xaf',
         description: `Dépôt BLK - ${userId}`
       },
       {
@@ -456,10 +456,26 @@ app.post('/api/payment/initiate', async (req, res) => {
     const intent = createResponse.data;
     console.log('✅ Intention créée:', JSON.stringify(intent, null, 2));
 
+    // La doc Yabetoo expose parfois le secret sous des casses différentes selon la version de l'API.
+    const clientSecret = intent.client_secret || intent.clientSecret
+      || intent.data?.client_secret || intent.data?.clientSecret
+      || intent.intent?.client_secret || intent.intent?.clientSecret;
+
+    if (!clientSecret) {
+      console.error('❌ client_secret introuvable dans la réponse de création. Structure reçue ci-dessus.');
+      return res.status(502).json({
+        success: false,
+        message: "La création de l'intention Yabetoo n'a pas renvoyé de client_secret exploitable.",
+        yabetoo_create_response: intent
+      });
+    }
+
     // --- Étape 2 : Confirmer l'intention ---
+    // ⚠️ Selon la doc Yabetoo, la confirmation se fait sur LE MÊME endpoint que la création
+    // (POST /v1/payment-intents), pas sur /payment-intents/{id}/confirm.
     console.log('📤 Confirmation...');
     const confirmPayload = {
-      client_secret: intent.client_secret,
+      client_secret: clientSecret,
       first_name: 'Client',
       last_name: 'BLK',
       receipt_email: userDoc.data()?.email || 'client@blk.com',
@@ -476,7 +492,7 @@ app.post('/api/payment/initiate', async (req, res) => {
     console.log('📦 Payload confirm:', JSON.stringify(confirmPayload, null, 2));
 
     const confirmResponse = await axios.post(
-      `${YABETOO_API_BASE}/payment-intents/${intent.id}/confirm`,
+      `${YABETOO_API_BASE}/payment-intents`,
       confirmPayload,
       {
         headers: {
