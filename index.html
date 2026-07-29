@@ -1385,16 +1385,33 @@ SCRIPTS
                             setTimeout(function() { overlay.remove(); }, 1500);
                         } else {
                             statusEl.style.color = '#27ae60';
-                            statusEl.textContent = 'Demande envoyée. Confirme ton code PIN reçu par SMS/USSD sur ton téléphone...';
-                            setTimeout(function() {
-                                loadWallet();
-                                statusEl.textContent = 'Vérification du solde effectuée.';
-                                setTimeout(function() { overlay.remove(); }, 1500);
-                            }, 30000);
+                            statusEl.textContent = 'Confirme le code PIN reçu par SMS/USSD sur ton téléphone. En attente de la confirmation Yabetoo...';
+                            var balanceBefore = (currentUser && currentUser.walletBalance) || 0;
+                            var attempts = 0;
+                            var poll = setInterval(function() {
+                                attempts++;
+                                fetch(BACKEND_URL + '/api/wallet/' + currentUserId)
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(w) {
+                                        if ((w.balance || 0) > balanceBefore) {
+                                            clearInterval(poll);
+                                            loadWallet();
+                                            statusEl.style.color = '#27ae60';
+                                            statusEl.textContent = 'Dépôt confirmé, wallet crédité !';
+                                            setTimeout(function() { overlay.remove(); }, 1500);
+                                        } else if (attempts >= 20) {
+                                            clearInterval(poll);
+                                            statusEl.style.color = '#999';
+                                            statusEl.textContent = "Toujours en attente. Confirme bien le code PIN sur ton téléphone, ou vérifie plus tard dans l'onglet Profil.";
+                                        }
+                                    })
+                                    .catch(function() {});
+                            }, 4000);
                         }
                     } else {
                         statusEl.style.color = '#E74C3C';
-                        statusEl.textContent = data.message || 'Le dépôt a échoué.';
+                        var errDetail = data.yabetoo_error && (data.yabetoo_error.message || JSON.stringify(data.yabetoo_error));
+                        statusEl.textContent = (data.message || 'Le dépôt a échoué.') + (errDetail ? ' — ' + errDetail : '');
                     }
                 })
                 .catch(function(e) {
