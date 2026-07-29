@@ -518,33 +518,13 @@ app.post('/api/payment/initiate', async (req, res) => {
       });
     }
 
-    // ✅ FALLBACK : on crédite automatiquement après 30 secondes
-    // Cela permet de tester l'application même si le webhook n'arrive pas
-    setTimeout(async () => {
-      try {
-        const txDoc = await db.collection('transactions').doc(transactionRef.id).get();
-        const txData = txDoc.data();
-        if (txData.status === 'pending') {
-          const userRef2 = db.collection('users').doc(userId);
-          const userDoc2 = await userRef2.get();
-          const currentBalance2 = userDoc2.data()?.walletBalance || 0;
-          const newBalance2 = currentBalance2 + parseInt(amount);
-          await userRef2.update({ walletBalance: newBalance2 });
-          await txDoc.ref.update({ 
-            status: 'completed', 
-            completedAt: new Date(),
-            description: 'Crédit automatique (fallback)'
-          });
-          console.log('✅ Fallback : wallet crédité automatiquement pour', userId);
-        }
-      } catch (error) {
-        console.error('❌ Erreur fallback:', error);
-      }
-    }, 30000);
+    // ⚠️ Le crédit automatique après 30s a été désactivé volontairement.
+    // Pour un paiement 100% réel, SEUL le webhook Yabetoo (/api/payment/callback)
+    // doit créditer un dépôt "pending" — jamais un minuteur local.
 
     res.json({
       success: true,
-      message: 'Demande envoyée. Wallet sera crédité automatiquement dans 30s.',
+      message: 'Demande envoyée à Yabetoo. En attente de ta confirmation par SMS/USSD, puis du webhook.',
       status: confirmData.status || 'pending'
     });
 
@@ -555,38 +535,16 @@ app.post('/api/payment/initiate', async (req, res) => {
     console.error('Status:', error.response?.status);
     console.error('Headers:', error.response?.headers);
 
-    // ✅ ULTIME FALLBACK : en cas d'erreur, on crédite quand même (simulation)
-    try {
-      const { userId, amount } = req.body;
-      const userRef = db.collection('users').doc(userId);
-      const userDoc = await userRef.get();
-      const currentBalance = userDoc.data()?.walletBalance || 0;
-      const newBalance = currentBalance + parseInt(amount);
-      await userRef.update({ walletBalance: newBalance });
-      
-      await db.collection('transactions').add({
-        userId,
-        amount: parseInt(amount),
-        phone: req.body.phone || '',
-        status: 'completed',
-        type: 'deposit',
-        description: 'Dépôt (fallback ultime)',
-        createdAt: new Date()
-      });
-
-      return res.json({
-        success: true,
-        message: '💰 Dépôt effectué (simulation)',
-        status: 'succeeded',
-        newBalance: newBalance
-      });
-    } catch (fallbackError) {
-      console.error('❌ Fallback échoué:', fallbackError.message);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur paiement: ' + (error.response?.data?.message || error.message)
-      });
-    }
+    // ⚠️ Le "faux crédit de secours" a été désactivé volontairement.
+    // Tant qu'on cherche un paiement 100% réel, on ne crédite JAMAIS le wallet
+    // si Yabetoo a refusé — on renvoie l'erreur exacte pour la corriger à la source.
+    return res.status(502).json({
+      success: false,
+      message: 'Le paiement Yabetoo a échoué (aucun crédit fictif appliqué).',
+      yabetoo_http_status: error.response?.status || null,
+      yabetoo_error: error.response?.data || null,
+      raw_message: error.message
+    });
   }
 });
 
