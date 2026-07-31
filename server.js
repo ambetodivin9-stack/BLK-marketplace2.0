@@ -70,7 +70,7 @@ console.log(`🌐 Yabetoo API Base: ${YABETOO_API_BASE}`);
 // HELPER
 // ============================================================
 function formatPhoneForYabetoo(phone) {
-  // ✅ Nettoie le numéro : enlève espaces, +, et le 0 initial si présent
+  // ✅ Nettoie le numéro : enlève espaces et le 0 initial si présent
   let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
   if (formatted.startsWith('0')) {
     formatted = formatted.substring(1);
@@ -78,7 +78,9 @@ function formatPhoneForYabetoo(phone) {
   if (!formatted.startsWith('242')) {
     formatted = '242' + formatted;
   }
-  return formatted;
+  // ⚠️ La doc Yabetoo (guide Mobile Money) montre le msisdn au format international AVEC le +
+  // (ex: "+242066594470"). Sans lui, le SMS/USSD n'est jamais réellement déclenché côté opérateur.
+  return '+' + formatted;
 }
 
 // ============================================================
@@ -493,8 +495,11 @@ app.post('/api/payment/initiate', async (req, res) => {
 
     console.log('📦 Payload confirm:', JSON.stringify(confirmPayload, null, 2));
 
+    // ⚠️ On a constaté que POST /v1/payment-intents (même URL que la création) créait
+    // une TOUTE NOUVELLE intention au lieu de confirmer celle-ci (IDs différents dans les logs).
+    // On confirme donc explicitement via l'ID de l'intention dans le chemin.
     const confirmResponse = await axios.post(
-      `${YABETOO_API_BASE}/payment-intents`,
+      `${YABETOO_API_BASE}/payment-intents/${intent.id}/confirm`,
       confirmPayload,
       {
         headers: {
@@ -506,6 +511,11 @@ app.post('/api/payment/initiate', async (req, res) => {
 
     const confirmData = confirmResponse.data;
     console.log('✅ Réponse Yabetoo:', JSON.stringify(confirmData, null, 2));
+    if (confirmData.id && confirmData.id !== intent.id) {
+      console.warn('⚠️ ATTENTION: la confirmation a renvoyé un ID différent de celui créé !', {
+        idCree: intent.id, idConfirme: confirmData.id
+      });
+    }
 
     // --- Étape 3 : Enregistrer la transaction en attente ---
     const transactionRef = await db.collection('transactions').add({
