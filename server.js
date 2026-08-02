@@ -1008,7 +1008,7 @@ app.get('/api/orders/:userId', async (req, res) => {
     const { userId } = req.params;
     const orders = [];
     const buyerSnapshot = await db.collection('orders')
-      .where('buyerId', '==', userId).orderBy('createdAt', 'desc').get();
+      .where('buyerId', '==', userId).get();
     for (const doc of buyerSnapshot.docs) {
       const order = doc.data();
       const articleDoc = await db.collection('products').doc(order.articleId).get();
@@ -1022,7 +1022,7 @@ app.get('/api/orders/:userId', async (req, res) => {
       });
     }
     const sellerSnapshot = await db.collection('orders')
-      .where('sellerId', '==', userId).orderBy('createdAt', 'desc').get();
+      .where('sellerId', '==', userId).get();
     for (const doc of sellerSnapshot.docs) {
       const order = doc.data();
       if (!orders.find(o => o.id === doc.id)) {
@@ -1190,9 +1190,14 @@ app.get('/api/messages/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const snapshot = await db.collection('messages')
-      .where('participants', 'array-contains', userId).orderBy('createdAt', 'desc').limit(100).get();
+      .where('participants', 'array-contains', userId).limit(200).get();
     const messages = [];
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
+    messages.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+      return dateB - dateA;
+    });
     for (const msg of messages) {
       if (msg.receiverId === userId && !msg.read) {
         await db.collection('messages').doc(msg.id).update({ read: true });
@@ -1249,9 +1254,14 @@ app.get('/api/notifications/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const snapshot = await db.collection('notifications')
-      .where('userId', '==', userId).orderBy('createdAt', 'desc').limit(50).get();
+      .where('userId', '==', userId).limit(50).get();
     const notifications = [];
     snapshot.forEach(doc => notifications.push({ id: doc.id, ...doc.data() }));
+    notifications.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+      return dateB - dateA;
+    });
     res.json({ success: true, data: notifications });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
