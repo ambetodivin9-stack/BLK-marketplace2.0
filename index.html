@@ -390,6 +390,12 @@
     .modal-seller-avatar span { color: white; font-weight: 800; font-size: 16px; }
     .modal-seller-name { font-weight: 700; font-size: 14px; color: #1a1a1a; }
     .modal-seller-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #777; margin-top: 2px; }
+    .discussion-product-card { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 14px; margin-bottom: 10px; }
+    .discussion-product-card img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+    .discussion-product-card .dp-info { flex: 1; min-width: 0; }
+    .discussion-product-card .dp-title { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .discussion-product-card .dp-price { font-weight: 800; color: #E74C3C; font-size: 13px; }
+    .discussion-product-card button { flex-shrink: 0; padding: 8px 14px; border: none; border-radius: 20px; background: #E74C3C; color: white; font-weight: 700; font-size: 12px; cursor: pointer; }
     .modal-info { padding: 20px; }
     .modal-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
     .modal-info .modal-price { font-size: 20px; font-weight: 800; color: #E74C3C; margin-bottom: 12px; }
@@ -778,6 +784,7 @@ APP
                     <h3 id="discussionName">Utilisateur</h3>
                     <button class="btn btn-sm btn-outline" id="btnCloseDiscussion"><span class="icon-inline" data-ic="cross"></span></button>
                 </div>
+                <div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div>
                 <div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div>
                 <div style="display:flex; gap:8px; margin-top:8px;">
                     <input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;">
@@ -970,6 +977,7 @@ SCRIPTS
     var selectedCategory = 'all';
     var viewedUserId = null;
     var activeConversationId = null;
+    var activeChatProduct = null;
     var isFollowing = false;
 
     // ============================================================
@@ -1367,6 +1375,7 @@ SCRIPTS
             var messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
             if (messagesTab) messagesTab.click();
             activeConversationId = product.sellerId;
+            activeChatProduct = product;
             openDiscussion(product.sellerId, product.sellerName || 'Vendeur');
         };
         modal.classList.add('active');
@@ -1796,6 +1805,27 @@ SCRIPTS
     // ============================================================
     // ORDRES
     // ============================================================
+    function parseServerDate(val) {
+        if (!val) return null;
+        if (val._seconds) return new Date(val._seconds * 1000);
+        if (val.seconds) return new Date(val.seconds * 1000);
+        var d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    setInterval(function() {
+        document.querySelectorAll('.order-countdown').forEach(function(el) {
+            var expires = parseServerDate(el.dataset.expires);
+            if (!expires) { el.textContent = ''; return; }
+            var diff = expires.getTime() - Date.now();
+            if (diff <= 0) { el.textContent = 'Délai expiré'; return; }
+            var h = Math.floor(diff / 3600000);
+            var m = Math.floor((diff % 3600000) / 60000);
+            var s = Math.floor((diff % 60000) / 1000);
+            el.textContent = 'Livraison sous ' + h + 'h ' + (m < 10 ? '0' : '') + m + 'm ' + (s < 10 ? '0' : '') + s + 's';
+        });
+    }, 1000);
+
     function loadOrders() {
         if (!currentUserId) return;
         fetch(BACKEND_URL + '/api/orders/' + currentUserId)
@@ -1823,8 +1853,12 @@ SCRIPTS
                     var amount = 0;
                     if (order.totalAmount) amount = order.totalAmount;
                     else if (order.amount) amount = order.amount;
+                    var countdownHtml = '';
+                    if (order.status === 'en attente de confirmation' && order.expiresAt) {
+                        countdownHtml = '<div class="order-countdown" data-expires="' + order.expiresAt + '" style="font-size:12px;color:#E74C3C;font-weight:700;margin-top:4px;"></div>';
+                    }
                     card.innerHTML = '<div><strong>' + articleTitle + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText +
-                        '</span></div>';
+                        '</span>' + countdownHtml + '</div>';
                     if (order.status === 'en attente de confirmation' && order.buyerId === currentUserId) {
                         var confirmBtn = document.createElement('button');
                         confirmBtn.className = 'btn btn-success btn-sm';
@@ -2067,8 +2101,19 @@ SCRIPTS
                 var container = document.getElementById('contactsList');
                 var empty = document.getElementById('emptyMessages');
                 var view = document.getElementById('discussionView');
-                if (!data.success || !data.data || data.data.length === 0) { container.innerHTML = '';
-                    empty.style.display = 'block'; if (view) view.style.display = 'none'; return; }
+                if (!data.success || !data.data || data.data.length === 0) {
+                    container.innerHTML = '';
+                    if (activeConversationId) {
+                        // Une discussion a été ouverte volontairement (ex: depuis un article) mais n'a pas encore de messages : on garde la zone de saisie visible.
+                        empty.style.display = 'none';
+                        if (view) view.style.display = 'block';
+                        document.getElementById('messagesList').innerHTML = '<p class="empty">Aucun message pour l\'instant, écris le premier !</p>';
+                    } else {
+                        empty.style.display = 'block';
+                        if (view) view.style.display = 'none';
+                    }
+                    return;
+                }
                 empty.style.display = 'none';
                 var contacts = {};
                 data.data.forEach(function(msg) {
@@ -2100,6 +2145,7 @@ SCRIPTS
                     el.addEventListener('click', function() {
                         var id = this.dataset.id;
                         activeConversationId = id;
+                        activeChatProduct = null;
                         document.querySelectorAll('.contact-chip').forEach(function(c) { c.classList
                                 .remove('active'); });
                         this.classList.add('active');
@@ -2119,13 +2165,29 @@ SCRIPTS
         if (!view) {
             var html = '<div id="discussionView" style="display:block;"><div class="glass"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><h3 id="discussionName">' +
                 contactName +
-                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;"><span class="icon-inline">' + ICONS.cross + '</span></button></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
+                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;"><span class="icon-inline">' + ICONS.cross + '</span></button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
             document.getElementById('pageMessages').innerHTML += html;
             view = document.getElementById('discussionView');
         }
         view.style.display = 'block';
         document.getElementById('emptyMessages').style.display = 'none';
         document.getElementById('discussionName').textContent = contactName || 'Utilisateur';
+
+        var productCard = document.getElementById('discussionProductCard');
+        if (activeChatProduct && activeChatProduct.sellerId === contactId) {
+            var p = activeChatProduct;
+            productCard.style.display = 'flex';
+            productCard.innerHTML = '<img src="' + (p.image || (p.images && p.images[0]) || '') + '">' +
+                '<div class="dp-info"><div class="dp-title">' + (p.title || 'Article') + '</div><div class="dp-price">' + (p.price || 0) + ' FCFA</div></div>' +
+                '<button id="discussionBuyBtn">Acheter</button>';
+            document.getElementById('discussionBuyBtn').addEventListener('click', function() {
+                buyProduct(p.id, p.price, p.sellerId);
+            });
+        } else {
+            productCard.style.display = 'none';
+            productCard.innerHTML = '';
+        }
+
         loadConversation(contactId);
     }
 
