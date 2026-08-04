@@ -396,6 +396,8 @@
     .discussion-product-card .dp-title { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .discussion-product-card .dp-price { font-weight: 800; color: #E74C3C; font-size: 13px; }
     .discussion-product-card button { flex-shrink: 0; padding: 8px 14px; border: none; border-radius: 20px; background: #E74C3C; color: white; font-weight: 700; font-size: 12px; cursor: pointer; }
+    #btnRecordVoice.recording { background: #E74C3C; color: white; border-color: #E74C3C; animation: micPulse 1s ease infinite; }
+    @keyframes micPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
     .modal-info { padding: 20px; }
     .modal-info h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
     .modal-info .modal-price { font-size: 20px; font-weight: 800; color: #E74C3C; margin-bottom: 12px; }
@@ -788,6 +790,7 @@ APP
                 <div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div>
                 <div style="display:flex; gap:8px; margin-top:8px;">
                     <input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;">
+                    <button class="btn btn-outline" id="btnRecordVoice" type="button" title="Message vocal" style="width:auto; padding:12px 14px;"></button>
                     <button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button>
                 </div>
             </div>
@@ -959,7 +962,8 @@ SCRIPTS
         arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>',
         arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg>',
         arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
-        wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.1L3 17.5V21h3.5l6.1-6.1a4 4 0 0 0 5.1-5.6l-2.8 2.8-2.5-2.5Z"/></svg>'
+        wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.1L3 17.5V21h3.5l6.1-6.1a4 4 0 0 0 5.1-5.6l-2.8 2.8-2.5-2.5Z"/></svg>',
+        mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>'
     };
     document.querySelectorAll('[data-ic]').forEach(function(el) {
         el.innerHTML = ICONS[el.dataset.ic] || '';
@@ -1167,31 +1171,6 @@ SCRIPTS
     };
 
     // Icônes SVG génériques utilisées partout à la place des emojis
-    var ICONS = {
-        flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1.5-1-2-1-3 2 1 3 3 3 5.5A5.5 5.5 0 0 1 11.5 18 5.5 5.5 0 0 1 6 12.5C6 8 9 6 12 2Z"/></svg>',
-        users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c.7-3 3-5 6-5s5.3 2 6 5"/><circle cx="17" cy="8" r="2.4"/><path d="M15.5 14.2c2 .3 3.6 1.9 4.2 4.8"/></svg>',
-        box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M3 8.5V16l9 4.5 9-4.5V8.5"/><path d="M12 13v7.5"/></svg>',
-        chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/><circle cx="9" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg>',
-        upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>',
-        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
-        doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><path d="M9.5 12h5M9.5 15.5h5"/></svg>',
-        wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1" fill="currentColor" stroke="none"/></svg>',
-        cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="20" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="20" r="1.2" fill="currentColor" stroke="none"/><path d="M2.5 3h2l2.2 11.2A2 2 0 0 0 8.7 16h8.4a2 2 0 0 0 2-1.6L21 7H6"/></svg>',
-        chartup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m6.5 15 4-4 3 3 5.5-6"/><path d="M15.5 8h3.5v3.5"/></svg>',
-        transfer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>',
-        pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-10.5A6.5 6.5 0 0 1 18.5 10.5C18.5 15.4 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.2"/></svg>',
-        logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/></svg>',
-        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>',
-        xcircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="m8.5 8.5 7 7M15.5 8.5l-7 7"/></svg>',
-        hourglass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12"/><path d="M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/></svg>',
-        wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 4.6L4 16.2V20h3.8l5.3-5.3a4 4 0 0 0 4.6-5.4l-2.6 2.6-2-2 2.6-2.6Z"/></svg>',
-        lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>',
-        pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
-        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>'
-    };
-    function icon(name) { return '<span class="inline-icon">' + (ICONS[name] || '') + '</span>'; }
-
-
     function initTabs() {
         var tabs = document.querySelectorAll('.tab-item');
         var bubble = document.getElementById('tabBubble');
@@ -2165,13 +2144,16 @@ SCRIPTS
         if (!view) {
             var html = '<div id="discussionView" style="display:block;"><div class="glass"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><h3 id="discussionName">' +
                 contactName +
-                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;"><span class="icon-inline">' + ICONS.cross + '</span></button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
+                '</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion" style="width:auto; padding:4px 12px;"><span class="icon-inline">' + ICONS.cross + '</span></button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px; overflow-y:auto; padding:4px 0;"></div><div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1; padding:12px; border:1px solid #ddd; border-radius:14px; font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" title="Message vocal" style="width:auto; padding:12px 14px;"></button><button class="btn btn-primary" id="btnSendMessage" style="width:auto; padding:12px 20px;">Envoyer</button></div></div></div>';
             document.getElementById('pageMessages').innerHTML += html;
             view = document.getElementById('discussionView');
         }
         view.style.display = 'block';
         document.getElementById('emptyMessages').style.display = 'none';
         document.getElementById('discussionName').textContent = contactName || 'Utilisateur';
+        var micBtn = document.getElementById('btnRecordVoice');
+        if (micBtn && !micBtn.innerHTML.trim()) micBtn.innerHTML = ICONS.mic;
+        initVoiceButton();
 
         var productCard = document.getElementById('discussionProductCard');
         if (activeChatProduct && activeChatProduct.sellerId === contactId) {
@@ -2205,41 +2187,103 @@ SCRIPTS
                 var messages = data.data.filter(function(msg) { return (msg.senderId === currentUserId && msg
                         .receiverId === contactId) || (msg.senderId === contactId && msg.receiverId ===
                         currentUserId); });
-                messages.sort(function(a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+                messages.sort(function(a, b) { return (parseServerDate(a.createdAt) || 0) - (parseServerDate(b.createdAt) || 0); });
                 if (messages.length === 0) { container.innerHTML = '<p class="empty">Aucun message</p>'; return; }
                 container.innerHTML = messages.map(function(msg) {
                     var isMine = msg.senderId === currentUserId;
                     var name = isMine ? 'Moi' : (msg.senderName || 'Utilisateur');
                     var senderHtml = isMine ? '' : '<div class="sender">' + name + '</div>';
+                    var d = parseServerDate(msg.createdAt);
+                    var timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    var bodyHtml = msg.audioUrl
+                        ? '<audio controls src="' + msg.audioUrl + '" style="max-width:200px;height:36px;"></audio>'
+                        : (msg.text || '');
                     return '<div class="message-bubble ' + (isMine ? 'mine' : 'other') +
-                        '"><div class="bubble">' + senderHtml + msg.text + '<span class="time">' +
-                        new Date(msg.createdAt).toLocaleTimeString() + '</span></div></div>';
+                        '"><div class="bubble">' + senderHtml + bodyHtml + '<span class="time">' +
+                        timeStr + '</span></div></div>';
                 }).join('');
                 container.scrollTop = container.scrollHeight;
             })
             .catch(function(e) { console.error(e); });
     }
 
-    document.getElementById('btnSendMessage').addEventListener('click', function() {
-        var text = document.getElementById('messageInput').value.trim();
-        if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
+    function sendMessagePayload(payload) {
         fetch(BACKEND_URL + '/api/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ senderId: currentUserId, receiverId: activeConversationId, text: text,
-                senderName: currentUser.name })
+            body: JSON.stringify(payload)
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            if (data.success) { document.getElementById('messageInput').value = '';
-                loadConversation(activeConversationId);
-                loadMessages(); } else { showAlert(data.message, 'error'); }
+            if (data.success) { loadConversation(activeConversationId); loadMessages(); }
+            else { showAlert(data.message, 'error'); }
         })
         .catch(function(e) { showAlert('Erreur: ' + e.message, 'error'); });
+    }
+
+    document.getElementById('btnSendMessage').addEventListener('click', function() {
+        var text = document.getElementById('messageInput').value.trim();
+        if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
+        document.getElementById('messageInput').value = '';
+        sendMessagePayload({ senderId: currentUserId, receiverId: activeConversationId, text: text, senderName: currentUser.name });
     });
 
     document.getElementById('messageInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') document
             .getElementById('btnSendMessage').click(); });
+
+    // ============================================================
+    // MESSAGE VOCAL (façon WhatsApp) — uniquement vers le vendeur/contact actif
+    // ============================================================
+    var mediaRecorder = null;
+    var audioChunks = [];
+    var recordStartTime = 0;
+
+    function initVoiceButton() {
+        var btn = document.getElementById('btnRecordVoice');
+        if (!btn || btn._voiceBound) return;
+        btn._voiceBound = true;
+        btn.addEventListener('click', function() {
+            if (!activeConversationId) { showAlert('Ouvre une discussion avant d\'envoyer un vocal', 'error'); return; }
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                startRecording(btn);
+            } else {
+                stopRecording(btn);
+            }
+        });
+    }
+
+    function startRecording(btn) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            audioChunks = [];
+            recordStartTime = Date.now();
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = function(e) { audioChunks.push(e.data); };
+            mediaRecorder.onstop = function() {
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                var duration = Math.round((Date.now() - recordStartTime) / 1000);
+                var blob = new Blob(audioChunks, { type: 'audio/webm' });
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    sendMessagePayload({
+                        senderId: currentUserId, receiverId: activeConversationId,
+                        senderName: currentUser.name, audioUrl: e.target.result, audioDuration: duration
+                    });
+                };
+                reader.readAsDataURL(blob);
+            };
+            mediaRecorder.start();
+            btn.classList.add('recording');
+            btn.title = 'Arrêter et envoyer';
+        }).catch(function() {
+            showAlert("Impossible d'accéder au micro. Vérifie les autorisations.", 'error');
+        });
+    }
+
+    function stopRecording(btn) {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        btn.classList.remove('recording');
+        btn.title = 'Message vocal';
+    }
 
     // ============================================================
     // LOGOUT
