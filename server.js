@@ -1228,6 +1228,8 @@ app.post('/api/messages', async (req, res) => {
     const message = {
       senderId, receiverId, text: text || '', audioUrl: audioUrl || '', audioDuration: audioDuration || 0,
       senderName: senderName || 'Anonyme', senderPhoto: senderPhoto || '',
+      receiverName: receiverDoc.exists ? (receiverDoc.data().name || 'Utilisateur') : 'Utilisateur',
+      receiverPhoto: receiverDoc.exists ? (receiverDoc.data().photo || '') : '',
       participants: [senderId, receiverId], read: false, createdAt: new Date()
     };
 
