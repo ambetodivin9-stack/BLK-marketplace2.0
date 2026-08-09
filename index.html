@@ -396,6 +396,18 @@
     .discussion-product-card .dp-title { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .discussion-product-card .dp-price { font-weight: 800; color: #E74C3C; font-size: 13px; }
     .discussion-product-card button { flex-shrink: 0; padding: 8px 14px; border: none; border-radius: 20px; background: #E74C3C; color: white; font-weight: 700; font-size: 12px; cursor: pointer; }
+
+    .contact-row { display: flex; align-items: center; gap: 12px; padding: 12px 8px; border-bottom: 1px solid rgba(0,0,0,0.06); cursor: pointer; transition: background 0.15s ease; }
+    .contact-row:active, .contact-row.active { background: rgba(231,76,60,0.06); }
+    .contact-row-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #FFD700, #FF8C00); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+    .contact-row-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .contact-row-avatar span { color: white; font-weight: 800; font-size: 18px; }
+    .contact-row-info { flex: 1; min-width: 0; }
+    .contact-row-name { font-weight: 700; font-size: 15px; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contact-row-preview { font-size: 13px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .contact-row-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .contact-row-time { font-size: 11px; color: #aaa; }
+    .contact-row-badge { background: #2ECC71; color: white; border-radius: 50%; min-width: 18px; height: 18px; padding: 0 5px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
     #btnRecordVoice.recording { background: #E74C3C; color: white; border-color: #E74C3C; animation: micPulse 1s ease infinite; }
     @keyframes micPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
     .modal-info { padding: 20px; }
@@ -779,11 +791,17 @@ APP
     <!-- PAGE MESSAGERIE -->
     <div class="page" id="pageMessages">
         <h2 style="color:#E74C3C;">Messagerie</h2>
-        <div id="contactsList" style="display:flex; flex-wrap:wrap; margin-bottom:12px;"></div>
+        <div id="contactsList" style="display:flex; flex-direction:column; margin-bottom:12px;"></div>
         <div id="discussionView" style="display:none;">
             <div class="glass">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h3 id="discussionName">Utilisateur</h3>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div class="contact-row-avatar" id="discussionAvatar" style="width:38px;height:38px;">
+                            <span id="discussionAvatarInitial">?</span>
+                            <img id="discussionAvatarImg" src="" style="display:none;">
+                        </div>
+                        <h3 id="discussionName" style="margin:0;">Utilisateur</h3>
+                    </div>
                     <button class="btn btn-sm btn-outline" id="btnCloseDiscussion"><span class="icon-inline" data-ic="cross"></span></button>
                 </div>
                 <div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div>
@@ -2098,34 +2116,42 @@ SCRIPTS
                 data.data.forEach(function(msg) {
                     var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
                     var otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+                    var preview = msg.audioUrl ? '🎙 Message vocal' : (msg.text || '');
                     if (!contacts[otherId]) {
-                        contacts[otherId] = { name: otherName || 'Utilisateur', lastMessage: msg.text || '',
+                        contacts[otherId] = { name: otherName || 'Utilisateur', lastMessage: preview,
                             time: msg.createdAt, unread: (msg.receiverId === currentUserId && !msg
                                 .read) ? 1 : 0, photo: msg.senderId === currentUserId ? msg
                                 .receiverPhoto : msg.senderPhoto };
                     } else if (msg.receiverId === currentUserId && !msg.read) { contacts[otherId].unread +=
                         1; }
-                    if (new Date(msg.createdAt) > new Date(contacts[otherId].time)) { contacts[otherId]
-                            .lastMessage = msg.text || '';
+                    var existingTime = parseServerDate(contacts[otherId].time);
+                    var msgTime = parseServerDate(msg.createdAt);
+                    if (msgTime && (!existingTime || msgTime > existingTime)) { contacts[otherId]
+                            .lastMessage = preview;
                         contacts[otherId].time = msg.createdAt; }
                 });
                 var contactKeys = Object.keys(contacts);
+                contactKeys.sort(function(a, b) { return (parseServerDate(contacts[b].time) || 0) - (parseServerDate(contacts[a].time) || 0); });
                 container.innerHTML = contactKeys.map(function(id) {
                     var isActive = (activeConversationId === id) ? 'active' : '';
-                    var unreadBadge = contacts[id].unread > 0 ? '<span style="background:#E74C3C; color:white; border-radius:50%; padding:1px 8px; font-size:10px; margin-left:4px;">' +
-                        contacts[id].unread + '</span>' : '';
-                    var photoHtml = contacts[id].photo ? '<img src="' + contacts[id].photo +
-                        '" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />' :
-                        '';
-                    return '<div class="contact-chip ' + isActive + '" data-id="' + id + '">' + photoHtml +
-                        contacts[id].name + unreadBadge + '</div>';
+                    var c = contacts[id];
+                    var unreadBadge = c.unread > 0 ? '<span class="contact-row-badge">' + c.unread + '</span>' : '';
+                    var avatarHtml = c.photo ? '<img src="' + c.photo + '">' : '<span>' + (c.name || 'U').charAt(0).toUpperCase() + '</span>';
+                    var d = parseServerDate(c.time);
+                    var timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    return '<div class="contact-row ' + isActive + '" data-id="' + id + '">' +
+                        '<div class="contact-row-avatar">' + avatarHtml + '</div>' +
+                        '<div class="contact-row-info"><div class="contact-row-name">' + c.name + '</div>' +
+                        '<div class="contact-row-preview">' + c.lastMessage + '</div></div>' +
+                        '<div class="contact-row-meta"><span class="contact-row-time">' + timeStr + '</span>' + unreadBadge + '</div>' +
+                        '</div>';
                 }).join('');
-                document.querySelectorAll('.contact-chip').forEach(function(el) {
+                document.querySelectorAll('.contact-row').forEach(function(el) {
                     el.addEventListener('click', function() {
                         var id = this.dataset.id;
                         activeConversationId = id;
                         activeChatProduct = null;
-                        document.querySelectorAll('.contact-chip').forEach(function(c) { c.classList
+                        document.querySelectorAll('.contact-row').forEach(function(c) { c.classList
                                 .remove('active'); });
                         this.classList.add('active');
                         openDiscussion(id, contacts[id].name);
@@ -2151,6 +2177,23 @@ SCRIPTS
         view.style.display = 'block';
         document.getElementById('emptyMessages').style.display = 'none';
         document.getElementById('discussionName').textContent = contactName || 'Utilisateur';
+        var discAvatarImg = document.getElementById('discussionAvatarImg');
+        var discAvatarInitial = document.getElementById('discussionAvatarInitial');
+        if (discAvatarImg) {
+            discAvatarImg.style.display = 'none';
+            discAvatarInitial.style.display = 'block';
+            discAvatarInitial.textContent = (contactName || 'U').charAt(0).toUpperCase();
+            fetch(BACKEND_URL + '/api/users/' + contactId)
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.success && d.data.photo) {
+                        discAvatarImg.src = d.data.photo;
+                        discAvatarImg.style.display = 'block';
+                        discAvatarInitial.style.display = 'none';
+                    }
+                })
+                .catch(function() {});
+        }
         var micBtn = document.getElementById('btnRecordVoice');
         if (micBtn && !micBtn.innerHTML.trim()) micBtn.innerHTML = ICONS.mic;
         initVoiceButton();
