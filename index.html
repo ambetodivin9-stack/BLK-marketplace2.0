@@ -25,6 +25,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .icon-inline-lg svg{width:100%;height:100%;}
 .auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#2d1506;padding:20px;position:relative;overflow:hidden;}
 .auth-card{position:relative;z-index:1;max-width:400px;width:100%;background:rgba(35,18,8,.55);backdrop-filter:blur(14px);border:1px solid rgba(255,215,0,.18);border-radius:32px;padding:36px 28px 28px;text-align:center;}
+.auth-page{background:#2d1506;background-image:radial-gradient(circle at 20% 20%, rgba(255,215,0,.12), transparent 45%), radial-gradient(circle at 80% 75%, rgba(231,76,60,.18), transparent 50%), radial-gradient(circle at 50% 100%, rgba(46,204,113,.10), transparent 55%);}
+.auth-wordmark{font-size:22px;font-weight:800;letter-spacing:.3px;margin-bottom:16px;}
 .auth-title{font-size:26px;font-weight:300;color:#fff8ec;margin-bottom:4px;}
 .auth-title span{font-weight:800;background:linear-gradient(135deg,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .auth-subtitle{font-size:14px;color:rgba(255,248,236,.65);margin-bottom:28px;}
@@ -114,49 +116,49 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .discussion-product-card .dp-price{font-weight:800;color:#E74C3C;font-size:13px;}
 .discussion-product-card button{padding:8px 14px;border:none;border-radius:20px;background:#E74C3C;color:#fff;font-weight:700;font-size:12px;}
 
-/* = ANIMATION TAP SUR ARTICLE + VUE PLEIN ECRAN = */ 
-.product-story-overlay{position:fixed;inset:0;background:#000;z-index:3000;display:none;opacity:0;transition:opacity .25s ease;} 
-.product-story-overlay.active{display:block;opacity:1;} 
-.story-bg{position:absolute;inset:0;background-size:cover;background-position:center;} 
-.story-gradient{position:absolute;left:0;right:0;bottom:0;height:60%;background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.85) 65%,rgba(0,0,0,.96) 100%);} 
-.story-close{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;z-index:2;display:flex;align-items:center;justify-content:center;} 
-.story-content{position:absolute;left:0;right:0;bottom:0;padding:20px 20px 28px;color:#fff;z-index:1;} 
-.story-seller-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;} 
-.story-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#FF8C00);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;flex-shrink:0;} 
-.story-avatar img{width:100%;height:100%;object-fit:cover;} 
-.story-seller-name{font-weight:700;font-size:14px;} 
-.story-seller-meta{font-size:12px;opacity:.75;} 
-.story-title{font-size:20px;font-weight:800;margin-bottom:4px;} 
+/* ===== ANIMATION TAP SUR ARTICLE + VUE PLEIN ECRAN ===== */
+.product-story-overlay{position:fixed;inset:0;background:#000;z-index:3000;display:none;opacity:0;transition:opacity .25s ease;}
+.product-story-overlay.active{display:block;opacity:1;}
+.story-bg{position:absolute;inset:0;background-size:cover;background-position:center;}
+.story-gradient{position:absolute;left:0;right:0;bottom:0;height:60%;background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.85) 65%,rgba(0,0,0,.96) 100%);}
+.story-close{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;z-index:2;display:flex;align-items:center;justify-content:center;}
+.story-content{position:absolute;left:0;right:0;bottom:0;padding:20px 20px 28px;color:#fff;z-index:1;}
+.story-seller-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.story-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#FF8C00);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;flex-shrink:0;}
+.story-avatar img{width:100%;height:100%;object-fit:cover;}
+.story-seller-name{font-weight:700;font-size:14px;}
+.story-seller-meta{font-size:12px;opacity:.75;}
+.story-title{font-size:20px;font-weight:800;margin-bottom:4px;}
 .story-price{font-size:22px;font-weight:900;color:#FFD700;margin-bottom:18px;}
 
-/* = SWIPE SLIDERS = */ 
-.swipe-slider{position:relative;height:56px;border-radius:30px;overflow:hidden;display:flex;align-items:center;padding:4px;} 
-.swipe-slider.buy{background:rgba(231,76,60,.28);} 
-.swipe-slider.chat{background:rgba(255,255,255,.2);} 
-.swipe-slider .swipe-label{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:14px;pointer-events:none;color:#fff;transition:opacity .2s ease;} 
-.swipe-slider .swipe-handle{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:2;touch-action:none;} 
-.swipe-slider .swipe-handle svg{width:22px;height:22px;color:#E74C3C;} 
+/* ===== SWIPE SLIDERS ===== */
+.swipe-slider{position:relative;height:56px;border-radius:30px;overflow:hidden;display:flex;align-items:center;padding:4px;}
+.swipe-slider.buy{background:rgba(231,76,60,.28);}
+.swipe-slider.chat{background:rgba(255,255,255,.2);}
+.swipe-slider .swipe-label{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:14px;pointer-events:none;color:#fff;transition:opacity .2s ease;}
+.swipe-slider .swipe-handle{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:2;touch-action:none;}
+.swipe-slider .swipe-handle svg{width:22px;height:22px;color:#E74C3C;}
 .swipe-slider.completed .swipe-label{opacity:0;}
 
-/* = CHRONO DE LIVRAISON = */ 
-.order-ring-wrap{display:flex;align-items:center;gap:14px;background:#0a0a0a;border-radius:20px;padding:14px 18px;margin-top:10px;cursor:pointer;} 
-.order-ring-wrap.readonly{cursor:default;} 
-.order-ring-box{position:relative;width:64px;height:64px;flex-shrink:0;} 
-.order-ring-box svg{width:64px;height:64px;transform:rotate(-90deg);} 
-.order-ring-box circle.bg{stroke:rgba(255,255,255,.15);fill:none;stroke-width:6;} 
-.order-ring-box circle.fg{stroke:#E74C3C;fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear;} 
-.order-ring-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;} 
-.order-ring-label span{color:#fff;font-size:13px;display:block;} 
+/* ===== CHRONO DE LIVRAISON ===== */
+.order-ring-wrap{display:flex;align-items:center;gap:14px;background:#0a0a0a;border-radius:20px;padding:14px 18px;margin-top:10px;cursor:pointer;}
+.order-ring-wrap.readonly{cursor:default;}
+.order-ring-box{position:relative;width:64px;height:64px;flex-shrink:0;}
+.order-ring-box svg{width:64px;height:64px;transform:rotate(-90deg);}
+.order-ring-box circle.bg{stroke:rgba(255,255,255,.15);fill:none;stroke-width:6;}
+.order-ring-box circle.fg{stroke:#E74C3C;fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear;}
+.order-ring-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;}
+.order-ring-label span{color:#fff;font-size:13px;display:block;}
 .order-ring-label .small{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px;}
 
-/* = ANIMATION DE CONFIRMATION = */ 
-.confirm-anim-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:6000;opacity:0;transition:opacity .25s ease;} 
-.confirm-anim-overlay.visible{display:flex;opacity:1;} 
-.confirm-anim-card{background:#fff;border-radius:24px;padding:32px 28px;text-align:center;max-width:280px;transform:scale(.7);opacity:0;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;} 
-.confirm-anim-overlay.visible .confirm-anim-card{transform:scale(1);opacity:1;} 
-.confirm-anim-card h3{font-size:18px;font-weight:800;margin-bottom:6px;} 
-.confirm-anim-card p{font-size:14px;color:#999;} 
-@media (min-width:500px){.shop-stats-grid{grid-template-columns:repeat(4,1fr);}.articles-grid{grid-template-columns:repeat(3,1fr);}} 
+/* ===== ANIMATION DE CONFIRMATION ===== */
+.confirm-anim-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:6000;opacity:0;transition:opacity .25s ease;}
+.confirm-anim-overlay.visible{display:flex;opacity:1;}
+.confirm-anim-card{background:#fff;border-radius:24px;padding:32px 28px;text-align:center;max-width:280px;transform:scale(.7);opacity:0;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;}
+.confirm-anim-overlay.visible .confirm-anim-card{transform:scale(1);opacity:1;}
+.confirm-anim-card h3{font-size:18px;font-weight:800;margin-bottom:6px;}
+.confirm-anim-card p{font-size:14px;color:#999;}
+@media (min-width:500px){.shop-stats-grid{grid-template-columns:repeat(4,1fr);}.articles-grid{grid-template-columns:repeat(3,1fr);}}
 </style>
 </head>
 <body>
@@ -168,11 +170,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div class="auth-page" id="authPage">
   <div class="auth-card">
+    <div class="auth-wordmark"><span style="color:#FFD700;">BLK</span><span style="color:#fff8ec;">marketplace</span></div>
     <div class="auth-title">Welcome to <br><span>BLKmarketplace</span></div>
     <p class="auth-subtitle">Shop unique finds with an African touch.</p>
     <form id="authForm" autocomplete="off">
       <div class="auth-input-group"><input type="text" id="loginName" placeholder="Nom complet" required></div>
       <div class="auth-input-group"><input type="email" id="loginEmail" placeholder="Adresse e-mail" required></div>
+      <div class="auth-input-group"><input type="tel" id="loginPhone" placeholder="Numéro de téléphone" required></div>
       <button type="submit" class="auth-btn" id="btnLogin">Se connecter</button>
     </form>
     <div id="authError"></div>
@@ -322,7 +326,7 @@ var activeConversationId = null, activeChatProduct = null;
 function showAlert(message, type) {
   var box = document.getElementById('alertBox');
   var t = type || 'success';
-  var ic = t = 'success' ? 'check' : (t = 'error' ? 'crossCircle' : 'info');
+  var ic = t === 'success' ? 'check' : (t === 'error' ? 'crossCircle' : 'info');
   box.innerHTML = '<span class="alert-icon">' + ICONS[ic] + '</span><span class="alert-text"></span>';
   box.querySelector('.alert-text').textContent = message;
   box.className = 'alert alert-' + t;
@@ -334,7 +338,7 @@ function openModal(html) {
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay active';
   overlay.innerHTML = '<div class="modal-box" style="max-width:400px;width:100%;background:white;border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto;">' + html + '</div>';
-  overlay.addEventListener('click', function(e){ if (e.target = overlay) overlay.remove(); });
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
   return overlay;
 }
@@ -375,15 +379,37 @@ document.getElementById('authForm').addEventListener('submit', function(e){
   e.preventDefault();
   var name = document.getElementById('loginName').value.trim();
   var email = document.getElementById('loginEmail').value.trim();
+  var phone = document.getElementById('loginPhone').value.trim();
   var errorDiv = document.getElementById('authError');
-  if (!name || !email) { errorDiv.style.display = 'block'; errorDiv.textContent = 'Remplis tous les champs.'; return; }
+  if (!name || !email || !phone) { errorDiv.style.display = 'block'; errorDiv.textContent = 'Remplis tous les champs.'; return; }
   errorDiv.style.display = 'none';
+
   var userId = localStorage.getItem(STORAGE_KEY);
   if (!userId) { userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2,6); localStorage.setItem(STORAGE_KEY, userId); }
   currentUserId = userId;
-  currentUser = { name: name, email: email, phone: '', walletBalance: 0, id: userId };
-  document.getElementById('authPage').style.display = 'none';
-  showSplash();
+  currentUser = { name: name, email: email, phone: phone, walletBalance: 0, id: userId };
+
+  var btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+  btn.textContent = 'Connexion...';
+
+  // ✅ C'est CET appel qui manquait : sans lui, aucun profil n'était jamais
+  // créé côté serveur et l'app restait bloquée / incohérente après connexion.
+  fetch(BACKEND_URL + '/api/users/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: userId, name: name, email: email, phone: phone })
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success && data.data) {
+      currentUser.walletBalance = data.data.walletBalance || 0;
+    }
+    document.getElementById('authPage').style.display = 'none';
+    showSplash();
+  }).catch(function(){
+    // Même si le serveur est indisponible/endormi, on laisse entrer l'utilisateur :
+    // les autres écrans se rafraîchiront dès que le backend répondra.
+    document.getElementById('authPage').style.display = 'none';
+    showSplash();
+  });
 });
 
 function showMainApp() {
@@ -426,10 +452,10 @@ function initTabs() {
     var target = document.getElementById(pageId);
     if (target) {
       target.classList.add('active');
-      if (pageId = 'pageOrders') loadOrders();
-      if (pageId = 'pageMessages') loadMessages();
-      if (pageId = 'pageShop') { loadShopArticles(); loadStats(); }
-      if (pageId = 'pageProfile') loadFollowCounts(currentUserId);
+      if (pageId === 'pageOrders') loadOrders();
+      if (pageId === 'pageMessages') loadMessages();
+      if (pageId === 'pageShop') { loadShopArticles(); loadStats(); }
+      if (pageId === 'pageProfile') loadFollowCounts(currentUserId);
     }
   }
   tabs.forEach(function(tab){ tab.addEventListener('click', function(e){ e.preventDefault(); setActive(this); }); });
@@ -449,7 +475,7 @@ function loadFollowCounts(userId) {
   }).catch(function(){});
 }
 
-/* = PRODUITS = */
+/* ===== PRODUITS ===== */
 function loadProducts() {
   fetch(BACKEND_URL + '/api/articles').then(function(r){return r.json();}).then(function(data){
     allProducts = (data.success && data.data) ? data.data : [];
@@ -460,11 +486,11 @@ function renderProducts(products) {
   var grid = document.getElementById('productsGrid');
   var empty = document.getElementById('emptyHome');
   var filtered = products || [];
-  if (selectedCategory ! 'all') filtered = filtered.filter(function(p){ return p.category = selectedCategory; });
+  if (selectedCategory !== 'all') filtered = filtered.filter(function(p){ return p.category === selectedCategory; });
   var q = document.getElementById('searchInput').value.toLowerCase();
   if (q) filtered = filtered.filter(function(p){ return p.title && p.title.toLowerCase().includes(q); });
   grid.innerHTML = '';
-  if (filtered.length = 0) { empty.style.display = 'block'; return; }
+  if (filtered.length === 0) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   filtered.forEach(function(p){
     var card = document.createElement('div');
@@ -487,7 +513,7 @@ document.querySelectorAll('#categoryFilters .btn').forEach(function(btn){
   });
 });
 
-/* = SWIPE SLIDERS = */
+/* ===== SWIPE SLIDERS ===== */
 function initSwipeSlider(containerId, onComplete) {
   var container = document.getElementById(containerId);
   container._onComplete = onComplete;
@@ -558,7 +584,7 @@ function showProductModal(product) {
   });
   initSwipeSlider('swipeChat', function(){
     overlay.classList.remove('active');
-    if (product.sellerId = currentUserId) { showAlert("C'est ton propre article.", 'info'); return; }
+    if (product.sellerId === currentUserId) { showAlert("C'est ton propre article.", 'info'); return; }
     var messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
     if (messagesTab) messagesTab.click();
     activeConversationId = product.sellerId;
@@ -568,7 +594,7 @@ function showProductModal(product) {
 }
 document.getElementById('storyClose').addEventListener('click', function(){ document.getElementById('productStory').classList.remove('active'); });
 
-/* = ACHAT = */
+/* ===== ACHAT ===== */
 function buyProduct(articleId, price, sellerId) {
   if (!currentUserId) { showAlert('Connecte-toi d\'abord', 'error'); return; }
   showAlert('Création de la commande...', 'info');
@@ -583,7 +609,7 @@ function buyProduct(articleId, price, sellerId) {
   }).catch(function(e){ showAlert('Erreur: ' + e.message, 'error'); });
 }
 
-/* = WALLET = */
+/* ===== WALLET ===== */
 function loadWallet() {
   if (!currentUserId) return;
   fetch(BACKEND_URL + '/api/wallet/' + currentUserId).then(function(r){return r.json();}).then(function(data){
@@ -622,7 +648,7 @@ function openTransferForm() {
   });
 }
 function openMoneyForm(kind) {
-  var isDeposit = kind = 'deposit';
+  var isDeposit = kind === 'deposit';
   var html = '<h3 style="text-align:center;margin-bottom:14px;">' + (isDeposit?'Déposer sur ton wallet':'Retirer de ton wallet') + '</h3>';
   html += '<div style="display:flex;gap:10px;margin-bottom:10px;"><button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button><button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button></div>';
   html += '<input type="tel" id="moneyPhone" placeholder="Numéro" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
@@ -656,9 +682,9 @@ function openMoneyForm(kind) {
         submitBtn.disabled = false;
         if (data.success) {
           statusEl.style.color='#27ae60';
-          statusEl.textContent = data.status = 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
+          statusEl.textContent = data.status === 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
           loadWallet();
-          if (data.status = 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(function(){overlay.remove();},1500); }
+          if (data.status === 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(function(){overlay.remove();},1500); }
         } else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le dépôt a échoué.'; }
       }).catch(function(e){ submitBtn.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
     } else {
@@ -675,7 +701,7 @@ function openMoneyForm(kind) {
   });
 }
 
-/* = STATS = */
+/* ===== STATS ===== */
 function loadStats() {
   if (!currentUserId) return;
   fetch(BACKEND_URL + '/api/stats/' + currentUserId).then(function(r){return r.json();}).then(function(data){
@@ -689,7 +715,7 @@ function loadStats() {
   }).catch(function(){});
 }
 
-/* = CHRONO COMMANDES = */
+/* ===== CHRONO COMMANDES ===== */
 setInterval(function(){
   document.querySelectorAll('.order-ring').forEach(function(ring){
     var expires = parseServerDate(ring.dataset.expires);
@@ -713,7 +739,7 @@ function loadOrders() {
   fetch(BACKEND_URL + '/api/orders/' + currentUserId).then(function(r){return r.json();}).then(function(orders){
     var container = document.getElementById('ordersList');
     var empty = document.getElementById('emptyOrders');
-    if (!Array.isArray(orders) || orders.length = 0) { container.innerHTML=''; empty.style.display='block'; return; }
+    if (!Array.isArray(orders) || orders.length === 0) { container.innerHTML=''; empty.style.display='block'; return; }
     empty.style.display = 'none';
     container.innerHTML = '';
     orders.forEach(function(order){
@@ -721,15 +747,15 @@ function loadOrders() {
       card.className = 'glass';
       card.style.marginBottom = '12px';
       var statusText = '<span class="icon-inline">' + ICONS.info + '</span> En attente';
-      if (order.status = 'livré') statusText = '<span class="icon-inline">' + ICONS.check + '</span> Livré';
-      else if (order.status = 'annulé') statusText = 'Annulé';
-      else if (order.status = 'expiré') statusText = 'Expiré';
+      if (order.status === 'livré') statusText = '<span class="icon-inline">' + ICONS.check + '</span> Livré';
+      else if (order.status === 'annulé') statusText = 'Annulé';
+      else if (order.status === 'expiré') statusText = 'Expiré';
       var articleTitle = (order.article && order.article.title) || 'Article';
       var amount = order.totalAmount || order.amount || 0;
 
       var ringHtml = '';
-      if (order.status = 'en attente de confirmation' && order.expiresAt) {
-        var isBuyer = order.buyerId = currentUserId;
+      if (order.status === 'en attente de confirmation' && order.expiresAt) {
+        var isBuyer = order.buyerId === currentUserId;
         var createdMs = order.createdAt ? (parseServerDate(order.createdAt)||new Date()).getTime() : Date.now();
         var expiresMs = (parseServerDate(order.expiresAt)||new Date()).getTime();
         var totalMs = expiresMs - createdMs;
@@ -741,7 +767,7 @@ function loadOrders() {
           '<span class="small">' + (isBuyer?'Touche pour confirmer réception':"En attente de l'acheteur") + '</span></div></div>';
       }
       card.innerHTML = '<div><strong>' + articleTitle + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText + '</span></div>' + ringHtml;
-      if (order.status = 'en attente de confirmation' && order.buyerId = currentUserId) {
+      if (order.status === 'en attente de confirmation' && order.buyerId === currentUserId) {
         card.querySelector('.order-ring-wrap').addEventListener('click', function(){ openOrderConfirm(order.id); });
       }
       container.appendChild(card);
@@ -788,19 +814,19 @@ function openOrderConfirm(orderId) {
   });
 }
 
-/* = MAGASIN = */
+/* ===== MAGASIN ===== */
 function loadShopArticles() {
   if (!currentUserId) return;
   fetch(BACKEND_URL + '/api/articles/seller/' + currentUserId).then(function(r){return r.json();}).then(function(data){
     var container = document.getElementById('shopArticles');
-    if (!data.success || !data.data || data.data.length = 0) { container.innerHTML = '<p class="empty">Aucun article publié</p>'; return; }
+    if (!data.success || !data.data || data.data.length === 0) { container.innerHTML = '<p class="empty">Aucun article publié</p>'; return; }
     container.innerHTML = '';
     data.data.forEach(function(a){
       var div = document.createElement('div');
       div.style.cssText = 'display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.5);border-radius:12px;padding:12px;margin-bottom:8px;';
-      var statusText = a.status='active' ? 'En vente' : (a.status='reserved' ? 'Réservé (commande en cours)' : (a.status='sold' ? 'Vendu' : 'Inactif'));
+      var statusText = a.status==='active' ? 'En vente' : (a.status==='reserved' ? 'Réservé (commande en cours)' : (a.status==='sold' ? 'Vendu' : 'Inactif'));
       div.innerHTML = '<img src="' + (a.image||'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px;height:50px;object-fit:cover;border-radius:8px;"><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px;color:#999;">' + statusText + '</span></div>';
-      if (a.status = 'active') {
+      if (a.status === 'active') {
         var delBtn = document.createElement('button');
         delBtn.className = 'btn btn-danger btn-sm';
         delBtn.style.cssText = 'width:auto;padding:6px 12px;';
@@ -824,223 +850,222 @@ document.getElementById('btnPublish').addEventListener('click', function(){
   var html = '<h3>Publier un article</h3>';
   html += '<input type="text" id="pubTitle" placeholder="Titre" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:10px;">';
   html += '<textarea id="pubDesc" placeholder="Description" rows="3" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;"></textarea>';
-
-html += '<input type="number" id="pubPrice" placeholder="Prix (FCFA)" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;">'; 
-html += '<select id="pubCategory" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;"><option value="vêtements">Vêtements</option><option value="chaussures">Chaussures</option><option value="sacs">Sacs</option><option value="bijoux">Bijoux</option><option value="accessoires">Accessoires</option></select>'; 
-html += '<button type="button" class="btn btn-outline" id="pubCameraBtn" style="margin-bottom:8px;">Prendre une photo (<span id="pubPhotoCount">0</span>/10)</button>'; 
-html += '<input type="file" id="pubImageCamera" accept="image/*" capture="environment" style="display:none;">'; 
-html += '<div id="pubThumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>'; 
-html += '<button class="btn btn-primary" id="pubSubmit">Publier</button>'; 
-html += '<button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button>'; 
-html += '<div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>'; 
-var overlay = openModal(html); 
-var photos = []; 
-var MAX_PHOTOS = 10; 
-function renderThumbs() { 
-var thumbs = overlay.querySelector('#pubThumbs'); 
-thumbs.innerHTML = ''; 
-photos.forEach(function(p, idx){ 
-var wrap = document.createElement('div'); 
-wrap.style.cssText = 'position:relative;width:64px;height:64px;'; 
-wrap.innerHTML = '<img src="' + p.dataUrl + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"><button type="button" data-idx="'+idx+'" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#E74C3C;color:white;border:none;font-size:12px;">✕</button>'; 
-wrap.querySelector('button').addEventListener('click', function(){ photos.splice(parseInt(this.dataset.idx),1); renderThumbs(); }); 
-thumbs.appendChild(wrap); 
-}); 
-overlay.querySelector('#pubPhotoCount').textContent = photos.length; 
-} 
-overlay.querySelector('#pubCameraBtn').addEventListener('click', function(){ 
-if (photos.length >= MAX_PHOTOS) { showAlert('Maximum 10 photos.', 'error'); return; } 
-overlay.querySelector('#pubImageCamera').click(); 
-}); 
-overlay.querySelector('#pubImageCamera').addEventListener('change', function(e){ 
-var file = e.target.files[0]; 
-if (!file) return; 
-var reader = new FileReader(); 
-reader.onload = function(ev){ photos.push({dataUrl: ev.target.result}); renderThumbs(); }; 
-reader.readAsDataURL(file); 
-e.target.value = ''; 
-}); 
-overlay.querySelector('#pubSubmit').addEventListener('click', function(){ 
-var title = overlay.querySelector('#pubTitle').value.trim(); 
-var description = overlay.querySelector('#pubDesc').value.trim(); 
-var price = overlay.querySelector('#pubPrice').value; 
-var category = overlay.querySelector('#pubCategory').value; 
-var statusEl = overlay.querySelector('#pubStatus'); 
-if (!title || !description || !price) { showAlert('Remplis tous les champs', 'error'); return; } 
-if (photos.length = 0) { showAlert('Prends au moins une photo.', 'error'); return; } 
-var submitBtn = this; 
-submitBtn.disabled = true; 
-function submitArticle(urls) { 
-fetch(BACKEND_URL + '/api/articles', { 
-method:'POST', headers:{'Content-Type':'application/json'}, 
-body: JSON.stringify({ title:title, description:description, price:parseInt(price), category:category, images:urls, sellerId:currentUserId, sellerName:currentUser.name }) 
-}).then(function(r){return r.json();}).then(function(data){ 
-submitBtn.disabled = false; 
-if (data.success) { showAlert('Article publié !', 'success'); overlay.remove(); loadShopArticles(); loadProducts(); loadStats(); } 
-else showAlert(data.message, 'error'); 
-}).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur: '+e.message, 'error'); }); 
-} 
-var urls = [], i = 0; 
-function uploadNext() { 
-if (i >= photos.length) { submitArticle(urls); return; } 
-statusEl.textContent = 'Envoi photo ' + (i+1) + '/' + photos.length + '...'; 
-fetch(BACKEND_URL + '/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ base64: photos[i].dataUrl }) }) 
-.then(function(r){return r.json();}).then(function(data){ 
-if (data.success) { urls.push(data.url); i++; uploadNext(); } 
-else { submitBtn.disabled=false; showAlert('Erreur upload photo '+(i+1), 'error'); } 
-}).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur upload: '+e.message, 'error'); }); 
-} 
-uploadNext(); 
-}); 
+  html += '<input type="number" id="pubPrice" placeholder="Prix (FCFA)" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;">';
+  html += '<select id="pubCategory" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;"><option value="vêtements">Vêtements</option><option value="chaussures">Chaussures</option><option value="sacs">Sacs</option><option value="bijoux">Bijoux</option><option value="accessoires">Accessoires</option></select>';
+  html += '<button type="button" class="btn btn-outline" id="pubCameraBtn" style="margin-bottom:8px;">Prendre une photo (<span id="pubPhotoCount">0</span>/10)</button>';
+  html += '<input type="file" id="pubImageCamera" accept="image/*" capture="environment" style="display:none;">';
+  html += '<div id="pubThumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>';
+  html += '<button class="btn btn-primary" id="pubSubmit">Publier</button>';
+  html += '<button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>';
+  var overlay = openModal(html);
+  var photos = [];
+  var MAX_PHOTOS = 10;
+  function renderThumbs() {
+    var thumbs = overlay.querySelector('#pubThumbs');
+    thumbs.innerHTML = '';
+    photos.forEach(function(p, idx){
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;width:64px;height:64px;';
+      wrap.innerHTML = '<img src="' + p.dataUrl + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"><button type="button" data-idx="'+idx+'" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#E74C3C;color:white;border:none;font-size:12px;">&#10005;</button>';
+      wrap.querySelector('button').addEventListener('click', function(){ photos.splice(parseInt(this.dataset.idx),1); renderThumbs(); });
+      thumbs.appendChild(wrap);
+    });
+    overlay.querySelector('#pubPhotoCount').textContent = photos.length;
+  }
+  overlay.querySelector('#pubCameraBtn').addEventListener('click', function(){
+    if (photos.length >= MAX_PHOTOS) { showAlert('Maximum 10 photos.', 'error'); return; }
+    overlay.querySelector('#pubImageCamera').click();
+  });
+  overlay.querySelector('#pubImageCamera').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){ photos.push({dataUrl: ev.target.result}); renderThumbs(); };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+  overlay.querySelector('#pubSubmit').addEventListener('click', function(){
+    var title = overlay.querySelector('#pubTitle').value.trim();
+    var description = overlay.querySelector('#pubDesc').value.trim();
+    var price = overlay.querySelector('#pubPrice').value;
+    var category = overlay.querySelector('#pubCategory').value;
+    var statusEl = overlay.querySelector('#pubStatus');
+    if (!title || !description || !price) { showAlert('Remplis tous les champs', 'error'); return; }
+    if (photos.length === 0) { showAlert('Prends au moins une photo.', 'error'); return; }
+    var submitBtn = this;
+    submitBtn.disabled = true;
+    function submitArticle(urls) {
+      fetch(BACKEND_URL + '/api/articles', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title:title, description:description, price:parseInt(price), category:category, images:urls, sellerId:currentUserId, sellerName:currentUser.name })
+      }).then(function(r){return r.json();}).then(function(data){
+        submitBtn.disabled = false;
+        if (data.success) { showAlert('Article publié !', 'success'); overlay.remove(); loadShopArticles(); loadProducts(); loadStats(); }
+        else showAlert(data.message, 'error');
+      }).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur: '+e.message, 'error'); });
+    }
+    var urls = [], i = 0;
+    function uploadNext() {
+      if (i >= photos.length) { submitArticle(urls); return; }
+      statusEl.textContent = 'Envoi photo ' + (i+1) + '/' + photos.length + '...';
+      fetch(BACKEND_URL + '/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ base64: photos[i].dataUrl }) })
+        .then(function(r){return r.json();}).then(function(data){
+          if (data.success) { urls.push(data.url); i++; uploadNext(); }
+          else { submitBtn.disabled=false; showAlert('Erreur upload photo '+(i+1), 'error'); }
+        }).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur upload: '+e.message, 'error'); });
+    }
+    uploadNext();
+  });
 });
 
-/* = MESSAGES = */ 
-function loadMessages() { 
-if (!currentUserId) return; 
-fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){ 
-var container = document.getElementById('contactsList'); 
-var empty = document.getElementById('emptyMessages'); 
-var view = document.getElementById('discussionView'); 
-if (!data.success || !data.data || data.data.length = 0) { 
-container.innerHTML = ''; 
-if (activeConversationId) { empty.style.display='none'; view.style.display='block'; } 
-else { empty.style.display='block'; view.style.display='none'; } 
-return; 
-} 
-empty.style.display = 'none'; 
-var contacts = {}; 
-data.data.forEach(function(msg){ 
-var otherId = msg.senderId = currentUserId ? msg.receiverId : msg.senderId; 
-var otherName = msg.senderId = currentUserId ? msg.receiverName : msg.senderName; 
-var preview = msg.audioUrl ? 'Message vocal' : (msg.text || ''); 
-if (!contacts[otherId]) contacts[otherId] = { name: otherName||'Utilisateur', lastMessage: preview, time: msg.createdAt, unread: (msg.receiverId=currentUserId && !msg.read)?1:0, photo: msg.senderId=currentUserId?msg.receiverPhoto:msg.senderPhoto }; 
-else if (msg.receiverId = currentUserId && !msg.read) contacts[otherId].unread += 1; 
-var existingTime = parseServerDate(contacts[otherId].time); 
-var msgTime = parseServerDate(msg.createdAt); 
-if (msgTime && (!existingTime || msgTime > existingTime)) { contacts[otherId].lastMessage = preview; contacts[otherId].time = msg.createdAt; } 
-}); 
-var keys = Object.keys(contacts); 
-keys.sort(function(a,b){ return (parseServerDate(contacts[b].time)||0) - (parseServerDate(contacts[a].time)||0); }); 
-container.innerHTML = keys.map(function(id){ 
-var c = contacts[id]; 
-var isActive = (activeConversationId=id) ? 'active' : ''; 
-var unreadBadge = c.unread>0 ? '<span class="contact-row-badge">'+c.unread+'</span>' : ''; 
-var avatarHtml = c.photo ? '<img src="'+c.photo+'">' : '<span>'+(c.name||'U').charAt(0).toUpperCase()+'</span>'; 
-var d = parseServerDate(c.time); 
-var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''; 
-return '<div class="contact-row '+isActive+'" data-id="'+id+'"><div class="contact-row-avatar">'+avatarHtml+'</div><div class="contact-row-info"><div class="contact-row-name">'+c.name+'</div><div class="contact-row-preview">'+c.lastMessage+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span style="font-size:11px;color:#aaa;">'+timeStr+'</span>'+unreadBadge+'</div></div>'; 
-}).join(''); 
-document.querySelectorAll('.contact-row').forEach(function(el){ 
-el.addEventListener('click', function(){ 
-activeConversationId = this.dataset.id; 
-activeChatProduct = null; 
-document.querySelectorAll('.contact-row').forEach(function(c){ c.classList.remove('active'); }); 
-this.classList.add('active'); 
-openDiscussion(this.dataset.id, contacts[this.dataset.id].name); 
-}); 
-}); 
-if (!activeConversationId && keys.length>0) { activeConversationId = keys[0]; openDiscussion(activeConversationId, contacts[activeConversationId].name); } 
-else if (activeConversationId && contacts[activeConversationId]) openDiscussion(activeConversationId, contacts[activeConversationId].name); 
-}).catch(function(e){ console.error(e); }); 
+/* ===== MESSAGES ===== */
+function loadMessages() {
+  if (!currentUserId) return;
+  fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+    var container = document.getElementById('contactsList');
+    var empty = document.getElementById('emptyMessages');
+    var view = document.getElementById('discussionView');
+    if (!data.success || !data.data || data.data.length === 0) {
+      container.innerHTML = '';
+      if (activeConversationId) { empty.style.display='none'; view.style.display='block'; }
+      else { empty.style.display='block'; view.style.display='none'; }
+      return;
+    }
+    empty.style.display = 'none';
+    var contacts = {};
+    data.data.forEach(function(msg){
+      var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+      var otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+      var preview = msg.audioUrl ? 'Message vocal' : (msg.text || '');
+      if (!contacts[otherId]) contacts[otherId] = { name: otherName||'Utilisateur', lastMessage: preview, time: msg.createdAt, unread: (msg.receiverId===currentUserId && !msg.read)?1:0, photo: msg.senderId===currentUserId?msg.receiverPhoto:msg.senderPhoto };
+      else if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread += 1;
+      var existingTime = parseServerDate(contacts[otherId].time);
+      var msgTime = parseServerDate(msg.createdAt);
+      if (msgTime && (!existingTime || msgTime > existingTime)) { contacts[otherId].lastMessage = preview; contacts[otherId].time = msg.createdAt; }
+    });
+    var keys = Object.keys(contacts);
+    keys.sort(function(a,b){ return (parseServerDate(contacts[b].time)||0) - (parseServerDate(contacts[a].time)||0); });
+    container.innerHTML = keys.map(function(id){
+      var c = contacts[id];
+      var isActive = (activeConversationId===id) ? 'active' : '';
+      var unreadBadge = c.unread>0 ? '<span class="contact-row-badge">'+c.unread+'</span>' : '';
+      var avatarHtml = c.photo ? '<img src="'+c.photo+'">' : '<span>'+(c.name||'U').charAt(0).toUpperCase()+'</span>';
+      var d = parseServerDate(c.time);
+      var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+      return '<div class="contact-row '+isActive+'" data-id="'+id+'"><div class="contact-row-avatar">'+avatarHtml+'</div><div class="contact-row-info"><div class="contact-row-name">'+c.name+'</div><div class="contact-row-preview">'+c.lastMessage+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span style="font-size:11px;color:#aaa;">'+timeStr+'</span>'+unreadBadge+'</div></div>';
+    }).join('');
+    document.querySelectorAll('.contact-row').forEach(function(el){
+      el.addEventListener('click', function(){
+        activeConversationId = this.dataset.id;
+        activeChatProduct = null;
+        document.querySelectorAll('.contact-row').forEach(function(c){ c.classList.remove('active'); });
+        this.classList.add('active');
+        openDiscussion(this.dataset.id, contacts[this.dataset.id].name);
+      });
+    });
+    if (!activeConversationId && keys.length>0) { activeConversationId = keys[0]; openDiscussion(activeConversationId, contacts[activeConversationId].name); }
+    else if (activeConversationId && contacts[activeConversationId]) openDiscussion(activeConversationId, contacts[activeConversationId].name);
+  }).catch(function(e){ console.error(e); });
 }
 
-function openDiscussion(contactId, contactName) { 
-var view = document.getElementById('discussionView'); 
-view.style.display = 'block'; 
-document.getElementById('emptyMessages').style.display = 'none'; 
-view.innerHTML = '<div class="glass"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">'+contactName+'</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion">'+ICONS.cross+'</button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px;overflow-y:auto;padding:4px 0;"></div><div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" style="width:auto;padding:12px 14px;">'+ICONS.mic+'</button><button class="btn btn-primary" id="btnSendMessage" style="width:auto;padding:12px 20px;">Envoyer</button></div></div>';
+function openDiscussion(contactId, contactName) {
+  var view = document.getElementById('discussionView');
+  view.style.display = 'block';
+  document.getElementById('emptyMessages').style.display = 'none';
+  view.innerHTML = '<div class="glass"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">'+contactName+'</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion">'+ICONS.cross+'</button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px;overflow-y:auto;padding:4px 0;"></div><div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" style="width:auto;padding:12px 14px;">'+ICONS.mic+'</button><button class="btn btn-primary" id="btnSendMessage" style="width:auto;padding:12px 20px;">Envoyer</button></div></div>';
 
-document.getElementById('btnCloseDiscussion').addEventListener('click', function(){ view.style.display='none'; activeConversationId=null; }); 
-document.getElementById('btnSendMessage').addEventListener('click', function(){ 
-var text = document.getElementById('messageInput').value.trim(); 
-if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; } 
-document.getElementById('messageInput').value = ''; 
-sendMessagePayload({ senderId: currentUserId, receiverId: activeConversationId, text: text, senderName: currentUser.name }); 
-}); 
-document.getElementById('messageInput').addEventListener('keypress', function(e){ if (e.key='Enter') document.getElementById('btnSendMessage').click(); }); 
-initVoiceButton();
+  document.getElementById('btnCloseDiscussion').addEventListener('click', function(){ view.style.display='none'; activeConversationId=null; });
+  document.getElementById('btnSendMessage').addEventListener('click', function(){
+    var text = document.getElementById('messageInput').value.trim();
+    if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
+    document.getElementById('messageInput').value = '';
+    sendMessagePayload({ senderId: currentUserId, receiverId: activeConversationId, text: text, senderName: currentUser.name });
+  });
+  document.getElementById('messageInput').addEventListener('keypress', function(e){ if (e.key==='Enter') document.getElementById('btnSendMessage').click(); });
+  initVoiceButton();
 
-var productCard = document.getElementById('discussionProductCard'); 
-if (activeChatProduct && activeChatProduct.sellerId = contactId) { 
-var p = activeChatProduct; 
-productCard.style.display = 'flex'; 
-productCard.innerHTML = '<img src="'+(p.image||(p.images&&p.images[0])||'')+'"><div class="dp-info"><div class="dp-title">'+(p.title||'Article')+'</div><div class="dp-price">'+(p.price||0)+' FCFA</div></div><button id="discussionBuyBtn">Acheter</button>'; 
-document.getElementById('discussionBuyBtn').addEventListener('click', function(){ buyProduct(p.id, p.price, p.sellerId); }); 
-} else { productCard.style.display='none'; productCard.innerHTML=''; }
+  var productCard = document.getElementById('discussionProductCard');
+  if (activeChatProduct && activeChatProduct.sellerId === contactId) {
+    var p = activeChatProduct;
+    productCard.style.display = 'flex';
+    productCard.innerHTML = '<img src="'+(p.image||(p.images&&p.images[0])||'')+'"><div class="dp-info"><div class="dp-title">'+(p.title||'Article')+'</div><div class="dp-price">'+(p.price||0)+' FCFA</div></div><button id="discussionBuyBtn">Acheter</button>';
+    document.getElementById('discussionBuyBtn').addEventListener('click', function(){ buyProduct(p.id, p.price, p.sellerId); });
+  } else { productCard.style.display='none'; productCard.innerHTML=''; }
 
-loadConversation(contactId); 
+  loadConversation(contactId);
 }
 
-function loadConversation(contactId) { 
-if (!currentUserId || !contactId) return; 
-fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){ 
-var container = document.getElementById('messagesList'); 
-if (!container || !data.success) return; 
-var messages = data.data.filter(function(m){ return (m.senderId=currentUserId&&m.receiverId=contactId)||(m.senderId=contactId&&m.receiverId=currentUserId); }); 
-messages.sort(function(a,b){ return (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0); }); 
-if (messages.length=0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; } 
-container.innerHTML = messages.map(function(msg){ 
-var isMine = msg.senderId=currentUserId; 
-var d = parseServerDate(msg.createdAt); 
-var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''; 
-var bodyHtml = msg.audioUrl ? '<audio controls src="'+msg.audioUrl+'" style="max-width:200px;height:36px;"></audio>' : (msg.text||''); 
-return '<div class="message-bubble '+(isMine?'mine':'other')+'"><div class="bubble">'+bodyHtml+'<span class="time">'+timeStr+'</span></div></div>'; 
-}).join(''); 
-container.scrollTop = container.scrollHeight; 
-}).catch(function(e){ console.error(e); }); 
-} 
-function sendMessagePayload(payload) { 
-fetch(BACKEND_URL + '/api/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }) 
-.then(function(r){return r.json();}).then(function(data){ if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); }) 
-.catch(function(e){ showAlert('Erreur: '+e.message, 'error'); }); 
+function loadConversation(contactId) {
+  if (!currentUserId || !contactId) return;
+  fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+    var container = document.getElementById('messagesList');
+    if (!container || !data.success) return;
+    var messages = data.data.filter(function(m){ return (m.senderId===currentUserId&&m.receiverId===contactId)||(m.senderId===contactId&&m.receiverId===currentUserId); });
+    messages.sort(function(a,b){ return (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0); });
+    if (messages.length===0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; }
+    container.innerHTML = messages.map(function(msg){
+      var isMine = msg.senderId===currentUserId;
+      var d = parseServerDate(msg.createdAt);
+      var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+      var bodyHtml = msg.audioUrl ? '<audio controls src="'+msg.audioUrl+'" style="max-width:200px;height:36px;"></audio>' : (msg.text||'');
+      return '<div class="message-bubble '+(isMine?'mine':'other')+'"><div class="bubble">'+bodyHtml+'<span class="time">'+timeStr+'</span></div></div>';
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }).catch(function(e){ console.error(e); });
+}
+function sendMessagePayload(payload) {
+  fetch(BACKEND_URL + '/api/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    .then(function(r){return r.json();}).then(function(data){ if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); })
+    .catch(function(e){ showAlert('Erreur: '+e.message, 'error'); });
 }
 
-var mediaRecorder = null, audioChunks = [], recordStartTime = 0; 
-function initVoiceButton() { 
-var btn = document.getElementById('btnRecordVoice'); 
-if (!btn || btn._bound) return; 
-btn._bound = true; 
-btn.addEventListener('click', function(){ 
-if (!activeConversationId) { showAlert("Ouvre une discussion d'abord", 'error'); return; } 
-if (!mediaRecorder || mediaRecorder.state='inactive') startRecording(btn); else stopRecording(btn); 
-}); 
-} 
-function startRecording(btn) { 
-navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){ 
-audioChunks = []; recordStartTime = Date.now(); 
-mediaRecorder = new MediaRecorder(stream); 
-mediaRecorder.ondataavailable = function(e){ audioChunks.push(e.data); }; 
-mediaRecorder.onstop = function(){ 
-stream.getTracks().forEach(function(t){t.stop();}); 
-var duration = Math.round((Date.now()-recordStartTime)/1000); 
-var blob = new Blob(audioChunks, {type:'audio/webm'}); 
-var reader = new FileReader(); 
-reader.onload = function(e){ sendMessagePayload({ senderId:currentUserId, receiverId:activeConversationId, senderName:currentUser.name, audioUrl:e.target.result, audioDuration:duration }); }; 
-reader.readAsDataURL(blob); 
-}; 
-mediaRecorder.start(); 
-btn.classList.add('recording'); 
-}).catch(function(){ showAlert("Impossible d'accéder au micro.", 'error'); }); 
-} 
-function stopRecording(btn) { if (mediaRecorder && mediaRecorder.state!'inactive') mediaRecorder.stop(); btn.classList.remove('recording'); }
+var mediaRecorder = null, audioChunks = [], recordStartTime = 0;
+function initVoiceButton() {
+  var btn = document.getElementById('btnRecordVoice');
+  if (!btn || btn._bound) return;
+  btn._bound = true;
+  btn.addEventListener('click', function(){
+    if (!activeConversationId) { showAlert("Ouvre une discussion d'abord", 'error'); return; }
+    if (!mediaRecorder || mediaRecorder.state==='inactive') startRecording(btn); else stopRecording(btn);
+  });
+}
+function startRecording(btn) {
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    audioChunks = []; recordStartTime = Date.now();
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = function(e){ audioChunks.push(e.data); };
+    mediaRecorder.onstop = function(){
+      stream.getTracks().forEach(function(t){t.stop();});
+      var duration = Math.round((Date.now()-recordStartTime)/1000);
+      var blob = new Blob(audioChunks, {type:'audio/webm'});
+      var reader = new FileReader();
+      reader.onload = function(e){ sendMessagePayload({ senderId:currentUserId, receiverId:activeConversationId, senderName:currentUser.name, audioUrl:e.target.result, audioDuration:duration }); };
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+  }).catch(function(){ showAlert("Impossible d'accéder au micro.", 'error'); });
+}
+function stopRecording(btn) { if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop(); btn.classList.remove('recording'); }
 
-/* = AUTO-REFRESH === */ 
-var refreshInterval = null; 
-function startAutoRefresh() { 
-clearInterval(refreshInterval); 
-refreshInterval = setInterval(function(){ 
-var ordersActive = document.getElementById('pageOrders').classList.contains('active'); 
-var shopActive = document.getElementById('pageShop').classList.contains('active'); 
-var homeActive = document.getElementById('pageHome').classList.contains('active'); 
-if (ordersActive) loadOrders(); 
-if (shopActive) { loadShopArticles(); loadStats(); } 
-if (homeActive) loadProducts(); 
-}, 15000); 
+/* ===== AUTO-REFRESH ===== */
+var refreshInterval = null;
+function startAutoRefresh() {
+  clearInterval(refreshInterval);
+  refreshInterval = setInterval(function(){
+    var ordersActive = document.getElementById('pageOrders').classList.contains('active');
+    var shopActive = document.getElementById('pageShop').classList.contains('active');
+    var homeActive = document.getElementById('pageHome').classList.contains('active');
+    if (ordersActive) loadOrders();
+    if (shopActive) { loadShopArticles(); loadStats(); }
+    if (homeActive) loadProducts();
+  }, 15000);
 }
 
 document.getElementById('btnLogout').addEventListener('click', function(){ localStorage.removeItem(STORAGE_KEY); location.reload(); });
 
-console.log('✅ BLK Marketplace chargé'); 
+console.log('✅ BLK Marketplace chargé');
 </script>
 </body>
 </html>
