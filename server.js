@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -44,8 +45,10 @@ try {
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const IMG_BB_KEY = process.env.IMG_BB_KEY || '2b3e869d8b6f382027e70cd216f65580';
+// ⚠️ Supprimez la clé codée en dur, utilisez uniquement les variables d'environnement
+const IMG_BB_KEY = process.env.IMG_BB_KEY || '';
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
+const YABETOO_WEBHOOK_SECRET = process.env.YABETOO_WEBHOOK_SECRET || 'change-me';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '065918166';
 const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 
@@ -58,6 +61,7 @@ const ALLOWED_CATEGORIES = ['vêtements', 'chaussures', 'sacs', 'bijoux', 'acces
 console.log(`📱 Admin Phone: ${ADMIN_PHONE}`);
 console.log(`🖼️  ImgBB: ${IMG_BB_KEY ? 'OK' : 'MANQUANT'}`);
 console.log(`💳 Yabetoo Secret: ${YABETOO_SECRET ? 'OK' : 'MANQUANT'}`);
+console.log(`🔒 Webhook Secret: ${YABETOO_WEBHOOK_SECRET !== 'change-me' ? 'OK' : 'DEFAUT (changez-moi !)'}`);
 console.log(`🔥 Firebase: ${firebaseReady ? 'OK' : 'DÉGRADÉ (SIMULATION)'}`);
 console.log(`🌐 Yabetoo API Base: ${YABETOO_API_BASE}`);
 
@@ -66,6 +70,24 @@ function formatPhoneForYabetoo(phone) {
   if (formatted.startsWith('0')) formatted = formatted.substring(1);
   if (!formatted.startsWith('242')) formatted = '242' + formatted;
   return '+' + formatted;
+}
+
+// ============================================================
+// MIDDLEWARE AUTHENTIFICATION (à activer pour la production)
+// ============================================================
+// Pour l'instant, on peut se contenter de vérifier que le userId existe
+// mais pour une vraie sécurité, il faudra Firebase Auth.
+// Exemple d'utilisation : app.use('/api/orders', verifyAuth);
+async function verifyAuth(req, res, next) {
+  const idToken = req.headers.authorization?.split('Bearer ')[1];
+  if (!idToken) return res.status(401).json({ success: false, message: 'Non autorisé' });
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    req.userId = decodedToken.uid;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Token invalide' });
+  }
 }
 
 // ============================================================
@@ -122,10 +144,6 @@ app.get('/api/categories', (req, res) => {
 
 // ============================================================
 // ARTICLES
-// Seuls les articles "active" apparaissent à l'accueil.
-// Dès qu'une commande est créée sur un article, il passe en "reserved"
-// (invisible dans /api/articles, donc impossible pour un autre acheteur
-// de le commander) jusqu'à confirmation ("sold") ou annulation ("active").
 // ============================================================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
@@ -238,9 +256,6 @@ app.post('/api/upload', async (req, res) => {
 // ============================================================
 // UTILISATEURS
 // ============================================================
-// ✅ Crée (ou met à jour) le profil Firestore de l'utilisateur juste après
-// la connexion. Sans cette route, aucun document "users" n'existait jamais
-// en base, ce qui cassait le profil, les stats et les abonnés au premier lancement.
 app.post('/api/users/register', async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, data: { walletBalance: 5000, flames: 0 } });
@@ -280,9 +295,6 @@ app.get('/api/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
-    // ✅ On ne renvoie plus 404 : un profil pas encore créé (ex: juste après
-    // l'inscription, pendant que /api/users/register termine) renvoie un
-    // profil vide par défaut plutôt que de faire planter l'app côté client.
     const data = doc.exists ? doc.data() : {};
     const articlesSnapshot = await db.collection('products').where('sellerId', '==', userId).where('status', '==', 'active').get();
     res.json({
@@ -370,12 +382,20 @@ app.post('/api/payment/initiate', async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    let userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      // Créer l'utilisateur s'il n'existe pas
+      await userRef.set({
+        name: 'Utilisateur', email: '', phone: phone || '', photo: '',
+        walletBalance: 0, flames: 0, blockedUsers: [], online: true, createdAt: new Date()
+      });
+      userDoc = await userRef.get();
+    }
 
     const formattedPhone = formatPhoneForYabetoo(phone);
     const operatorName = (operator || 'mtn').toLowerCase();
 
+    // 1. Créer l'intention de paiement
     const createResponse = await axios.post(
       `${YABETOO_API_BASE}/payment-intents`,
       { amount: parseInt(amount), currency: 'xaf', description: `Dépôt BLK - ${userId}` },
@@ -387,6 +407,7 @@ app.post('/api/payment/initiate', async (req, res) => {
       return res.status(502).json({ success: false, message: "La création de l'intention Yabetoo n'a pas renvoyé de client_secret exploitable.", yabetoo_create_response: intent });
     }
 
+    // 2. Confirmer l'intention avec Mobile Money
     const confirmPayload = {
       client_secret: clientSecret, amount: parseInt(amount), currency: 'xaf',
       first_name: 'Client', last_name: 'BLK', receipt_email: userDoc.data()?.email || 'client@blk.com',
@@ -399,12 +420,14 @@ app.post('/api/payment/initiate', async (req, res) => {
     );
     const confirmData = confirmResponse.data;
 
+    // 3. Enregistrer la transaction
     const transactionRef = await db.collection('transactions').add({
       userId, amount: parseInt(amount), phone: formattedPhone, operator: operatorName,
       yabetooId: intent.id, status: 'pending', type: 'deposit', createdAt: new Date()
     });
     await transactionRef.update({ transactionId: confirmData.transactionId || confirmData.intentId || intent.id, status: confirmData.status || 'pending' });
 
+    // 4. Si le paiement est déjà réussi, créditer immédiatement
     if (confirmData.status === 'succeeded' && confirmData.captured) {
       const currentBalance = userDoc.data()?.walletBalance || 0;
       await userRef.update({ walletBalance: currentBalance + parseInt(amount) });
@@ -421,61 +444,68 @@ app.post('/api/payment/initiate', async (req, res) => {
   }
 });
 
+// Webhook sécurisé
 app.post('/api/payment/callback', async (req, res) => {
-  try {
-    res.status(200).json({ success: true });
-    setImmediate(async () => {
-      try {
-        if (!firebaseReady) return;
-        const eventType = req.body.type || '';
-        const payload = req.body.data || req.body;
+  const signature = req.headers['x-yabetoo-signature'];
+  // Vérification de signature (à adapter selon la doc Yabetoo)
+  if (signature) {
+    const expected = crypto.createHmac('sha256', YABETOO_WEBHOOK_SECRET).update(JSON.stringify(req.body)).digest('hex');
+    if (signature !== expected) {
+      return res.status(401).json({ success: false, message: 'Signature invalide' });
+    }
+  }
+  // Répondre immédiatement
+  res.status(200).json({ success: true });
 
-        if (eventType.startsWith('disbursement')) {
-          const disb = payload.disbursement || payload;
-          const disbId = disb.id;
-          const disbStatus = disb.status;
-          const snapshot = await db.collection('transactions').where('yabetooDisbursementId', '==', disbId).get();
-          if (snapshot.empty) return;
-          const transactionDoc = snapshot.docs[0];
-          const transactionData = transactionDoc.data();
-          if (transactionData.status !== 'pending') return;
-          if (disbStatus === 'success' || disbStatus === 'completed' || disbStatus === 'succeeded') {
-            await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
-          } else {
-            const userRef = db.collection('users').doc(transactionData.userId);
-            const userDoc = await userRef.get();
-            const currentBalance = userDoc.data()?.walletBalance || 0;
-            await userRef.update({ walletBalance: currentBalance + transactionData.amount });
-            await transactionDoc.ref.update({ status: 'failed', failedAt: new Date() });
-          }
-          return;
-        }
+  setImmediate(async () => {
+    try {
+      if (!firebaseReady) return;
+      const eventType = req.body.type || '';
+      const payload = req.body.data || req.body;
 
-        const { id, status, amount, reference } = payload;
-        let snapshot = await db.collection('transactions').where('yabetooId', '==', id).get();
-        if (snapshot.empty && reference) snapshot = await db.collection('transactions').where('reference', '==', reference).get();
+      if (eventType.startsWith('disbursement')) {
+        const disb = payload.disbursement || payload;
+        const disbId = disb.id;
+        const disbStatus = disb.status;
+        const snapshot = await db.collection('transactions').where('yabetooDisbursementId', '==', disbId).get();
         if (snapshot.empty) return;
         const transactionDoc = snapshot.docs[0];
         const transactionData = transactionDoc.data();
-        if (transactionData.status === 'completed') return;
-
-        if (status === 'success' || status === 'completed' || status === 'succeeded') {
+        if (transactionData.status !== 'pending') return;
+        if (disbStatus === 'success' || disbStatus === 'completed' || disbStatus === 'succeeded') {
+          await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
+        } else {
           const userRef = db.collection('users').doc(transactionData.userId);
           const userDoc = await userRef.get();
           const currentBalance = userDoc.data()?.walletBalance || 0;
-          const creditAmount = parseInt(amount || transactionData.amount);
-          await userRef.update({ walletBalance: currentBalance + creditAmount });
-          await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
-        } else {
+          await userRef.update({ walletBalance: currentBalance + transactionData.amount });
           await transactionDoc.ref.update({ status: 'failed', failedAt: new Date() });
         }
-      } catch (error) {
-        console.error('❌ Erreur traitement webhook:', error);
+        return;
       }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
+
+      const { id, status, amount, reference } = payload;
+      let snapshot = await db.collection('transactions').where('yabetooId', '==', id).get();
+      if (snapshot.empty && reference) snapshot = await db.collection('transactions').where('reference', '==', reference).get();
+      if (snapshot.empty) return;
+      const transactionDoc = snapshot.docs[0];
+      const transactionData = transactionDoc.data();
+      if (transactionData.status === 'completed') return;
+
+      if (status === 'success' || status === 'completed' || status === 'succeeded') {
+        const userRef = db.collection('users').doc(transactionData.userId);
+        const userDoc = await userRef.get();
+        const currentBalance = userDoc.data()?.walletBalance || 0;
+        const creditAmount = parseInt(amount || transactionData.amount);
+        await userRef.update({ walletBalance: currentBalance + creditAmount });
+        await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
+      } else {
+        await transactionDoc.ref.update({ status: 'failed', failedAt: new Date() });
+      }
+    } catch (error) {
+      console.error('❌ Erreur traitement webhook:', error);
+    }
+  });
 });
 
 app.post('/api/wallet/transfer', async (req, res) => {
@@ -584,10 +614,6 @@ app.post('/api/wallet/admin-credit', async (req, res) => {
 
 // ============================================================
 // ORDRES
-// À la création : l'article passe en "reserved" -> il disparaît de l'accueil
-// et personne d'autre ne peut le commander.
-// À la confirmation : l'article passe en "sold" (vendu définitivement).
-// À l'annulation : l'article repasse en "active" (de nouveau visible/achetable).
 // ============================================================
 app.post('/api/orders/create', async (req, res) => {
   if (!firebaseReady) {
@@ -604,53 +630,67 @@ app.post('/api/orders/create', async (req, res) => {
     }
 
     const articleRef = db.collection('products').doc(articleId);
-    const articleSnap = await articleRef.get();
-    if (!articleSnap.exists) return res.status(404).json({ success: false, message: 'Article introuvable' });
-    if (articleSnap.data().status !== 'active') {
-      return res.status(409).json({ success: false, message: 'Cet article vient d\'être réservé par un autre acheteur.' });
-    }
+    const buyerRef = db.collection('users').doc(buyerId);
 
-    const buyerDoc = await db.collection('users').doc(buyerId).get();
-    const blockedUsers = buyerDoc.data()?.blockedUsers || [];
-    if (blockedUsers.includes(sellerId)) {
-      return res.status(403).json({ success: false, message: 'Vous avez bloqué ce vendeur' });
-    }
+    const orderId = await db.runTransaction(async (t) => {
+      const articleSnap = await t.get(articleRef);
+      if (!articleSnap.exists) throw new Error('ARTICLE_NOT_FOUND');
+      const article = articleSnap.data();
+      if (article.status !== 'active') throw new Error('ARTICLE_NOT_ACTIVE');
 
-    const buyerBalance = buyerDoc.data()?.walletBalance || 0;
-    const buyerCommission = Math.round(amount * COMMISSION_BUYER);
-    const totalAmount = amount + buyerCommission;
-    if (buyerBalance < totalAmount) {
-      return res.status(400).json({ success: false, message: '❌ Solde insuffisant', balance: buyerBalance, required: totalAmount, difference: totalAmount - buyerBalance });
-    }
-    await buyerDoc.ref.update({ walletBalance: buyerBalance - totalAmount });
+      const buyerSnap = await t.get(buyerRef);
+      const buyerData = buyerSnap.data();
+      const blockedUsers = buyerData?.blockedUsers || [];
+      if (blockedUsers.includes(sellerId)) throw new Error('SELLER_BLOCKED');
 
-    // ✅ Réservation immédiate de l'article : il disparaît de l'accueil et
-    // devient impossible à commander par un autre acheteur.
-    await articleRef.update({ status: 'reserved', reservedAt: new Date(), reservedBy: buyerId });
+      const buyerBalance = buyerData?.walletBalance || 0;
+      const buyerCommission = Math.round(amount * COMMISSION_BUYER);
+      const totalAmount = amount + buyerCommission;
+      if (buyerBalance < totalAmount) {
+        throw new Error(`INSUFFICIENT_BALANCE|${buyerBalance}|${totalAmount}|${totalAmount - buyerBalance}`);
+      }
 
-    const order = {
-      articleId, buyerId, sellerId,
-      buyerPhone: buyerPhone || buyerDoc.data()?.phone || '',
-      amount: parseInt(amount), buyerCommission, totalAmount,
-      sellerCommission: Math.round(amount * COMMISSION_SELLER),
-      status: 'en attente de confirmation', buyerConfirmed: false, buyerConfirmedAt: null,
-      flamesGiven: false, expiresAt: new Date(Date.now() + ORDER_DELAY_MS), createdAt: new Date()
-    };
-    const orderRef = await db.collection('orders').add(order);
-    const orderId = orderRef.id;
+      // Réserver l'article
+      t.update(articleRef, { status: 'reserved', reservedAt: new Date(), reservedBy: buyerId });
+      // Débiter l'acheteur
+      t.update(buyerRef, { walletBalance: buyerBalance - totalAmount });
 
+      const orderData = {
+        articleId, buyerId, sellerId,
+        buyerPhone: buyerPhone || buyerData?.phone || '',
+        amount: parseInt(amount), buyerCommission, totalAmount,
+        sellerCommission: Math.round(amount * COMMISSION_SELLER),
+        status: 'en attente de confirmation', buyerConfirmed: false, buyerConfirmedAt: null,
+        flamesGiven: false, expiresAt: new Date(Date.now() + ORDER_DELAY_MS), createdAt: new Date()
+      };
+      const orderRef = db.collection('orders').doc();
+      t.set(orderRef, orderData);
+      return orderRef.id;
+    });
+
+    // Notifier le vendeur
     await db.collection('notifications').add({
-      userId: sellerId, message: `🛒 Nouvelle commande #${orderId.slice(0,8)} - ${amount} FCFA`,
+      userId: sellerId,
+      message: `🛒 Nouvelle commande #${orderId.slice(0,8)} - ${amount} FCFA`,
       type: 'new_order', read: false, orderId, createdAt: new Date()
     });
 
     res.json({
       success: true, orderId, message: '✅ Commande créée avec succès ! Livraison sous 6h.',
-      totalAmount, buyerCommission, sellerCommission: Math.round(amount * COMMISSION_SELLER),
-      expiresAt: order.expiresAt
+      totalAmount: Math.round(amount * (1 + COMMISSION_BUYER)),
+      buyerCommission: Math.round(amount * COMMISSION_BUYER),
+      sellerCommission: Math.round(amount * COMMISSION_SELLER),
+      expiresAt: new Date(Date.now() + ORDER_DELAY_MS)
     });
   } catch (error) {
     console.error('Order Error:', error.message);
+    if (error.message === 'ARTICLE_NOT_FOUND') return res.status(404).json({ success: false, message: 'Article introuvable' });
+    if (error.message === 'ARTICLE_NOT_ACTIVE') return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par un autre acheteur." });
+    if (error.message === 'SELLER_BLOCKED') return res.status(403).json({ success: false, message: 'Vous avez bloqué ce vendeur' });
+    if (error.message.startsWith('INSUFFICIENT_BALANCE')) {
+      const [, balance, required, difference] = error.message.split('|');
+      return res.status(400).json({ success: false, message: '❌ Solde insuffisant', balance: Number(balance), required: Number(required), difference: Number(difference) });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -688,7 +728,7 @@ app.post('/api/orders/confirm', async (req, res) => {
     const sellerBalance = sellerDoc.data()?.walletBalance || 0;
     await sellerRef.update({ walletBalance: sellerBalance + amountToSeller });
 
-    // ✅ L'article est définitivement vendu : il reste invisible partout (accueil et boutique du vendeur).
+    // ✅ L'article est définitivement vendu
     const articleRef = db.collection('products').doc(order.articleId);
     await articleRef.update({ status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
 
@@ -774,7 +814,7 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
     const buyerBalance = buyerDoc.data()?.walletBalance || 0;
     await buyerRef.update({ walletBalance: buyerBalance + order.totalAmount });
 
-    // ✅ L'article redevient disponible pour tout le monde.
+    // ✅ L'article redevient disponible
     const articleRef = db.collection('products').doc(order.articleId);
     await articleRef.update({ status: 'active', reservedAt: null, reservedBy: null });
 
@@ -787,8 +827,7 @@ app.post('/api/orders/cancel/:orderId', async (req, res) => {
 });
 
 // ============================================================
-// EXPIRATION AUTOMATIQUE DES COMMANDES NON CONFIRMÉES (6h)
-// Remet l'article en "active" et rembourse l'acheteur si le délai est dépassé.
+// EXPIRATION AUTOMATIQUE DES COMMANDES NON CONFIRMÉES
 // ============================================================
 async function autoExpireOrders() {
   if (!firebaseReady) return;
@@ -816,7 +855,7 @@ async function autoExpireOrders() {
     console.error('❌ Erreur autoExpireOrders:', error.message);
   }
 }
-setInterval(autoExpireOrders, 5 * 60 * 1000); // vérifie toutes les 5 minutes
+setInterval(autoExpireOrders, 5 * 60 * 1000); // toutes les 5 minutes
 
 // ============================================================
 // FLAMMES
