@@ -238,6 +238,38 @@ app.post('/api/upload', async (req, res) => {
 // ============================================================
 // UTILISATEURS
 // ============================================================
+// ✅ Crée (ou met à jour) le profil Firestore de l'utilisateur juste après
+// la connexion. Sans cette route, aucun document "users" n'existait jamais
+// en base, ce qui cassait le profil, les stats et les abonnés au premier lancement.
+app.post('/api/users/register', async (req, res) => {
+  if (!firebaseReady) {
+    return res.json({ success: true, data: { walletBalance: 5000, flames: 0 } });
+  }
+  try {
+    const { userId, name, email, phone } = req.body;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId requis' });
+    const userRef = db.collection('users').doc(userId);
+    const existing = await userRef.get();
+    if (!existing.exists) {
+      await userRef.set({
+        name: name || 'Utilisateur', email: email || '', phone: phone || '',
+        photo: '', flames: 0, walletBalance: 0, isSeller: false, blockedUsers: [],
+        online: true, createdAt: new Date()
+      });
+    } else {
+      const updateData = { online: true };
+      if (name) updateData.name = name;
+      if (email) updateData.email = email;
+      if (phone) updateData.phone = phone;
+      await userRef.update(updateData);
+    }
+    const fresh = await userRef.get();
+    res.json({ success: true, data: fresh.data() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.get('/api/users/:userId', async (req, res) => {
   if (!firebaseReady) {
     return res.json({
@@ -248,16 +280,19 @@ app.get('/api/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
-    if (!doc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
-    const data = doc.data();
+    // ✅ On ne renvoie plus 404 : un profil pas encore créé (ex: juste après
+    // l'inscription, pendant que /api/users/register termine) renvoie un
+    // profil vide par défaut plutôt que de faire planter l'app côté client.
+    const data = doc.exists ? doc.data() : {};
     const articlesSnapshot = await db.collection('products').where('sellerId', '==', userId).where('status', '==', 'active').get();
     res.json({
       success: true,
       data: {
-        name: data.name, photo: data.photo || '', flames: data.flames || 0,
+        name: data.name || 'Utilisateur', photo: data.photo || '', flames: data.flames || 0,
         walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
         isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false,
-        articlesCount: articlesSnapshot.size
+        articlesCount: articlesSnapshot.size,
+        followersCount: data.followersCount || 0, followingCount: data.followingCount || 0
       }
     });
   } catch (error) {
