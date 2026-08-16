@@ -53,13 +53,20 @@ function parseAmount(value) {
   return amount;
 }
 
-// Helper : formatage du numéro pour Yabetoo (sans +)
+// Helper : formatage du numéro pour Yabetoo (sans +, robuste)
 function formatPhoneForYabetoo(phone) {
-  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
-  if (formatted.startsWith('0')) formatted = formatted.substring(1);
-  if (!formatted.startsWith('242')) formatted = '242' + formatted;
-  // On retourne le numéro sans le signe +
-  return formatted;
+  // Ne garder que les chiffres
+  let digits = String(phone).replace(/\D/g, '');
+  // Supprimer le préfixe 242 s'il existe déjà pour éviter les doublons
+  if (digits.startsWith('242')) {
+    digits = digits.substring(3);
+  }
+  // Supprimer un éventuel 0 initial local
+  if (digits.startsWith('0')) {
+    digits = digits.substring(1);
+  }
+  // Ajouter 242
+  return '242' + digits;
 }
 
 // Middleware d'authentification JWT
@@ -150,7 +157,6 @@ app.get('/api/articles', async (req, res) => {
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
-    // Tri en mémoire
     articles.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
@@ -186,7 +192,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, id: 'mock-' + Date.now() });
   try {
     const { title, description, price, category, image, images, sellerName, sellerPhoto } = req.body;
-    const sellerId = req.userId; // On force l'ID du vendeur depuis le token
+    const sellerId = req.userId;
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     }
@@ -404,7 +410,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const depositAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone); // sans le +
+    const formattedPhone = formatPhoneForYabetoo(phone); // sans le +, format 242XXXXXXXXX
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -476,7 +482,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
 
 app.post('/api/payment/callback', async (req, res) => {
   try {
-    // Idéalement, vérifier une signature ici
+    // TODO: Verify webhook signature
     res.status(200).json({ success: true });
     setImmediate(async () => {
       try {
@@ -574,7 +580,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     if (!amount || !phone) return res.status(400).json({ success: false, message: 'amount et phone requis' });
 
     const withdrawAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone);
+    const formattedPhone = formatPhoneForYabetoo(phone); // format 242XXXXXXXXX
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -591,12 +597,13 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
           currency: 'XAF',
           first_name: doc.data()?.name?.split(' ')[0] || 'Client',
           last_name: doc.data()?.name?.split(' ').slice(1).join(' ') || 'BLK',
-          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'CG', operator_name: operatorName } }
+          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'cg', operator_name: operatorName } }
         },
         { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}`, 'Content-Type': 'application/json' } }
       );
       disbursement = disbursementResponse.data;
     } catch (yabetooError) {
+      console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
       return res.status(502).json({
         success: false,
         message: "Le retrait Yabetoo a echoue (aucun montant debite). Si l'erreur mentionne un acces partenaire manquant, il faut en faire la demande a Yabetoo.",
@@ -654,7 +661,6 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Solde insuffisant', balance: buyerBalance, required: totalAmount, difference: totalAmount - buyerBalance });
     }
 
-    // Transaction atomique
     await db.runTransaction(async (t) => {
       const freshBuyerDoc = await t.get(db.collection('users').doc(buyerId));
       const freshArticleDoc = await t.get(articleRef);
@@ -767,7 +773,6 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     const sellerSnapshot = await db.collection('orders').where('sellerId', '==', userId).get();
     const sellerOrders = [];
     for (const doc of sellerSnapshot.docs) {
-      // On ne duplique pas si l'utilisateur est à la fois acheteur et vendeur sur la même commande (rare)
       if (!orders.find(o => o.id === doc.id)) {
         const order = doc.data();
         const articleDoc = await db.collection('products').doc(order.articleId).get();
