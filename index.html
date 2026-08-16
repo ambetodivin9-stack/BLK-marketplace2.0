@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* ========== CSS GLOBAL (inchangé) ========== */
+/* ========== CSS COMPLET (identique à votre version + carrousel) ========== */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -151,8 +151,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .confirm-anim-card p{font-size:14px;color:#999;}
 @media (min-width:500px){.shop-stats-grid{grid-template-columns:repeat(4,1fr);}.articles-grid{grid-template-columns:repeat(3,1fr);}}
 
-/* ========== NOUVEAU : carrousel d'images ========== */
-.carousel-container{position:relative;overflow:hidden;border-radius:20px;margin-bottom:16px;}
+/* Carrousel */
+.carousel-container{position:relative;overflow:hidden;border-radius:16px;margin-bottom:12px;}
 .carousel-track{display:flex;transition:transform .3s ease;}
 .carousel-slide{min-width:100%;}
 .carousel-slide img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
@@ -163,7 +163,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .carousel-btn.left{left:8px;}
 .carousel-btn.right{right:8px;}
 
-/* ========== NOUVEAU : formulaire de publication ========== */
+/* Formulaire publication */
 .publish-field{margin-bottom:16px;}
 .publish-field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#555;}
 .publish-field input[type="text"],.publish-field input[type="number"],.publish-field textarea,.publish-field select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:15px;}
@@ -338,24 +338,203 @@ var currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 var allProducts = [], selectedCategory = 'all';
 var activeConversationId = null, activeChatProduct = null;
 
-// ===================== UTILS (inchangé) =====================
-function apiFetch(url, options = {}) { ... } // conservez la même fonction
-function showAlert(message, type) { ... } // conservez
-function openModal(html) { ... } // conservez
-function formatNumber(num) { ... }
-function parseServerDate(val) { ... }
-function showConfirmAnimation(title, subtitle) { ... }
+// ===================== UTILS =====================
+function apiFetch(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+    ...options.headers
+  };
+  return fetch(BACKEND_URL + url, { ...options, headers });
+}
 
-// ===================== AUTH (inchangé) =====================
-// ... (code identique pour l'authentification)
+function showAlert(message, type) {
+  var box = document.getElementById('alertBox');
+  var t = type || 'success';
+  var ic = t === 'success' ? 'check' : (t === 'error' ? 'crossCircle' : 'info');
+  box.innerHTML = '<span class="alert-icon">' + ICONS[ic] + '</span><span class="alert-text"></span>';
+  box.querySelector('.alert-text').textContent = message;
+  box.className = 'alert alert-' + t;
+  box.style.display = 'flex';
+  clearTimeout(box._t);
+  box._t = setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+function openModal(html) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.innerHTML = '<div class="modal-box" style="max-width:400px;width:100%;background:white;border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto;">' + html + '</div>';
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function formatNumber(num) {
+  if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num/1000).toFixed(1) + 'k';
+  return String(num);
+}
+function parseServerDate(val) {
+  if (!val) return null;
+  if (val._seconds) return new Date(val._seconds * 1000);
+  if (val.seconds) return new Date(val.seconds * 1000);
+  var d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+function showConfirmAnimation(title, subtitle) {
+  var overlay = document.getElementById('confirmAnimOverlay');
+  document.getElementById('confirmAnimTitle').textContent = title || 'Confirmé !';
+  document.getElementById('confirmAnimSubtitle').textContent = subtitle || '';
+  overlay.classList.add('visible');
+  clearTimeout(overlay._t);
+  overlay._t = setTimeout(() => { overlay.classList.remove('visible'); }, 2200);
+  overlay.onclick = () => { overlay.classList.remove('visible'); };
+}
+
+// ===================== AUTH =====================
+var isLoginMode = true;
+function toggleAuthMode() {
+  isLoginMode = !isLoginMode;
+  document.getElementById('nameGroup').style.display = isLoginMode ? 'none' : 'block';
+  document.getElementById('btnLogin').textContent = isLoginMode ? 'Se connecter' : "S'inscrire";
+  document.getElementById('showLogin').className = isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('showRegister').className = !isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('authError').style.display = 'none';
+}
+document.getElementById('showLogin').addEventListener('click', () => { if (!isLoginMode) toggleAuthMode(); });
+document.getElementById('showRegister').addEventListener('click', () => { if (isLoginMode) toggleAuthMode(); });
+toggleAuthMode();
+
+document.getElementById('authForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = document.getElementById('loginName').value.trim();
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  var errorDiv = document.getElementById('authError');
+  if (!email || !password || (!isLoginMode && !name)) {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Remplis tous les champs.';
+    return;
+  }
+  errorDiv.style.display = 'none';
+  var btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+
+  var url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+  var body = isLoginMode ? { email, password } : { name, email, password };
+
+  apiFetch(url, { method: 'POST', body: JSON.stringify(body) })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserId', data.userId);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      authToken = data.token;
+      currentUserId = data.userId;
+      currentUser = data.user;
+      document.getElementById('authPage').style.display = 'none';
+      showSplash();
+    } else {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = data.message || 'Erreur';
+    }
+  })
+  .catch(err => {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Erreur réseau : ' + err.message;
+  })
+  .finally(() => { btn.disabled = false; });
+});
+
+// Check if already logged in on load
+if (authToken && currentUserId) {
+  document.getElementById('authPage').style.display = 'none';
+  currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  showSplash();
+} else {
+  document.getElementById('authPage').style.display = 'flex';
+}
 
 // ===================== SPLASH & APP =====================
-// ... (identique)
+function showSplash() {
+  var splash = document.getElementById('splashScreen');
+  splash.classList.add('active');
+  setTimeout(() => {
+    splash.classList.remove('active');
+    document.getElementById('appContainer').classList.add('active');
+    document.getElementById('tabs').classList.add('show');
+    showMainApp();
+  }, 1200);
+}
+
+function showMainApp() {
+  updateProfileUI(currentUser);
+  loadProducts();
+  loadWallet();
+  loadOrders();
+  loadMessages();
+  loadShopArticles();
+  loadStats();
+  loadFollowCounts(currentUserId);
+  initTabs();
+  startAutoRefresh();
+}
+
+function updateProfileUI(user) {
+  document.getElementById('profileNameNew').textContent = user.name || 'Utilisateur';
+  document.getElementById('profileEmailNew').textContent = user.email || '';
+  document.getElementById('profilePhoneNew').textContent = user.phone || '';
+  document.getElementById('profileAvatarLetter').textContent = (user.name || 'U').charAt(0).toUpperCase();
+}
 
 // ===================== TABS =====================
-// ... (identique)
+function initTabs() {
+  var tabs = document.querySelectorAll('.tab-item');
+  var bubble = document.getElementById('tabBubble');
+  var bubbleIcon = document.getElementById('tabBubbleIcon');
+  tabs.forEach(tab => { tab.querySelector('.tab-icon-svg').innerHTML = TAB_ICONS[tab.dataset.icon] || ''; });
+  function moveBubble(tab) {
+    var tabRect = tab.getBoundingClientRect();
+    var sliderRect = tab.parentElement.getBoundingClientRect();
+    var center = (tabRect.left - sliderRect.left) + tabRect.width/2;
+    bubble.style.transform = 'translateX(' + (center - 26) + 'px)';
+    bubbleIcon.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
+  }
+  function setActive(tab) {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    moveBubble(tab);
+    var pageId = tab.dataset.tab;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    var target = document.getElementById(pageId);
+    if (target) {
+      target.classList.add('active');
+      if (pageId === 'pageOrders') loadOrders();
+      if (pageId === 'pageMessages') loadMessages();
+      if (pageId === 'pageShop') { loadShopArticles(); loadStats(); }
+      if (pageId === 'pageProfile') loadFollowCounts(currentUserId);
+    }
+  }
+  tabs.forEach(tab => tab.addEventListener('click', (e) => { e.preventDefault(); setActive(tab); }));
+  var active = document.querySelector('.tab-item.active') || tabs[0];
+  requestAnimationFrame(() => moveBubble(active));
+  window.addEventListener('resize', () => moveBubble(document.querySelector('.tab-item.active')));
+}
 
-// ===================== PRODUITS (avec carrousel) =====================
+// ===================== FOLLOW COUNTS =====================
+function loadFollowCounts(userId) {
+  if (!userId) return;
+  apiFetch('/api/users/' + userId)
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('profileFollowersNew').textContent = data.data.followersCount || 0;
+      document.getElementById('profileFollowingNew').textContent = data.data.followingCount || 0;
+      document.getElementById('profileFlamesNew').textContent = data.data.flames || 0;
+    }
+  }).catch(() => {});
+}
+
+// ===================== PRODUCTS =====================
 function loadProducts() {
   apiFetch('/api/articles')
   .then(r => r.json())
@@ -364,7 +543,6 @@ function loadProducts() {
     renderProducts(allProducts);
   }).catch(() => { allProducts = []; renderProducts([]); });
 }
-
 function renderProducts(products) {
   var grid = document.getElementById('productsGrid');
   var empty = document.getElementById('emptyHome');
@@ -386,17 +564,24 @@ function renderProducts(products) {
     grid.appendChild(card);
   });
 }
+document.getElementById('searchInput').addEventListener('input', () => renderProducts(allProducts));
+document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('#categoryFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
+    this.className = 'btn btn-sm btn-primary';
+    selectedCategory = this.dataset.cat;
+    renderProducts(allProducts);
+  });
+});
 
-// ===================== NOUVELLE FICHE PRODUIT =====================
+// ===================== FICHE PRODUIT =====================
 function showProductModal(product) {
   var overlay = document.getElementById('productStory');
   var content = document.getElementById('productDetailContent');
   var images = (Array.isArray(product.images) && product.images.length > 0) ? product.images : [product.image].filter(Boolean);
 
-  // Construire le HTML de la fiche produit
   var html = `
     <div style="padding:16px;">
-      <!-- Carrousel d'images -->
       <div class="carousel-container" id="carousel">
         <div class="carousel-track" id="carouselTrack">
           ${images.map(img => `<div class="carousel-slide"><img src="${img}" alt=""></div>`).join('')}
@@ -410,7 +595,6 @@ function showProductModal(product) {
         ` : ''}
       </div>
 
-      <!-- En-tête avec titre, prix, état -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
           <h2 style="margin:0;">${product.title || 'Sans titre'}</h2>
@@ -422,27 +606,22 @@ function showProductModal(product) {
         </div>
       </div>
 
-      <!-- Badges (vues, favoris, dispo) -->
       <div style="display:flex;gap:12px;margin-bottom:12px;font-size:13px;color:#555;">
         <span>👁 ${product.views || 0} vues</span>
         <span>❤️ ${product.favorites || 0} favoris</span>
         <span>📦 ${product.stock || 1} dispo</span>
       </div>
 
-      <!-- Tailles -->
       ${product.size ? `<div style="margin-bottom:12px;"><strong>TAILLE</strong><div style="display:flex;gap:6px;margin-top:4px;">${['XS','S','M','L','XL','XXL'].map(s => `<span style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:${s===product.size?'#E74C3C':'#f9f9f9'};color:${s===product.size?'#fff':'#333'};">${s}</span>`).join('')}</div></div>` : ''}
 
-      <!-- Description -->
       <div style="margin-bottom:12px;">
         <strong>DESCRIPTION</strong>
         <p style="margin:4px 0 0;color:#666;">${product.description || ''}</p>
         <span style="color:#E74C3C;cursor:pointer;">Lire plus →</span>
       </div>
 
-      <!-- Hashtags -->
       ${product.hashtags && product.hashtags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${product.hashtags.map(tag => `<span style="background:#f0f0f0;padding:4px 8px;border-radius:12px;font-size:12px;">#${tag}</span>`).join('')}</div>` : ''}
 
-      <!-- Vendeur -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#f9f9f9;border-radius:12px;">
         <div class="story-avatar" style="width:40px;height:40px;">${product.sellerName ? product.sellerName.charAt(0).toUpperCase() : '?'}</div>
         <div>
@@ -452,7 +631,6 @@ function showProductModal(product) {
         <button class="btn btn-sm btn-outline" style="margin-left:auto;" onclick="openDiscussion('${product.sellerId}', '${product.sellerName || 'Vendeur'}')">💬 Message</button>
       </div>
 
-      <!-- Boutons Acheter / Favoris -->
       <div style="display:flex;gap:10px;">
         <button class="btn btn-primary" style="flex:1;" onclick="buyProduct('${product.id}', ${product.price}, '${product.sellerId}')">🛍 Acheter maintenant</button>
         <button class="btn btn-outline" style="width:auto;padding:14px;" onclick="toggleFavorite('${product.id}')">❤️</button>
@@ -463,7 +641,6 @@ function showProductModal(product) {
   content.innerHTML = html;
   overlay.classList.add('active');
 
-  // Initialiser le carrousel
   if (images.length > 1) {
     var currentIndex = 0;
     var track = document.getElementById('carouselTrack');
@@ -483,7 +660,7 @@ document.getElementById('storyClose').addEventListener('click', () => {
   document.getElementById('productStory').classList.remove('active');
 });
 
-// ===================== FORMULAIRE DE PUBLICATION AMÉLIORÉ =====================
+// ===================== FORMULAIRE DE PUBLICATION =====================
 document.getElementById('btnPublish').addEventListener('click', () => {
   var html = `
     <h3>Vendre un article</h3>
@@ -612,7 +789,6 @@ document.getElementById('btnPublish').addEventListener('click', () => {
     var i = 0;
     function uploadNext() {
       if (i >= photos.length) {
-        // Toutes les photos uploadées, envoyer l'article
         apiFetch('/api/articles', {
           method: 'POST',
           body: JSON.stringify({
@@ -669,12 +845,11 @@ document.getElementById('btnPublish').addEventListener('click', () => {
 
 // ===================== FONCTIONS ADDITIONNELLES =====================
 function toggleFavorite(articleId) {
-  // À implémenter plus tard (favoris)
   showAlert('Favori ajouté (à implémenter)', 'info');
 }
 
 // ===================== AUTRES FONCTIONS (messages, commandes, etc.) =====================
-// ... (conservez les fonctions existantes)
+// ... (conservez les fonctions existantes : loadWallet, loadOrders, openTransferForm, etc. Elles sont identiques à la version précédente)
 
 console.log('BLK Marketplace chargé');
 </script>
