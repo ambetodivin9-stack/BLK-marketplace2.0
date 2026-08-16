@@ -55,10 +55,11 @@ function parseAmount(value) {
 
 // Helper : formatage du numéro pour Yabetoo (sans +)
 function formatPhoneForYabetoo(phone) {
-  let digits = String(phone).replace(/\D/g, '');
-  if (digits.startsWith('242')) digits = digits.substring(3);
-  if (digits.startsWith('0')) digits = digits.substring(1);
-  return '242' + digits;
+  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
+  if (formatted.startsWith('0')) formatted = formatted.substring(1);
+  if (!formatted.startsWith('242')) formatted = '242' + formatted;
+  // On retourne le numéro sans le signe +
+  return formatted;
 }
 
 // Middleware d'authentification JWT
@@ -102,9 +103,16 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRef = usersRef.doc();
     await userRef.set({
-      name, email, password: hashedPassword,
-      phone: '', photo: '', walletBalance: 0, flames: 0,
-      blockedUsers: [], online: true, createdAt: new Date()
+      name,
+      email,
+      password: hashedPassword,
+      phone: '',
+      photo: '',
+      walletBalance: 0,
+      flames: 0,
+      blockedUsers: [],
+      online: true,
+      createdAt: new Date()
     });
 
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
@@ -142,6 +150,7 @@ app.get('/api/articles', async (req, res) => {
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
+    // Tri en mémoire
     articles.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
@@ -177,7 +186,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, id: 'mock-' + Date.now() });
   try {
     const { title, description, price, category, image, images, sellerName, sellerPhoto } = req.body;
-    const sellerId = req.userId;
+    const sellerId = req.userId; // On force l'ID du vendeur depuis le token
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     }
@@ -190,10 +199,18 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
     const article = {
-      title, description, price: articlePrice, category,
-      image: imageList[0], images: imageList,
-      sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      status: 'active', views: 0, createdAt: new Date()
+      title,
+      description,
+      price: articlePrice,
+      category,
+      image: imageList[0],
+      images: imageList,
+      sellerId,
+      sellerName: sellerName || 'Anonyme',
+      sellerPhoto: sellerPhoto || '',
+      status: 'active',
+      views: 0,
+      createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
@@ -275,10 +292,18 @@ app.get('/api/users/:userId', async (req, res) => {
     res.json({
       success: true,
       data: {
-        name: data.name, photo: data.photo || '', flames: data.flames || 0,
-        walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
-        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false,
-        articlesCount: articlesSnapshot.size, followersCount: followersSnapshot.size, followingCount: followingSnapshot.size
+        name: data.name,
+        photo: data.photo || '',
+        flames: data.flames || 0,
+        walletBalance: data.walletBalance || 0,
+        phone: data.phone || '',
+        email: data.email || '',
+        isSeller: data.isSeller || false,
+        blockedUsers: data.blockedUsers || [],
+        online: data.online || false,
+        articlesCount: articlesSnapshot.size,
+        followersCount: followersSnapshot.size,
+        followingCount: followingSnapshot.size
       }
     });
   } catch (error) {
@@ -379,7 +404,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const depositAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone);
+    const formattedPhone = formatPhoneForYabetoo(phone); // sans le +
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -401,8 +426,12 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     }
 
     const confirmPayload = {
-      client_secret: clientSecret, amount: depositAmount, currency: 'xaf',
-      first_name: 'Client', last_name: 'BLK', receipt_email: userDoc.data()?.email || 'client@blk.com',
+      client_secret: clientSecret,
+      amount: depositAmount,
+      currency: 'xaf',
+      first_name: 'Client',
+      last_name: 'BLK',
+      receipt_email: userDoc.data()?.email || 'client@blk.com',
       payment_method_data: { type: 'momo', momo: { country: 'cg', msisdn: formattedPhone, operator_name: operatorName } }
     };
     const confirmResponse = await axios.post(
@@ -413,8 +442,14 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     const confirmData = confirmResponse.data;
 
     const transactionRef = await db.collection('transactions').add({
-      userId, amount: depositAmount, phone: formattedPhone, operator: operatorName,
-      yabetooId: intent.id, status: 'pending', type: 'deposit', createdAt: new Date()
+      userId,
+      amount: depositAmount,
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooId: intent.id,
+      status: 'pending',
+      type: 'deposit',
+      createdAt: new Date()
     });
     await transactionRef.update({ transactionId: confirmData.transactionId || confirmData.intentId || intent.id, status: confirmData.status || 'pending' });
 
@@ -428,15 +463,20 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     res.json({ success: true, message: 'Demande envoyee a Yabetoo. En attente de ta confirmation par SMS/USSD, puis du webhook.', status: confirmData.status || 'pending' });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
+    if (error.message === 'PHONE_INVALID') return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide' });
     return res.status(502).json({
-      success: false, message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
-      yabetoo_http_status: error.response?.status || null, yabetoo_error: error.response?.data || null, raw_message: error.message
+      success: false,
+      message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
+      yabetoo_http_status: error.response?.status || null,
+      yabetoo_error: error.response?.data || null,
+      raw_message: error.message
     });
   }
 });
 
 app.post('/api/payment/callback', async (req, res) => {
   try {
+    // Idéalement, vérifier une signature ici
     res.status(200).json({ success: true });
     setImmediate(async () => {
       try {
@@ -494,6 +534,7 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
     const { toPhone, amount } = req.body;
     const fromUserId = req.userId;
     if (!toPhone || !amount) return res.status(400).json({ success: false, message: 'toPhone et amount requis' });
+
     const transferAmount = parseAmount(amount);
     const recipientSnapshot = await db.collection('users').where('phone', '==', toPhone).limit(1).get();
     if (recipientSnapshot.empty) return res.status(404).json({ success: false, message: 'Aucun utilisateur BLK trouve avec ce numero' });
@@ -531,6 +572,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     const { amount, phone, operator } = req.body;
     const userId = req.userId;
     if (!amount || !phone) return res.status(400).json({ success: false, message: 'amount et phone requis' });
+
     const withdrawAmount = parseAmount(amount);
     const formattedPhone = formatPhoneForYabetoo(phone);
     const operatorName = (operator || 'mtn').toLowerCase();
@@ -545,16 +587,16 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       const disbursementResponse = await axios.post(
         `${YABETOO_API_BASE}/disbursement`,
         {
-          amount: withdrawAmount, currency: 'XAF',
+          amount: withdrawAmount,
+          currency: 'XAF',
           first_name: doc.data()?.name?.split(' ')[0] || 'Client',
           last_name: doc.data()?.name?.split(' ').slice(1).join(' ') || 'BLK',
-          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'cg', operator_name: operatorName } }
+          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'CG', operator_name: operatorName } }
         },
         { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}`, 'Content-Type': 'application/json' } }
       );
       disbursement = disbursementResponse.data;
     } catch (yabetooError) {
-      console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
       return res.status(502).json({
         success: false,
         message: "Le retrait Yabetoo a echoue (aucun montant debite). Si l'erreur mentionne un acces partenaire manquant, il faut en faire la demande a Yabetoo.",
@@ -565,14 +607,21 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     const newBalance = currentBalance - withdrawAmount;
     await userRef.update({ walletBalance: newBalance });
     await db.collection('transactions').add({
-      userId, amount: withdrawAmount, phone: formattedPhone, operator: operatorName,
-      yabetooDisbursementId: disbursement.id || null, type: 'withdraw', status: 'pending',
-      description: 'Retrait Yabetoo (execution J+1)', createdAt: new Date()
+      userId,
+      amount: withdrawAmount,
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooDisbursementId: disbursement.id || null,
+      type: 'withdraw',
+      status: 'pending',
+      description: 'Retrait Yabetoo (execution J+1)',
+      createdAt: new Date()
     });
 
     res.json({ success: true, message: "Retrait initie. Yabetoo l'executera automatiquement sous 24h vers ton Mobile Money.", newBalance });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
+    if (error.message === 'PHONE_INVALID') return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide' });
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -605,6 +654,7 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Solde insuffisant', balance: buyerBalance, required: totalAmount, difference: totalAmount - buyerBalance });
     }
 
+    // Transaction atomique
     await db.runTransaction(async (t) => {
       const freshBuyerDoc = await t.get(db.collection('users').doc(buyerId));
       const freshArticleDoc = await t.get(articleRef);
@@ -616,12 +666,17 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
     });
 
     const order = {
-      articleId, buyerId, sellerId,
+      articleId,
+      buyerId,
+      sellerId,
       buyerPhone: buyerPhone || buyerDoc.data()?.phone || '',
-      amount: orderAmount, buyerCommission, totalAmount,
+      amount: orderAmount,
+      buyerCommission,
+      totalAmount,
       sellerCommission: Math.round(orderAmount * COMMISSION_SELLER),
       status: 'en attente de confirmation',
-      buyerConfirmed: false, buyerConfirmedAt: null,
+      buyerConfirmed: false,
+      buyerConfirmedAt: null,
       flamesGiven: false,
       expiresAt: new Date(Date.now() + ORDER_DELAY_MS),
       createdAt: new Date()
@@ -712,6 +767,7 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     const sellerSnapshot = await db.collection('orders').where('sellerId', '==', userId).get();
     const sellerOrders = [];
     for (const doc of sellerSnapshot.docs) {
+      // On ne duplique pas si l'utilisateur est à la fois acheteur et vendeur sur la même commande (rare)
       if (!orders.find(o => o.id === doc.id)) {
         const order = doc.data();
         const articleDoc = await db.collection('products').doc(order.articleId).get();
@@ -900,11 +956,18 @@ app.post('/api/messages', authenticate, async (req, res) => {
     if (blockedUsers.includes(senderId)) return res.status(403).json({ success: false, message: 'Vous etes bloque par ce destinataire' });
 
     const message = {
-      senderId, receiverId, text: text || '', audioUrl: audioUrl || '', audioDuration: audioDuration || 0,
-      senderName, senderPhoto,
+      senderId,
+      receiverId,
+      text: text || '',
+      audioUrl: audioUrl || '',
+      audioDuration: audioDuration || 0,
+      senderName,
+      senderPhoto,
       receiverName: receiverDoc.exists ? (receiverDoc.data().name || 'Utilisateur') : 'Utilisateur',
       receiverPhoto: receiverDoc.exists ? (receiverDoc.data().photo || '') : '',
-      participants: [senderId, receiverId], read: false, createdAt: new Date()
+      participants: [senderId, receiverId],
+      read: false,
+      createdAt: new Date()
     };
     const docRef = await db.collection('messages').add(message);
     await db.collection('notifications').add({ userId: receiverId, message: `Nouveau message de ${senderName}`, type: 'new_message', read: false, messageId: docRef.id, createdAt: new Date() });
