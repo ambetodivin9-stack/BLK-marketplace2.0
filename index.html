@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* ========== CSS COMPLET (identique à ta version + carrousel + formulaire) ========== */
+/* ========== CSS COMPLET (identique à ta version + carrousel + formulaire + animation) ========== */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -172,6 +172,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .publish-thumb img{width:100%;height:100%;object-fit:cover;}
 .publish-thumb button{position:absolute;top:2px;right:2px;background:#E74C3C;border:none;border-radius:50%;width:20px;height:20px;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .publish-add-btn{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border:2px dashed #ccc;border-radius:10px;background:#f9f9f9;cursor:pointer;color:#aaa;font-size:24px;}
+
+/* Animation de paiement */
+.spinner-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:5000;}
+.spinner-overlay.active{display:flex;}
+.spinner{width:50px;height:50px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -307,6 +313,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
+<!-- Spinner de chargement -->
+<div class="spinner-overlay" id="spinnerOverlay">
+  <div class="spinner"></div>
+</div>
+
 <script>
 // ===================== ICONS =====================
 var ICONS = {
@@ -387,6 +398,9 @@ function showConfirmAnimation(title, subtitle) {
   clearTimeout(overlay._t);
   overlay._t = setTimeout(() => { overlay.classList.remove('visible'); }, 2200);
   overlay.onclick = () => { overlay.classList.remove('visible'); };
+}
+function showSpinner(show) {
+  document.getElementById('spinnerOverlay').classList.toggle('active', show);
 }
 
 // ===================== AUTH =====================
@@ -632,7 +646,7 @@ function showProductModal(product) {
       </div>
 
       <div style="display:flex;gap:10px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="buyProduct('${product.id}', ${product.price}, '${product.sellerId}')">🛍 Acheter maintenant</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="showCheckoutModal(${JSON.stringify(product).replace(/"/g, '&quot;')})">🛍 Acheter maintenant</button>
         <button class="btn btn-outline" style="width:auto;padding:14px;" onclick="toggleFavorite('${product.id}')">❤️</button>
       </div>
     </div>
@@ -659,6 +673,121 @@ function showProductModal(product) {
 document.getElementById('storyClose').addEventListener('click', () => {
   document.getElementById('productStory').classList.remove('active');
 });
+
+// ===================== NOUVELLE PAGE DE COMMANDE =====================
+function showCheckoutModal(product) {
+  // Fermer la fiche produit
+  document.getElementById('productStory').classList.remove('active');
+
+  var shipping = 1000; // Livraison fixe
+  var protection = 500; // Protection BLK fixe
+  var total = product.price + shipping + protection;
+
+  var html = `
+    <div style="padding:20px;">
+      <h3 style="text-align:center;margin-bottom:16px;">🛍 Passer commande</h3>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:#f9f9f9;border-radius:12px;">
+        <img src="${product.image || (product.images && product.images[0])}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;">
+        <div>
+          <div style="font-weight:700;">${product.title}</div>
+          <div style="font-size:13px;color:#999;">By ${product.sellerName || 'Vendeur'} · Taille ${product.size || 'M'}</div>
+          <div style="font-weight:800;color:#E74C3C;">${product.price} FCFA</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">MODE DE PAIEMENT</label>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-sm payment-method-btn active" data-method="mtn" style="flex:1;">💛 MTN Mobile Money</button>
+          <button class="btn btn-sm payment-method-btn" data-method="airtel" style="flex:1;">❤️ Airtel Money</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">TON NUMÉRO MOBILE MONEY</label>
+        <input type="tel" id="checkoutPhone" placeholder="📱 Ex: 065918166" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;margin-top:6px;font-size:15px;">
+      </div>
+
+      <div style="background:#f9f9f9;border-radius:12px;padding:12px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Article</span><span>${product.price} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Livraison</span><span>${shipping} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Protection BLK</span><span>${protection} FCFA</span></div>
+        <hr style="border:none;border-top:1px solid #ddd;margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;font-weight:800;"><span>Total</span><span style="color:#E74C3C;">${total} FCFA</span></div>
+      </div>
+
+      <button class="btn btn-primary" id="confirmPaymentBtn">💳 Confirmer le paiement</button>
+      <button class="btn btn-outline" id="cancelCheckoutBtn" style="margin-top:8px;">Annuler</button>
+      <div id="checkoutStatus" style="margin-top:10px;font-size:13px;text-align:center;"></div>
+    </div>
+  `;
+
+  var overlay = openModal(html);
+  var selectedMethod = 'mtn';
+
+  // Gestion des boutons de paiement
+  overlay.querySelectorAll('.payment-method-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      overlay.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      selectedMethod = this.dataset.method;
+    });
+  });
+
+  overlay.querySelector('#cancelCheckoutBtn').addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#confirmPaymentBtn').addEventListener('click', function() {
+    var phone = overlay.querySelector('#checkoutPhone').value.trim();
+    var statusEl = overlay.querySelector('#checkoutStatus');
+    if (!phone) {
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Renseigne ton numéro mobile money.';
+      return;
+    }
+    if (!/^[0-9+ ]+$/.test(phone)) {
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Numéro invalide.';
+      return;
+    }
+
+    // Afficher le spinner
+    showSpinner(true);
+    this.disabled = true;
+
+    // Appeler l'API de création de commande
+    apiFetch('/api/orders/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        articleId: product.id,
+        sellerId: product.sellerId,
+        amount: product.price,
+        buyerPhone: phone
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      showSpinner(false);
+      this.disabled = false;
+      if (data.success) {
+        overlay.remove();
+        showConfirmAnimation('Paiement confirmé !', `Commande #${data.orderId ? data.orderId.slice(0,8) : ''} créée avec succès.`);
+        loadWallet();
+        loadOrders();
+        loadProducts();
+      } else {
+        statusEl.style.color = '#E74C3C';
+        statusEl.textContent = data.message || 'Erreur lors du paiement.';
+      }
+    })
+    .catch(e => {
+      showSpinner(false);
+      this.disabled = false;
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Erreur réseau: ' + e.message;
+    });
+  });
+}
 
 // ===================== FORMULAIRE DE PUBLICATION =====================
 document.getElementById('btnPublish').addEventListener('click', () => {
@@ -1171,7 +1300,7 @@ function openDiscussion(contactId, contactName) {
     var p = activeChatProduct;
     productCard.style.display = 'flex';
     productCard.innerHTML = '<img src="'+(p.image||(p.images&&p.images[0])||'')+'"><div class="dp-info"><div class="dp-title">'+(p.title||'Article')+'</div><div class="dp-price">'+(p.price||0)+' FCFA</div></div><button id="discussionBuyBtn">Acheter</button>';
-    document.getElementById('discussionBuyBtn').addEventListener('click', () => buyProduct(p.id, p.price, p.sellerId));
+    document.getElementById('discussionBuyBtn').addEventListener('click', () => showCheckoutModal(p));
   } else { productCard.style.display='none'; productCard.innerHTML=''; }
 
   loadConversation(contactId);
