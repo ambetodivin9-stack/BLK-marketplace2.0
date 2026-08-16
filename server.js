@@ -52,13 +52,15 @@ function parseAmount(value) {
   return amount;
 }
 
+// Fonction corrigée : format avec le signe + pour Yabetoo
 function formatPhoneForYabetoo(phone) {
-  let digits = String(phone).replace(/\D/g, '');
-  if (digits.startsWith('242')) digits = digits.substring(3);
-  if (digits.startsWith('0')) digits = digits.substring(1);
-  return '242' + digits;
+  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
+  if (formatted.startsWith('0')) formatted = formatted.substring(1);
+  if (!formatted.startsWith('242')) formatted = '242' + formatted;
+  return '+' + formatted;
 }
 
+// Middleware d'authentification
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -75,6 +77,7 @@ function authenticate(req, res, next) {
   }
 }
 
+// ==================== ROUTES DE BASE ====================
 app.get('/', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
@@ -183,23 +186,11 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
     const article = {
-      title,
-      description,
-      price: articlePrice,
-      category,
-      condition,
-      size: size || '',
-      hashtags: Array.isArray(hashtags) ? hashtags : [],
-      image: imageList[0],
-      images: imageList,
-      sellerId,
-      sellerName: sellerName || 'Anonyme',
-      sellerPhoto: sellerPhoto || '',
-      status: 'active',
-      views: 0,
-      favorites: 0,
-      stock: 1,
-      createdAt: new Date()
+      title, description, price: articlePrice, category, condition,
+      size: size || '', hashtags: Array.isArray(hashtags) ? hashtags : [],
+      image: imageList[0], images: imageList,
+      sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
+      status: 'active', views: 0, favorites: 0, stock: 1, createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
@@ -384,7 +375,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const depositAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone);
+    const formattedPhone = formatPhoneForYabetoo(phone); // avec + maintenant
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -406,8 +397,12 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     }
 
     const confirmPayload = {
-      client_secret: clientSecret, amount: depositAmount, currency: 'xaf',
-      first_name: 'Client', last_name: 'BLK', receipt_email: userDoc.data()?.email || 'client@blk.com',
+      client_secret: clientSecret,
+      amount: depositAmount,
+      currency: 'xaf',
+      first_name: 'Client',
+      last_name: 'BLK',
+      receipt_email: userDoc.data()?.email || 'client@blk.com',
       payment_method_data: { type: 'momo', momo: { country: 'cg', msisdn: formattedPhone, operator_name: operatorName } }
     };
     const confirmResponse = await axios.post(
@@ -434,8 +429,11 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
     return res.status(502).json({
-      success: false, message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
-      yabetoo_http_status: error.response?.status || null, yabetoo_error: error.response?.data || null, raw_message: error.message
+      success: false,
+      message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
+      yabetoo_http_status: error.response?.status || null,
+      yabetoo_error: error.response?.data || null,
+      raw_message: error.message
     });
   }
 });
