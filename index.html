@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* ========== CSS COMPLET (identique à votre version + carrousel) ========== */
+/* ========== CSS COMPLET (identique à ta version + carrousel + formulaire) ========== */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -175,7 +175,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </style>
 </head>
 <body>
-<!-- ========== SPLASH, AUTH, APP (structure identique) ========== -->
+<!-- ========== SPLASH, AUTH, APP ========== -->
 <div class="kente"></div>
 <div class="splash-screen" id="splashScreen">
   <img src="" alt="BLK" class="splash-logo" id="splashLogo">
@@ -308,7 +308,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <script>
-// ===================== ICONS (inchangé) =====================
+// ===================== ICONS =====================
 var ICONS = {
   flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-6.8 0-2.7-1.7-4.6-2.8-6.4-.6 1.7-1.5 2.6-2.4 2.6.6-2.8-.8-5.6-3.2-7 .4 2.8-1 4.8-2.8 6.6-1.3 1.4-1.8 2.8-1.8 4.2C6 19.3 8 22 12 22Z"/></svg>',
   box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg>',
@@ -843,13 +843,416 @@ document.getElementById('btnPublish').addEventListener('click', () => {
   });
 });
 
-// ===================== FONCTIONS ADDITIONNELLES =====================
-function toggleFavorite(articleId) {
-  showAlert('Favori ajouté (à implémenter)', 'info');
+// ===================== WALLET =====================
+function loadWallet() {
+  if (!currentUserId) return;
+  apiFetch('/api/wallet/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var balance = data.balance || 0;
+    document.getElementById('walletBalanceNew').textContent = balance;
+    if (currentUser) currentUser.walletBalance = balance;
+  }).catch(() => {});
+}
+document.getElementById('btnDepositNew').addEventListener('click', () => openMoneyForm('deposit'));
+document.getElementById('btnWithdrawNew').addEventListener('click', () => openMoneyForm('withdraw'));
+document.getElementById('btnTransferNew').addEventListener('click', openTransferForm);
+
+function openTransferForm() {
+  var html = '<h3 style="margin-bottom:14px;text-align:center;">Transférer à un utilisateur BLK</h3>';
+  html += '<input type="tel" id="transferPhone" placeholder="Numéro du destinataire" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<input type="number" id="transferAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<button class="btn btn-primary" id="transferSubmit">Envoyer</button>';
+  html += '<button class="btn btn-outline" id="transferCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="transferStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  overlay.querySelector('#transferCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#transferSubmit').addEventListener('click', function(){
+    var toPhone = overlay.querySelector('#transferPhone').value.trim();
+    var amount = overlay.querySelector('#transferAmount').value;
+    var statusEl = overlay.querySelector('#transferStatus');
+    if (!toPhone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
+    this.disabled = true;
+    apiFetch('/api/wallet/transfer', {
+      method:'POST',
+      body: JSON.stringify({ toPhone, amount: parseInt(amount) })
+    })
+    .then(r => r.json())
+    .then(data => {
+      this.disabled = false;
+      if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); setTimeout(() => overlay.remove(), 1500); }
+      else { statusEl.style.color='#E74C3C'; statusEl.textContent=data.message||'Le transfert a échoué.'; }
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+  });
+}
+function openMoneyForm(kind) {
+  var isDeposit = kind === 'deposit';
+  var html = '<h3 style="text-align:center;margin-bottom:14px;">' + (isDeposit?'Déposer sur ton wallet':'Retirer de ton wallet') + '</h3>';
+  html += '<div style="display:flex;gap:10px;margin-bottom:10px;"><button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button><button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button></div>';
+  html += '<input type="tel" id="moneyPhone" placeholder="Numéro" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<input type="number" id="moneyAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<button class="btn btn-primary" id="moneySubmit">' + (isDeposit?'Confirmer le dépôt':'Confirmer le retrait') + '</button>';
+  html += '<button class="btn btn-outline" id="moneyCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="moneyStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  var selectedOp = 'mtn';
+  overlay.querySelectorAll('.money-op-btn').forEach(btn => {
+    btn.addEventListener('click', function(){
+      overlay.querySelectorAll('.money-op-btn').forEach(b => b.className='btn btn-sm btn-outline money-op-btn');
+      this.className = 'btn btn-sm money-op-btn';
+      selectedOp = this.dataset.op;
+    });
+  });
+  overlay.querySelector('#moneyCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#moneySubmit').addEventListener('click', function(){
+    var phone = overlay.querySelector('#moneyPhone').value.trim();
+    var amount = overlay.querySelector('#moneyAmount').value;
+    var statusEl = overlay.querySelector('#moneyStatus');
+    if (!phone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
+    this.disabled = true;
+    if (isDeposit) {
+      statusEl.style.color='#999'; statusEl.textContent='Envoi de la demande...';
+      apiFetch('/api/payment/initiate', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
+        if (data.success) {
+          statusEl.style.color='#27ae60';
+          statusEl.textContent = data.status === 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
+          loadWallet();
+          if (data.status === 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(() => overlay.remove(), 1500); }
+        } else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le dépôt a échoué.'; }
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    } else {
+      statusEl.style.color='#999'; statusEl.textContent='Traitement du retrait...';
+      apiFetch('/api/wallet/withdraw', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
+        if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); showConfirmAnimation('Retrait initié !', amount+' FCFA sous 24h'); setTimeout(() => overlay.remove(), 1500); }
+        else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le retrait a échoué.'; }
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    }
+  });
 }
 
-// ===================== AUTRES FONCTIONS (messages, commandes, etc.) =====================
-// ... (conservez les fonctions existantes : loadWallet, loadOrders, openTransferForm, etc. Elles sont identiques à la version précédente)
+// ===================== STATS =====================
+function loadStats() {
+  if (!currentUserId) return;
+  apiFetch('/api/stats/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      var s = data.data;
+      document.getElementById('statTotalSales').textContent = s.totalSales || 0;
+      document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
+      document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
+      document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
+    }
+  }).catch(() => {});
+}
+
+// ===================== ORDER TIMER & LIST =====================
+setInterval(() => {
+  document.querySelectorAll('.order-ring').forEach(ring => {
+    var expires = parseServerDate(ring.dataset.expires);
+    var total = parseFloat(ring.dataset.total) || (6*3600*1000);
+    var textEl = ring.querySelector('.order-ring-text');
+    var fg = ring.querySelector('circle.fg');
+    if (!expires) { textEl.textContent=''; return; }
+    var diff = expires.getTime() - Date.now();
+    var circ = 175.9;
+    fg.setAttribute('stroke-dasharray', circ);
+    if (diff <= 0) { textEl.textContent='Expiré'; fg.style.strokeDashoffset=0; return; }
+    var frac = Math.max(0, Math.min(1, diff/total));
+    fg.style.strokeDashoffset = (circ * (1-frac)).toFixed(1);
+    var h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+    textEl.textContent = h>0 ? (h+'h'+(m<10?'0':'')+m) : ((m<10?'0':'')+m+':'+(s<10?'0':'')+s);
+  });
+}, 1000);
+
+function loadOrders() {
+  if (!currentUserId) return;
+  apiFetch('/api/orders/' + currentUserId)
+  .then(r => r.json())
+  .then(orders => {
+    var container = document.getElementById('ordersList');
+    var empty = document.getElementById('emptyOrders');
+    if (!Array.isArray(orders) || orders.length === 0) { container.innerHTML=''; empty.style.display='block'; return; }
+    empty.style.display = 'none';
+    container.innerHTML = '';
+    orders.forEach(order => {
+      var card = document.createElement('div');
+      card.className = 'glass';
+      card.style.marginBottom = '12px';
+      var statusText = '<span class="icon-inline">' + ICONS.info + '</span> En attente';
+      if (order.status === 'livré') statusText = '<span class="icon-inline">' + ICONS.check + '</span> Livré';
+      else if (order.status === 'annulé') statusText = 'Annulé';
+      else if (order.status === 'expiré') statusText = 'Expiré';
+      var articleTitle = (order.article && order.article.title) || 'Article';
+      var amount = order.totalAmount || order.amount || 0;
+
+      var ringHtml = '';
+      if (order.status === 'en attente de confirmation' && order.expiresAt) {
+        var isBuyer = order.buyerId === currentUserId;
+        var createdMs = order.createdAt ? (parseServerDate(order.createdAt)||new Date()).getTime() : Date.now();
+        var expiresMs = (parseServerDate(order.expiresAt)||new Date()).getTime();
+        var totalMs = expiresMs - createdMs;
+        var expiresIso = new Date(parseServerDate(order.expiresAt)).toISOString();
+        ringHtml = '<div class="order-ring-wrap' + (isBuyer?'':' readonly') + '" data-order-id="' + order.id + '">' +
+          '<div class="order-ring-box order-ring" data-expires="' + expiresIso + '" data-total="' + totalMs + '">' +
+          '<svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28"/></svg>' +
+          '<div class="order-ring-text"></div></div>' +
+          '<div class="order-ring-label"><span>' + (isBuyer?'En attente de livraison':'Livraison en cours') + '</span>' +
+          '<span class="small">' + (isBuyer?'Touche pour confirmer réception':"En attente de l'acheteur") + '</span></div></div>';
+      }
+      card.innerHTML = '<div><strong>' + articleTitle + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText + '</span></div>' + ringHtml;
+      if (order.status === 'en attente de confirmation' && order.buyerId === currentUserId) {
+        card.querySelector('.order-ring-wrap').addEventListener('click', () => openOrderConfirm(order.id));
+      }
+      container.appendChild(card);
+    });
+  })
+  .catch(e => { console.error(e); document.getElementById('ordersList').innerHTML = '<p class="empty">Erreur chargement</p>'; });
+}
+
+function openOrderConfirm(orderId) {
+  var html = '<h3 style="margin-bottom:12px;">Confirmer la réception</h3>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;"><input type="checkbox" id="ocRecu"> J\'ai bien reçu l\'article</label>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;"><input type="checkbox" id="ocEtat"> Il est en bon état</label>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:14px;"><input type="checkbox" id="ocConfirme"> Je confirme la transaction</label>';
+  html += '<button class="btn btn-success" id="ocSubmit">Confirmer le paiement</button>';
+  html += '<button class="btn btn-outline" id="ocCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="ocStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  overlay.querySelector('#ocCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#ocSubmit').addEventListener('click', function(){
+    var statusEl = overlay.querySelector('#ocStatus');
+    var recu = overlay.querySelector('#ocRecu').checked;
+    var bonEtat = overlay.querySelector('#ocEtat').checked;
+    var confirme = overlay.querySelector('#ocConfirme').checked;
+    if (!recu || !bonEtat || !confirme) { statusEl.style.color='#E74C3C'; statusEl.textContent='Coche les 3 cases pour confirmer.'; return; }
+    this.disabled = true;
+    statusEl.style.color='#999'; statusEl.textContent='Confirmation en cours...';
+    apiFetch('/api/orders/confirm', {
+      method:'POST',
+      body: JSON.stringify({ orderId, confirmations: { recu:true, bon_etat:true, confirme:true } })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        overlay.remove();
+        showConfirmAnimation('Commande confirmée !', 'Le vendeur a été crédité.');
+        loadOrders(); loadProducts(); loadShopArticles(); loadStats();
+      } else {
+        this.disabled = false;
+        statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'La confirmation a échoué.';
+      }
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+  });
+}
+
+// ===================== MAGASIN =====================
+function loadShopArticles() {
+  if (!currentUserId) return;
+  apiFetch('/api/articles/seller/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('shopArticles');
+    if (!data.success || !data.data || data.data.length === 0) { container.innerHTML = '<p class="empty">Aucun article publié</p>'; return; }
+    container.innerHTML = '';
+    data.data.forEach(a => {
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.5);border-radius:12px;padding:12px;margin-bottom:8px;';
+      var statusText = a.status==='active' ? 'En vente' : (a.status==='reserved' ? 'Réservé (commande en cours)' : (a.status==='sold' ? 'Vendu' : 'Inactif'));
+      div.innerHTML = '<img src="' + (a.image||'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px;height:50px;object-fit:cover;border-radius:8px;"><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px;color:#999;">' + statusText + '</span></div>';
+      if (a.status === 'active') {
+        var delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-danger btn-sm';
+        delBtn.style.cssText = 'width:auto;padding:6px 12px;';
+        delBtn.textContent = 'Supprimer';
+        delBtn.onclick = () => deleteArticle(a.id);
+        div.appendChild(delBtn);
+      }
+      container.appendChild(div);
+    });
+  }).catch(e => console.error(e));
+}
+function deleteArticle(articleId) {
+  if (!confirm('Supprimer cet article ?')) return;
+  apiFetch('/api/articles/' + articleId, { method:'DELETE' })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showAlert('Article supprimé !', 'success'); loadShopArticles(); loadProducts(); loadStats(); }
+    else showAlert(data.message, 'error');
+  }).catch(e => showAlert('Erreur: '+e.message, 'error'));
+}
+
+// ===================== MESSAGES =====================
+function loadMessages() {
+  if (!currentUserId) return;
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('contactsList');
+    var empty = document.getElementById('emptyMessages');
+    var view = document.getElementById('discussionView');
+    if (!data.success || !data.data || data.data.length === 0) {
+      container.innerHTML = '';
+      if (activeConversationId) { empty.style.display='none'; view.style.display='block'; }
+      else { empty.style.display='block'; view.style.display='none'; }
+      return;
+    }
+    empty.style.display = 'none';
+    var contacts = {};
+    data.data.forEach(msg => {
+      var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+      var otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+      var preview = msg.audioUrl ? 'Message vocal' : (msg.text || '');
+      if (!contacts[otherId]) contacts[otherId] = { name: otherName||'Utilisateur', lastMessage: preview, time: msg.createdAt, unread: (msg.receiverId===currentUserId && !msg.read)?1:0, photo: msg.senderId===currentUserId?msg.receiverPhoto:msg.senderPhoto };
+      else if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread += 1;
+      var existingTime = parseServerDate(contacts[otherId].time);
+      var msgTime = parseServerDate(msg.createdAt);
+      if (msgTime && (!existingTime || msgTime > existingTime)) { contacts[otherId].lastMessage = preview; contacts[otherId].time = msg.createdAt; }
+    });
+    var keys = Object.keys(contacts);
+    keys.sort((a,b) => (parseServerDate(contacts[b].time)||0) - (parseServerDate(contacts[a].time)||0));
+    container.innerHTML = keys.map(id => {
+      var c = contacts[id];
+      var isActive = (activeConversationId===id) ? 'active' : '';
+      var unreadBadge = c.unread>0 ? '<span class="contact-row-badge">'+c.unread+'</span>' : '';
+      var avatarHtml = c.photo ? '<img src="'+c.photo+'">' : '<span>'+(c.name||'U').charAt(0).toUpperCase()+'</span>';
+      var d = parseServerDate(c.time);
+      var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+      return '<div class="contact-row '+isActive+'" data-id="'+id+'"><div class="contact-row-avatar">'+avatarHtml+'</div><div class="contact-row-info"><div class="contact-row-name">'+c.name+'</div><div class="contact-row-preview">'+c.lastMessage+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span style="font-size:11px;color:#aaa;">'+timeStr+'</span>'+unreadBadge+'</div></div>';
+    }).join('');
+    document.querySelectorAll('.contact-row').forEach(el => {
+      el.addEventListener('click', function(){
+        activeConversationId = this.dataset.id;
+        activeChatProduct = null;
+        document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        openDiscussion(this.dataset.id, contacts[this.dataset.id].name);
+      });
+    });
+    if (!activeConversationId && keys.length>0) { activeConversationId = keys[0]; openDiscussion(activeConversationId, contacts[activeConversationId].name); }
+    else if (activeConversationId && contacts[activeConversationId]) openDiscussion(activeConversationId, contacts[activeConversationId].name);
+  }).catch(e => console.error(e));
+}
+
+function openDiscussion(contactId, contactName) {
+  var view = document.getElementById('discussionView');
+  view.style.display = 'block';
+  document.getElementById('emptyMessages').style.display = 'none';
+  view.innerHTML = '<div class="glass"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">'+contactName+'</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion">'+ICONS.cross+'</button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px;overflow-y:auto;padding:4px 0;"></div><div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" style="width:auto;padding:12px 14px;">'+ICONS.mic+'</button><button class="btn btn-primary" id="btnSendMessage" style="width:auto;padding:12px 20px;">Envoyer</button></div></div>';
+
+  document.getElementById('btnCloseDiscussion').addEventListener('click', () => { view.style.display='none'; activeConversationId=null; });
+  document.getElementById('btnSendMessage').addEventListener('click', function(){
+    var text = document.getElementById('messageInput').value.trim();
+    if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
+    document.getElementById('messageInput').value = '';
+    sendMessagePayload({ receiverId: activeConversationId, text });
+  });
+  document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key==='Enter') document.getElementById('btnSendMessage').click(); });
+  initVoiceButton();
+
+  var productCard = document.getElementById('discussionProductCard');
+  if (activeChatProduct && activeChatProduct.sellerId === contactId) {
+    var p = activeChatProduct;
+    productCard.style.display = 'flex';
+    productCard.innerHTML = '<img src="'+(p.image||(p.images&&p.images[0])||'')+'"><div class="dp-info"><div class="dp-title">'+(p.title||'Article')+'</div><div class="dp-price">'+(p.price||0)+' FCFA</div></div><button id="discussionBuyBtn">Acheter</button>';
+    document.getElementById('discussionBuyBtn').addEventListener('click', () => buyProduct(p.id, p.price, p.sellerId));
+  } else { productCard.style.display='none'; productCard.innerHTML=''; }
+
+  loadConversation(contactId);
+}
+
+function loadConversation(contactId) {
+  if (!currentUserId || !contactId) return;
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('messagesList');
+    if (!container || !data.success) return;
+    var messages = data.data.filter(m => (m.senderId===currentUserId && m.receiverId===contactId) || (m.senderId===contactId && m.receiverId===currentUserId));
+    messages.sort((a,b) => (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0));
+    if (messages.length===0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; }
+    container.innerHTML = messages.map(msg => {
+      var isMine = msg.senderId===currentUserId;
+      var d = parseServerDate(msg.createdAt);
+      var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+      var bodyHtml = msg.audioUrl ? '<audio controls src="'+msg.audioUrl+'" style="max-width:200px;height:36px;"></audio>' : (msg.text||'');
+      return '<div class="message-bubble '+(isMine?'mine':'other')+'"><div class="bubble">'+bodyHtml+'<span class="time">'+timeStr+'</span></div></div>';
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }).catch(e => console.error(e));
+}
+function sendMessagePayload(payload) {
+  apiFetch('/api/messages', { method:'POST', body: JSON.stringify(payload) })
+  .then(r => r.json())
+  .then(data => { if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); })
+  .catch(e => showAlert('Erreur: '+e.message, 'error'));
+}
+
+var mediaRecorder = null, audioChunks = [], recordStartTime = 0;
+function initVoiceButton() {
+  var btn = document.getElementById('btnRecordVoice');
+  if (!btn || btn._bound) return;
+  btn._bound = true;
+  btn.addEventListener('click', function(){
+    if (!activeConversationId) { showAlert("Ouvre une discussion d'abord", 'error'); return; }
+    if (!mediaRecorder || mediaRecorder.state==='inactive') startRecording(btn); else stopRecording(btn);
+  });
+}
+function startRecording(btn) {
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+    audioChunks = []; recordStartTime = Date.now();
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      var duration = Math.round((Date.now()-recordStartTime)/1000);
+      var blob = new Blob(audioChunks, {type:'audio/webm'});
+      var reader = new FileReader();
+      reader.onload = e => sendMessagePayload({ receiverId: activeConversationId, audioUrl: e.target.result, audioDuration: duration });
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+  }).catch(() => showAlert("Impossible d'accéder au micro.", 'error'));
+}
+function stopRecording(btn) { if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop(); btn.classList.remove('recording'); }
+
+// ===================== AUTO-REFRESH =====================
+var refreshInterval = null;
+function startAutoRefresh() {
+  clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => {
+    var ordersActive = document.getElementById('pageOrders').classList.contains('active');
+    var shopActive = document.getElementById('pageShop').classList.contains('active');
+    var homeActive = document.getElementById('pageHome').classList.contains('active');
+    if (ordersActive) loadOrders();
+    if (shopActive) { loadShopArticles(); loadStats(); }
+    if (homeActive) loadProducts();
+  }, 15000);
+}
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUserId');
+  localStorage.removeItem('currentUser');
+  location.reload();
+});
 
 console.log('BLK Marketplace chargé');
 </script>
