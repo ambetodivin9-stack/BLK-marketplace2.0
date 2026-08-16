@@ -46,12 +46,13 @@ const COMMISSION_SELLER = 0.04;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['vêtements', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
+// Fonction corrigée pour formater le téléphone
 function formatPhoneForYabetoo(phone) {
   let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
   if (formatted.startsWith('0')) formatted = formatted.substring(1);
   if (!formatted.startsWith('242')) formatted = '242' + formatted;
-  if (formatted.length !== 12) throw new Error('PHONE_INVALID');
-  return '+' + formatted;
+  // On retourne le numéro sans le +
+  return formatted;
 }
 
 function parseAmount(value) {
@@ -135,13 +136,12 @@ app.get('/api/articles', async (req, res) => {
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
-    // Tri en mémoire par createdAt desc
     articles.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
     });
-    articles = articles.slice(0, 200); // Limite
+    articles = articles.slice(0, 200);
     res.json({ success: true, data: articles });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -373,7 +373,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const depositAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone);
+    const formattedPhone = formatPhoneForYabetoo(phone); // maintenant sans le +
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -544,7 +544,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
           amount: withdrawAmount, currency: 'XAF',
           first_name: doc.data()?.name?.split(' ')[0] || 'Client',
           last_name: doc.data()?.name?.split(' ').slice(1).join(' ') || 'BLK',
-          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone.replace('+', ''), country: 'CG', operator_name: operatorName } }
+          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'CG', operator_name: operatorName } }
         },
         { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}`, 'Content-Type': 'application/json' } }
       );
@@ -708,7 +708,6 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     const sellerSnapshot = await db.collection('orders').where('sellerId', '==', userId).get();
     const sellerOrders = [];
     for (const doc of sellerSnapshot.docs) {
-      // éviter les doublons si l'utilisateur est à la fois acheteur et vendeur
       if (!orders.find(o => o.id === doc.id)) {
         const order = doc.data();
         const articleDoc = await db.collection('products').doc(order.articleId).get();
@@ -720,14 +719,13 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     }
 
     const allOrders = buyerOrders.concat(sellerOrders);
-    // Tri en mémoire
     allOrders.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
     });
 
-    res.json(allOrders.slice(0, 200)); // Limite optionnelle
+    res.json(allOrders.slice(0, 200));
   } catch (error) {
     console.error('Orders Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
@@ -866,14 +864,12 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     const snapshot = await db.collection('messages').where('participants', 'array-contains', userId).get();
     let messages = [];
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
-    // Marquer comme lu
     for (const msg of messages) {
       if (msg.receiverId === userId && !msg.read) {
         await db.collection('messages').doc(msg.id).update({ read: true });
-        msg.read = true; // mise à jour locale
+        msg.read = true;
       }
     }
-    // Tri en mémoire
     messages.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
