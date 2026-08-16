@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* ========== CSS COMPLET (identique à ta version + carrousel + formulaire + animation) ========== */
+/* ========== CSS COMPLET (identique à ta version + carrousel + formulaire + animation + messagerie) ========== */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -178,6 +178,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .spinner-overlay.active{display:flex;}
 .spinner{width:50px;height:50px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* Messagerie */
+.chat-header{display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:10;}
+.chat-back-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#E74C3C;}
+.chat-contact-info{flex:1;display:flex;align-items:center;gap:10px;}
+.chat-contact-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#FF8C00);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;overflow:hidden;}
+.chat-contact-avatar img{width:100%;height:100%;object-fit:cover;}
+.chat-contact-name{font-weight:700;}
+.chat-contact-status{font-size:12px;color:#2ECC71;}
+.chat-actions{display:flex;gap:12px;}
+.chat-action-btn{background:none;border:none;font-size:20px;cursor:pointer;}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;background:#f5f5f5;min-height:300px;max-height:calc(100vh - 250px);}
+.message-row{display:flex;margin-bottom:10px;}
+.message-row.mine{justify-content:flex-end;}
+.message-bubble{max-width:75%;padding:10px 14px;border-radius:18px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1);font-size:14px;position:relative;}
+.message-row.mine .message-bubble{background:#E74C3C;color:#fff;border-bottom-right-radius:4px;}
+.message-row.other .message-bubble{background:#fff;border-bottom-left-radius:4px;}
+.message-time{display:block;font-size:10px;opacity:.6;margin-top:2px;text-align:right;}
+.audio-message{display:flex;align-items:center;gap:8px;}
+.audio-message audio{width:200px;height:36px;}
+.chat-input-bar{display:flex;align-items:center;gap:8px;padding:10px;background:#fff;border-top:1px solid #eee;position:sticky;bottom:0;}
+.chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid #ddd;border-radius:20px;font-size:15px;}
+.chat-send-btn{background:#E74C3C;border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.chat-mic-btn{background:#f0f0f0;border:none;border-radius:50%;width:40px;height:40px;color:#555;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.chat-mic-btn.recording{background:#E74C3C;color:#fff;}
 </style>
 </head>
 <body>
@@ -676,11 +701,10 @@ document.getElementById('storyClose').addEventListener('click', () => {
 
 // ===================== NOUVELLE PAGE DE COMMANDE =====================
 function showCheckoutModal(product) {
-  // Fermer la fiche produit
   document.getElementById('productStory').classList.remove('active');
 
-  var shipping = 1000; // Livraison fixe
-  var protection = 500; // Protection BLK fixe
+  var shipping = 1000;
+  var protection = 500;
   var total = product.price + shipping + protection;
 
   var html = `
@@ -726,7 +750,6 @@ function showCheckoutModal(product) {
   var overlay = openModal(html);
   var selectedMethod = 'mtn';
 
-  // Gestion des boutons de paiement
   overlay.querySelectorAll('.payment-method-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       overlay.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
@@ -751,11 +774,9 @@ function showCheckoutModal(product) {
       return;
     }
 
-    // Afficher le spinner
     showSpinner(true);
     this.disabled = true;
 
-    // Appeler l'API de création de commande
     apiFetch('/api/orders/create', {
       method: 'POST',
       body: JSON.stringify({
@@ -1227,7 +1248,7 @@ function deleteArticle(articleId) {
   }).catch(e => showAlert('Erreur: '+e.message, 'error'));
 }
 
-// ===================== MESSAGES =====================
+// ===================== MESSAGERIE AMÉLIORÉE (WhatsApp-like) =====================
 function loadMessages() {
   if (!currentUserId) return;
   apiFetch('/api/messages/' + currentUserId)
@@ -1283,9 +1304,51 @@ function openDiscussion(contactId, contactName) {
   var view = document.getElementById('discussionView');
   view.style.display = 'block';
   document.getElementById('emptyMessages').style.display = 'none';
-  view.innerHTML = '<div class="glass"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">'+contactName+'</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion">'+ICONS.cross+'</button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px;overflow-y:auto;padding:4px 0;"></div><div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" style="width:auto;padding:12px 14px;">'+ICONS.mic+'</button><button class="btn btn-primary" id="btnSendMessage" style="width:auto;padding:12px 20px;">Envoyer</button></div></div>';
 
-  document.getElementById('btnCloseDiscussion').addEventListener('click', () => { view.style.display='none'; activeConversationId=null; });
+  // Récupérer les infos du contact (avatar, statut)
+  var contactAvatar = '';
+  var contactStatus = 'Hors ligne';
+  apiFetch('/api/users/' + contactId)
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      contactAvatar = data.data.photo ? `<img src="${data.data.photo}" alt="">` : (data.data.name || '?').charAt(0).toUpperCase();
+      contactStatus = data.data.online ? '🟢 En ligne maintenant' : 'Hors ligne';
+      updateDiscussionHeader(contactName, contactAvatar, contactStatus);
+    }
+  }).catch(() => {});
+
+  view.innerHTML = `
+    <div class="glass" style="padding:0;margin:0;border-radius:0;">
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnCloseDiscussion">‹</button>
+        <div class="chat-contact-info">
+          <div class="chat-contact-avatar" id="discussionAvatar">${contactAvatar}</div>
+          <div>
+            <div class="chat-contact-name">${contactName}</div>
+            <div class="chat-contact-status" id="discussionStatus">${contactStatus}</div>
+          </div>
+        </div>
+        <div class="chat-actions">
+          <button class="chat-action-btn" id="btnVideoCall" title="Appel vidéo">📹</button>
+          <button class="chat-action-btn" id="btnAudioCall" title="Appel audio">📞</button>
+        </div>
+      </div>
+      <div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div>
+      <div class="chat-messages" id="messagesList"></div>
+      <div class="chat-input-bar">
+        <button class="chat-mic-btn" id="btnRecordVoice" type="button">🎙️</button>
+        <input type="text" id="messageInput" placeholder="Écris ton message...">
+        <button class="chat-send-btn" id="btnSendMessage">➤</button>
+      </div>
+    </div>
+  `;
+
+  // Boutons
+  document.getElementById('btnCloseDiscussion').addEventListener('click', () => {
+    view.style.display='none';
+    activeConversationId=null;
+  });
   document.getElementById('btnSendMessage').addEventListener('click', function(){
     var text = document.getElementById('messageInput').value.trim();
     if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
@@ -1295,6 +1358,17 @@ function openDiscussion(contactId, contactName) {
   document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key==='Enter') document.getElementById('btnSendMessage').click(); });
   initVoiceButton();
 
+  // Appels vidéo/audio via Jitsi Meet (gratuit, sans serveur)
+  document.getElementById('btnVideoCall').addEventListener('click', () => {
+    const roomName = `BLK-${currentUserId}-${contactId}-video`;
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+  });
+  document.getElementById('btnAudioCall').addEventListener('click', () => {
+    const roomName = `BLK-${currentUserId}-${contactId}-audio`;
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+  });
+
+  // Carte produit si activeChatProduct existe
   var productCard = document.getElementById('discussionProductCard');
   if (activeChatProduct && activeChatProduct.sellerId === contactId) {
     var p = activeChatProduct;
@@ -1304,6 +1378,13 @@ function openDiscussion(contactId, contactName) {
   } else { productCard.style.display='none'; productCard.innerHTML=''; }
 
   loadConversation(contactId);
+}
+
+function updateDiscussionHeader(name, avatar, status) {
+  var avatarEl = document.getElementById('discussionAvatar');
+  var statusEl = document.getElementById('discussionStatus');
+  if (avatarEl) avatarEl.innerHTML = avatar;
+  if (statusEl) statusEl.textContent = status;
 }
 
 function loadConversation(contactId) {
@@ -1320,8 +1401,8 @@ function loadConversation(contactId) {
       var isMine = msg.senderId===currentUserId;
       var d = parseServerDate(msg.createdAt);
       var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-      var bodyHtml = msg.audioUrl ? '<audio controls src="'+msg.audioUrl+'" style="max-width:200px;height:36px;"></audio>' : (msg.text||'');
-      return '<div class="message-bubble '+(isMine?'mine':'other')+'"><div class="bubble">'+bodyHtml+'<span class="time">'+timeStr+'</span></div></div>';
+      var bodyHtml = msg.audioUrl ? '<div class="audio-message"><audio controls src="'+msg.audioUrl+'"></audio><span>'+(msg.audioDuration||0)+'s</span></div>' : (msg.text||'');
+      return '<div class="message-row '+(isMine?'mine':'other')+'"><div class="message-bubble">'+bodyHtml+'<span class="message-time">'+timeStr+'</span></div></div>';
     }).join('');
     container.scrollTop = container.scrollHeight;
   }).catch(e => console.error(e));
