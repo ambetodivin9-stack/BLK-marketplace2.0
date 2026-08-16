@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
+/* CSS identique à votre version précédente */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -166,9 +167,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="auth-card">
     <div class="auth-title">Welcome to <br><span>BLKmarketplace</span></div>
     <p class="auth-subtitle">Shop unique finds with an African touch.</p>
+    <div id="authModeToggle" style="display:flex;gap:10px;margin-bottom:20px;">
+      <button class="btn btn-sm btn-primary" id="showLogin">Connexion</button>
+      <button class="btn btn-sm btn-outline" id="showRegister">Inscription</button>
+    </div>
     <form id="authForm" autocomplete="off">
-      <div class="auth-input-group"><input type="text" id="loginName" placeholder="Nom complet" required></div>
+      <div class="auth-input-group" id="nameGroup"><input type="text" id="loginName" placeholder="Nom complet"></div>
       <div class="auth-input-group"><input type="email" id="loginEmail" placeholder="Adresse e-mail" required></div>
+      <div class="auth-input-group"><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
       <button type="submit" class="auth-btn" id="btnLogin">Se connecter</button>
     </form>
     <div id="authError"></div>
@@ -289,6 +295,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <script>
+// ===================== ICONS =====================
 var ICONS = {
   flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-6.8 0-2.7-1.7-4.6-2.8-6.4-.6 1.7-1.5 2.6-2.4 2.6.6-2.8-.8-5.6-3.2-7 .4 2.8-1 4.8-2.8 6.6-1.3 1.4-1.8 2.8-1.8 4.2C6 19.3 8 22 12 22Z"/></svg>',
   box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg>',
@@ -308,12 +315,25 @@ var TAB_ICONS = {
   orders:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/></svg>',
   profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4.5-6 7-6s6 2 7 6"/></svg>'
 };
-document.querySelectorAll('[data-ic]').forEach(function(el){ el.innerHTML = ICONS[el.dataset.ic] || ''; });
+document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = ICONS[el.dataset.ic] || ''; });
 
-var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com';
-var STORAGE_KEY = 'blk_user_id';
-var currentUser = null, currentUserId = null, allProducts = [], selectedCategory = 'all';
+// ===================== GLOBAL VARS =====================
+var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com'; // Remplacer par votre URL
+var authToken = localStorage.getItem('authToken') || null;
+var currentUserId = localStorage.getItem('currentUserId') || null;
+var currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+var allProducts = [], selectedCategory = 'all';
 var activeConversationId = null, activeChatProduct = null;
+
+// ===================== UTILS =====================
+function apiFetch(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+    ...options.headers
+  };
+  return fetch(BACKEND_URL + url, { ...options, headers });
+}
 
 function showAlert(message, type) {
   var box = document.getElementById('alertBox');
@@ -324,13 +344,13 @@ function showAlert(message, type) {
   box.className = 'alert alert-' + t;
   box.style.display = 'flex';
   clearTimeout(box._t);
-  box._t = setTimeout(function(){ box.style.display = 'none'; }, 5000);
+  box._t = setTimeout(() => { box.style.display = 'none'; }, 5000);
 }
 function openModal(html) {
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay active';
   overlay.innerHTML = '<div class="modal-box" style="max-width:400px;width:100%;background:white;border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto;">' + html + '</div>';
-  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
   return overlay;
 }
@@ -352,61 +372,86 @@ function showConfirmAnimation(title, subtitle) {
   document.getElementById('confirmAnimSubtitle').textContent = subtitle || '';
   overlay.classList.add('visible');
   clearTimeout(overlay._t);
-  overlay._t = setTimeout(function(){ overlay.classList.remove('visible'); }, 2200);
-  overlay.onclick = function(){ overlay.classList.remove('visible'); };
+  overlay._t = setTimeout(() => { overlay.classList.remove('visible'); }, 2200);
+  overlay.onclick = () => { overlay.classList.remove('visible'); };
 }
 
+// ===================== AUTH =====================
+var isLoginMode = true;
+function toggleAuthMode() {
+  isLoginMode = !isLoginMode;
+  document.getElementById('nameGroup').style.display = isLoginMode ? 'none' : 'block';
+  document.getElementById('btnLogin').textContent = isLoginMode ? 'Se connecter' : "S'inscrire";
+  document.getElementById('showLogin').className = isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('showRegister').className = !isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('authError').style.display = 'none';
+}
+document.getElementById('showLogin').addEventListener('click', () => { if (!isLoginMode) toggleAuthMode(); });
+document.getElementById('showRegister').addEventListener('click', () => { if (isLoginMode) toggleAuthMode(); });
+toggleAuthMode();
+
+document.getElementById('authForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = document.getElementById('loginName').value.trim();
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  var errorDiv = document.getElementById('authError');
+  if (!email || !password || (!isLoginMode && !name)) {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Remplis tous les champs.';
+    return;
+  }
+  errorDiv.style.display = 'none';
+  var btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+
+  var url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+  var body = isLoginMode ? { email, password } : { name, email, password };
+
+  apiFetch(url, { method: 'POST', body: JSON.stringify(body) })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserId', data.userId);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      authToken = data.token;
+      currentUserId = data.userId;
+      currentUser = data.user;
+      document.getElementById('authPage').style.display = 'none';
+      showSplash();
+    } else {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = data.message || 'Erreur';
+    }
+  })
+  .catch(err => {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Erreur réseau : ' + err.message;
+  })
+  .finally(() => { btn.disabled = false; });
+});
+
+// Check if already logged in on load
+if (authToken && currentUserId) {
+  document.getElementById('authPage').style.display = 'none';
+  currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  showSplash();
+} else {
+  document.getElementById('authPage').style.display = 'flex';
+}
+
+// ===================== SPLASH & APP =====================
 function showSplash() {
   var splash = document.getElementById('splashScreen');
   splash.classList.add('active');
-  setTimeout(function(){
+  setTimeout(() => {
     splash.classList.remove('active');
     document.getElementById('appContainer').classList.add('active');
     document.getElementById('tabs').classList.add('show');
     showMainApp();
   }, 1200);
 }
-
-// ============================================================
-// INSCRIPTION / CONNEXION
-// ⚠️ Correction critique : le profil est maintenant réellement créé
-// côté serveur (POST /api/users/register), sinon aucune action liée
-// au wallet (dépôt, retrait, transfert) ne fonctionne ensuite.
-// ============================================================
-document.getElementById('authForm').addEventListener('submit', function(e){
-  e.preventDefault();
-  var name = document.getElementById('loginName').value.trim();
-  var email = document.getElementById('loginEmail').value.trim();
-  var errorDiv = document.getElementById('authError');
-  if (!name || !email) { errorDiv.style.display = 'block'; errorDiv.textContent = 'Remplis tous les champs.'; return; }
-  errorDiv.style.display = 'none';
-
-  var userId = localStorage.getItem(STORAGE_KEY);
-  if (!userId) { userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2,6); localStorage.setItem(STORAGE_KEY, userId); }
-  currentUserId = userId;
-  currentUser = { name: name, email: email, phone: '', walletBalance: 0, id: userId };
-
-  var btn = document.getElementById('btnLogin');
-  btn.disabled = true;
-
-  fetch(BACKEND_URL + '/api/users/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: userId, name: name, email: email })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(){
-    document.getElementById('authPage').style.display = 'none';
-    showSplash();
-  })
-  .catch(function(){
-    // Même si l'appel réseau échoue, on laisse entrer l'utilisateur :
-    // les futures actions retenteront la création si besoin.
-    document.getElementById('authPage').style.display = 'none';
-    showSplash();
-  })
-  .finally(function(){ btn.disabled = false; });
-});
 
 function showMainApp() {
   updateProfileUI(currentUser);
@@ -420,6 +465,7 @@ function showMainApp() {
   initTabs();
   startAutoRefresh();
 }
+
 function updateProfileUI(user) {
   document.getElementById('profileNameNew').textContent = user.name || 'Utilisateur';
   document.getElementById('profileEmailNew').textContent = user.email || '';
@@ -427,11 +473,12 @@ function updateProfileUI(user) {
   document.getElementById('profileAvatarLetter').textContent = (user.name || 'U').charAt(0).toUpperCase();
 }
 
+// ===================== TABS =====================
 function initTabs() {
   var tabs = document.querySelectorAll('.tab-item');
   var bubble = document.getElementById('tabBubble');
   var bubbleIcon = document.getElementById('tabBubbleIcon');
-  tabs.forEach(function(tab){ tab.querySelector('.tab-icon-svg').innerHTML = TAB_ICONS[tab.dataset.icon] || ''; });
+  tabs.forEach(tab => { tab.querySelector('.tab-icon-svg').innerHTML = TAB_ICONS[tab.dataset.icon] || ''; });
   function moveBubble(tab) {
     var tabRect = tab.getBoundingClientRect();
     var sliderRect = tab.parentElement.getBoundingClientRect();
@@ -440,11 +487,11 @@ function initTabs() {
     bubbleIcon.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
   }
   function setActive(tab) {
-    tabs.forEach(function(t){ t.classList.remove('active'); });
+    tabs.forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     moveBubble(tab);
     var pageId = tab.dataset.tab;
-    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     var target = document.getElementById(pageId);
     if (target) {
       target.classList.add('active');
@@ -454,66 +501,71 @@ function initTabs() {
       if (pageId === 'pageProfile') loadFollowCounts(currentUserId);
     }
   }
-  tabs.forEach(function(tab){ tab.addEventListener('click', function(e){ e.preventDefault(); setActive(this); }); });
+  tabs.forEach(tab => tab.addEventListener('click', (e) => { e.preventDefault(); setActive(tab); }));
   var active = document.querySelector('.tab-item.active') || tabs[0];
-  requestAnimationFrame(function(){ moveBubble(active); });
-  window.addEventListener('resize', function(){ moveBubble(document.querySelector('.tab-item.active')); });
+  requestAnimationFrame(() => moveBubble(active));
+  window.addEventListener('resize', () => moveBubble(document.querySelector('.tab-item.active')));
 }
 
+// ===================== FOLLOW COUNTS =====================
 function loadFollowCounts(userId) {
   if (!userId) return;
-  fetch(BACKEND_URL + '/api/users/' + userId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/users/' + userId)
+  .then(r => r.json())
+  .then(data => {
     if (data.success) {
       document.getElementById('profileFollowersNew').textContent = data.data.followersCount || 0;
       document.getElementById('profileFollowingNew').textContent = data.data.followingCount || 0;
       document.getElementById('profileFlamesNew').textContent = data.data.flames || 0;
     }
-  }).catch(function(){});
+  }).catch(() => {});
 }
 
-/* PRODUITS */
+// ===================== PRODUCTS =====================
 function loadProducts() {
-  fetch(BACKEND_URL + '/api/articles').then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/articles')
+  .then(r => r.json())
+  .then(data => {
     allProducts = (data.success && data.data) ? data.data : [];
     renderProducts(allProducts);
-  }).catch(function(){ allProducts = []; renderProducts([]); });
+  }).catch(() => { allProducts = []; renderProducts([]); });
 }
 function renderProducts(products) {
   var grid = document.getElementById('productsGrid');
   var empty = document.getElementById('emptyHome');
   var filtered = products || [];
-  if (selectedCategory !== 'all') filtered = filtered.filter(function(p){ return p.category === selectedCategory; });
+  if (selectedCategory !== 'all') filtered = filtered.filter(p => p.category === selectedCategory);
   var q = document.getElementById('searchInput').value.toLowerCase();
-  if (q) filtered = filtered.filter(function(p){ return p.title && p.title.toLowerCase().includes(q); });
+  if (q) filtered = filtered.filter(p => p.title && p.title.toLowerCase().includes(q));
   grid.innerHTML = '';
   if (filtered.length === 0) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-  filtered.forEach(function(p){
+  filtered.forEach(p => {
     var card = document.createElement('div');
     card.className = 'article-card';
     card.innerHTML = '<img src="' + (p.image || (p.images && p.images[0]) || 'https://via.placeholder.com/400x400/F5F0E8/CCCCCC?text=BLK') + '">';
-    card.addEventListener('click', function(){
+    card.addEventListener('click', () => {
       card.classList.add('tap-anim');
-      setTimeout(function(){ card.classList.remove('tap-anim'); showProductModal(p); }, 150);
+      setTimeout(() => { card.classList.remove('tap-anim'); showProductModal(p); }, 150);
     });
     grid.appendChild(card);
   });
 }
-document.getElementById('searchInput').addEventListener('input', function(){ renderProducts(allProducts); });
-document.querySelectorAll('#categoryFilters .btn').forEach(function(btn){
+document.getElementById('searchInput').addEventListener('input', () => renderProducts(allProducts));
+document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
   btn.addEventListener('click', function(){
-    document.querySelectorAll('#categoryFilters .btn').forEach(function(b){ b.className = 'btn btn-sm btn-outline'; });
+    document.querySelectorAll('#categoryFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
     this.className = 'btn btn-sm btn-primary';
     selectedCategory = this.dataset.cat;
     renderProducts(allProducts);
   });
 });
 
-/* SWIPE SLIDERS */
+// ===================== SWIPE SLIDERS =====================
 function initSwipeSlider(containerId, onComplete) {
   var container = document.getElementById(containerId);
+  if (container._bound) { container._onComplete = onComplete; return; }
   container._onComplete = onComplete;
-  if (container._bound) return;
   container._bound = true;
   var handle = container.querySelector('.swipe-handle');
   var dragging = false, completed = false, startX = 0, curX = 0;
@@ -529,15 +581,15 @@ function initSwipeSlider(containerId, onComplete) {
       dragging = false; completed = true; setX(m);
       container.classList.add('completed');
       if (container._onComplete) container._onComplete();
-      setTimeout(function(){ setX(0); completed = false; container.classList.remove('completed'); }, 1000);
+      setTimeout(() => { setX(0); completed = false; container.classList.remove('completed'); }, 1000);
     }
   }
   function up(){ if (dragging && !completed) { dragging = false; setX(0); } }
-  handle.addEventListener('mousedown', function(e){ down(e.clientX); });
-  document.addEventListener('mousemove', function(e){ move(e.clientX); });
+  handle.addEventListener('mousedown', e => down(e.clientX));
+  document.addEventListener('mousemove', e => move(e.clientX));
   document.addEventListener('mouseup', up);
-  handle.addEventListener('touchstart', function(e){ down(e.touches[0].clientX); }, {passive:true});
-  handle.addEventListener('touchmove', function(e){ move(e.touches[0].clientX); }, {passive:true});
+  handle.addEventListener('touchstart', e => down(e.touches[0].clientX), {passive:true});
+  handle.addEventListener('touchmove', e => move(e.touches[0].clientX), {passive:true});
   handle.addEventListener('touchend', up);
 }
 function resetSwipe(containerId) {
@@ -547,6 +599,7 @@ function resetSwipe(containerId) {
   container.classList.remove('completed');
 }
 
+// ===================== PRODUCT MODAL =====================
 function showProductModal(product) {
   var overlay = document.getElementById('productStory');
   var images = (Array.isArray(product.images) && product.images.length > 0) ? product.images : [product.image].filter(Boolean);
@@ -559,7 +612,9 @@ function showProductModal(product) {
   document.getElementById('storyAvatarInitial').style.display = 'block';
   document.getElementById('storySellerMeta').textContent = '';
 
-  fetch(BACKEND_URL + '/api/users/' + product.sellerId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/users/' + product.sellerId)
+  .then(r => r.json())
+  .then(data => {
     if (data.success) {
       document.getElementById('storySellerMeta').innerHTML = '<span class="icon-inline">' + ICONS.flame + '</span> ' + (data.data.flames || 0) + '  ·  <span class="icon-inline">' + ICONS.box + '</span> ' + (data.data.articlesCount || 0) + ' articles';
       if (data.data.photo) {
@@ -568,17 +623,17 @@ function showProductModal(product) {
         document.getElementById('storyAvatarInitial').style.display = 'none';
       }
     }
-  }).catch(function(){});
+  }).catch(() => {});
 
   overlay.classList.add('active');
   resetSwipe('swipeBuy');
   resetSwipe('swipeChat');
 
-  initSwipeSlider('swipeBuy', function(){
+  initSwipeSlider('swipeBuy', () => {
     overlay.classList.remove('active');
     buyProduct(product.id, product.price, product.sellerId);
   });
-  initSwipeSlider('swipeChat', function(){
+  initSwipeSlider('swipeChat', () => {
     overlay.classList.remove('active');
     if (product.sellerId === currentUserId) { showAlert("C'est ton propre article.", 'info'); return; }
     var messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
@@ -588,35 +643,42 @@ function showProductModal(product) {
     openDiscussion(product.sellerId, product.sellerName || 'Vendeur');
   });
 }
-document.getElementById('storyClose').addEventListener('click', function(){ document.getElementById('productStory').classList.remove('active'); });
+document.getElementById('storyClose').addEventListener('click', () => {
+  document.getElementById('productStory').classList.remove('active');
+});
 
-/* ACHAT */
+// ===================== ACHAT =====================
 function buyProduct(articleId, price, sellerId) {
   if (!currentUserId) { showAlert("Connecte-toi d'abord", 'error'); return; }
+  if (sellerId === currentUserId) { showAlert("Vous ne pouvez pas acheter votre propre article.", 'error'); return; }
   showAlert('Création de la commande...', 'info');
-  fetch(BACKEND_URL + '/api/orders/create', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ articleId: articleId, buyerId: currentUserId, sellerId: sellerId, amount: price, buyerPhone: currentUser.phone || '' })
-  }).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/orders/create', {
+    method: 'POST',
+    body: JSON.stringify({ articleId, sellerId, amount: price, buyerPhone: currentUser.phone || '' })
+  })
+  .then(r => r.json())
+  .then(data => {
     if (data.success) {
       showAlert('Commande créée ! Livraison sous 6h.', 'success');
       loadWallet(); loadOrders(); loadProducts();
     } else { showAlert(data.message, 'error'); }
-  }).catch(function(e){ showAlert('Erreur: ' + e.message, 'error'); });
+  }).catch(e => showAlert('Erreur: ' + e.message, 'error'));
 }
 
-/* WALLET */
+// ===================== WALLET =====================
 function loadWallet() {
   if (!currentUserId) return;
-  fetch(BACKEND_URL + '/api/wallet/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/wallet/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
     var balance = data.balance || 0;
     document.getElementById('walletBalanceNew').textContent = balance;
     if (currentUser) currentUser.walletBalance = balance;
-  }).catch(function(){});
+  }).catch(() => {});
 }
-document.getElementById('btnDepositNew').addEventListener('click', function(){ openMoneyForm('deposit'); });
-document.getElementById('btnWithdrawNew').addEventListener('click', function(){ openMoneyForm('withdraw'); });
-document.getElementById('btnTransferNew').addEventListener('click', function(){ openTransferForm(); });
+document.getElementById('btnDepositNew').addEventListener('click', () => openMoneyForm('deposit'));
+document.getElementById('btnWithdrawNew').addEventListener('click', () => openMoneyForm('withdraw'));
+document.getElementById('btnTransferNew').addEventListener('click', openTransferForm);
 
 function openTransferForm() {
   var html = '<h3 style="margin-bottom:14px;text-align:center;">Transférer à un utilisateur BLK</h3>';
@@ -626,22 +688,24 @@ function openTransferForm() {
   html += '<button class="btn btn-outline" id="transferCancel" style="margin-top:8px;">Annuler</button>';
   html += '<div id="transferStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
   var overlay = openModal(html);
-  overlay.querySelector('#transferCancel').addEventListener('click', function(){ overlay.remove(); });
+  overlay.querySelector('#transferCancel').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#transferSubmit').addEventListener('click', function(){
     var toPhone = overlay.querySelector('#transferPhone').value.trim();
     var amount = overlay.querySelector('#transferAmount').value;
     var statusEl = overlay.querySelector('#transferStatus');
     if (!toPhone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
     this.disabled = true;
-    var submitBtn = this;
-    fetch(BACKEND_URL + '/api/wallet/transfer', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ fromUserId: currentUserId, toPhone: toPhone, amount: parseInt(amount) })
-    }).then(function(r){return r.json();}).then(function(data){
-      submitBtn.disabled = false;
-      if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); setTimeout(function(){overlay.remove();},1500); }
+    apiFetch('/api/wallet/transfer', {
+      method:'POST',
+      body: JSON.stringify({ toPhone, amount: parseInt(amount) })
+    })
+    .then(r => r.json())
+    .then(data => {
+      this.disabled = false;
+      if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); setTimeout(() => overlay.remove(), 1500); }
       else { statusEl.style.color='#E74C3C'; statusEl.textContent=data.message||'Le transfert a échoué.'; }
-    }).catch(function(e){ submitBtn.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
   });
 }
 function openMoneyForm(kind) {
@@ -655,53 +719,60 @@ function openMoneyForm(kind) {
   html += '<div id="moneyStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
   var overlay = openModal(html);
   var selectedOp = 'mtn';
-  overlay.querySelectorAll('.money-op-btn').forEach(function(btn){
+  overlay.querySelectorAll('.money-op-btn').forEach(btn => {
     btn.addEventListener('click', function(){
-      overlay.querySelectorAll('.money-op-btn').forEach(function(b){ b.className='btn btn-sm btn-outline money-op-btn'; });
+      overlay.querySelectorAll('.money-op-btn').forEach(b => b.className='btn btn-sm btn-outline money-op-btn');
       this.className = 'btn btn-sm money-op-btn';
       selectedOp = this.dataset.op;
     });
   });
-  overlay.querySelector('#moneyCancel').addEventListener('click', function(){ overlay.remove(); });
+  overlay.querySelector('#moneyCancel').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#moneySubmit').addEventListener('click', function(){
     var phone = overlay.querySelector('#moneyPhone').value.trim();
     var amount = overlay.querySelector('#moneyAmount').value;
     var statusEl = overlay.querySelector('#moneyStatus');
     if (!phone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
     this.disabled = true;
-    var submitBtn = this;
     if (isDeposit) {
       statusEl.style.color='#999'; statusEl.textContent='Envoi de la demande...';
-      fetch(BACKEND_URL + '/api/payment/initiate', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: selectedOp })
-      }).then(function(r){return r.json();}).then(function(data){
-        submitBtn.disabled = false;
+      apiFetch('/api/payment/initiate', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
         if (data.success) {
           statusEl.style.color='#27ae60';
           statusEl.textContent = data.status === 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
           loadWallet();
-          if (data.status === 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(function(){overlay.remove();},1500); }
+          if (data.status === 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(() => overlay.remove(), 1500); }
         } else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le dépôt a échoué.'; }
-      }).catch(function(e){ submitBtn.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
     } else {
       statusEl.style.color='#999'; statusEl.textContent='Traitement du retrait...';
-      fetch(BACKEND_URL + '/api/wallet/withdraw', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: currentUserId, amount: parseInt(amount), phone: phone, operator: selectedOp })
-      }).then(function(r){return r.json();}).then(function(data){
-        submitBtn.disabled = false;
-        if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); showConfirmAnimation('Retrait initié !', amount+' FCFA sous 24h'); setTimeout(function(){overlay.remove();},1500); }
+      apiFetch('/api/wallet/withdraw', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
+        if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); showConfirmAnimation('Retrait initié !', amount+' FCFA sous 24h'); setTimeout(() => overlay.remove(), 1500); }
         else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le retrait a échoué.'; }
-      }).catch(function(e){ submitBtn.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
     }
   });
 }
 
-/* STATS */
+// ===================== STATS =====================
 function loadStats() {
   if (!currentUserId) return;
-  fetch(BACKEND_URL + '/api/stats/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/stats/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
     if (data.success) {
       var s = data.data;
       document.getElementById('statTotalSales').textContent = s.totalSales || 0;
@@ -709,12 +780,12 @@ function loadStats() {
       document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
     }
-  }).catch(function(){});
+  }).catch(() => {});
 }
 
-/* CHRONO COMMANDES */
-setInterval(function(){
-  document.querySelectorAll('.order-ring').forEach(function(ring){
+// ===================== ORDER TIMER & LIST =====================
+setInterval(() => {
+  document.querySelectorAll('.order-ring').forEach(ring => {
     var expires = parseServerDate(ring.dataset.expires);
     var total = parseFloat(ring.dataset.total) || (6*3600*1000);
     var textEl = ring.querySelector('.order-ring-text');
@@ -733,13 +804,15 @@ setInterval(function(){
 
 function loadOrders() {
   if (!currentUserId) return;
-  fetch(BACKEND_URL + '/api/orders/' + currentUserId).then(function(r){return r.json();}).then(function(orders){
+  apiFetch('/api/orders/' + currentUserId)
+  .then(r => r.json())
+  .then(orders => {
     var container = document.getElementById('ordersList');
     var empty = document.getElementById('emptyOrders');
     if (!Array.isArray(orders) || orders.length === 0) { container.innerHTML=''; empty.style.display='block'; return; }
     empty.style.display = 'none';
     container.innerHTML = '';
-    orders.forEach(function(order){
+    orders.forEach(order => {
       var card = document.createElement('div');
       card.className = 'glass';
       card.style.marginBottom = '12px';
@@ -756,8 +829,9 @@ function loadOrders() {
         var createdMs = order.createdAt ? (parseServerDate(order.createdAt)||new Date()).getTime() : Date.now();
         var expiresMs = (parseServerDate(order.expiresAt)||new Date()).getTime();
         var totalMs = expiresMs - createdMs;
+        var expiresIso = new Date(parseServerDate(order.expiresAt)).toISOString();
         ringHtml = '<div class="order-ring-wrap' + (isBuyer?'':' readonly') + '" data-order-id="' + order.id + '">' +
-          '<div class="order-ring-box order-ring" data-expires="' + order.expiresAt + '" data-total="' + totalMs + '">' +
+          '<div class="order-ring-box order-ring" data-expires="' + expiresIso + '" data-total="' + totalMs + '">' +
           '<svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28"/></svg>' +
           '<div class="order-ring-text"></div></div>' +
           '<div class="order-ring-label"><span>' + (isBuyer?'En attente de livraison':'Livraison en cours') + '</span>' +
@@ -765,11 +839,12 @@ function loadOrders() {
       }
       card.innerHTML = '<div><strong>' + articleTitle + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText + '</span></div>' + ringHtml;
       if (order.status === 'en attente de confirmation' && order.buyerId === currentUserId) {
-        card.querySelector('.order-ring-wrap').addEventListener('click', function(){ openOrderConfirm(order.id); });
+        card.querySelector('.order-ring-wrap').addEventListener('click', () => openOrderConfirm(order.id));
       }
       container.appendChild(card);
     });
-  }).catch(function(e){ console.error(e); document.getElementById('ordersList').innerHTML = '<p class="empty">Erreur chargement</p>'; });
+  })
+  .catch(e => { console.error(e); document.getElementById('ordersList').innerHTML = '<p class="empty">Erreur chargement</p>'; });
 }
 
 function openOrderConfirm(orderId) {
@@ -781,7 +856,7 @@ function openOrderConfirm(orderId) {
   html += '<button class="btn btn-outline" id="ocCancel" style="margin-top:8px;">Annuler</button>';
   html += '<div id="ocStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
   var overlay = openModal(html);
-  overlay.querySelector('#ocCancel').addEventListener('click', function(){ overlay.remove(); });
+  overlay.querySelector('#ocCancel').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#ocSubmit').addEventListener('click', function(){
     var statusEl = overlay.querySelector('#ocStatus');
     var recu = overlay.querySelector('#ocRecu').checked;
@@ -790,33 +865,35 @@ function openOrderConfirm(orderId) {
     if (!recu || !bonEtat || !confirme) { statusEl.style.color='#E74C3C'; statusEl.textContent='Coche les 3 cases pour confirmer.'; return; }
     this.disabled = true;
     statusEl.style.color='#999'; statusEl.textContent='Confirmation en cours...';
-    fetch(BACKEND_URL + '/api/orders/confirm', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ orderId: orderId, buyerId: currentUserId, confirmations: { recu:true, bon_etat:true, confirme:true } })
-    }).then(function(r){return r.json();}).then(function(data){
+    apiFetch('/api/orders/confirm', {
+      method:'POST',
+      body: JSON.stringify({ orderId, confirmations: { recu:true, bon_etat:true, confirme:true } })
+    })
+    .then(r => r.json())
+    .then(data => {
       if (data.success) {
         overlay.remove();
         showConfirmAnimation('Commande confirmée !', 'Le vendeur a été crédité.');
-        loadOrders();
-        loadProducts();
-        loadShopArticles();
-        loadStats();
+        loadOrders(); loadProducts(); loadShopArticles(); loadStats();
       } else {
-        overlay.querySelector('#ocSubmit').disabled = false;
+        this.disabled = false;
         statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'La confirmation a échoué.';
       }
-    }).catch(function(e){ overlay.querySelector('#ocSubmit').disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
   });
 }
 
-/* MAGASIN */
+// ===================== MAGASIN =====================
 function loadShopArticles() {
   if (!currentUserId) return;
-  fetch(BACKEND_URL + '/api/articles/seller/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/articles/seller/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
     var container = document.getElementById('shopArticles');
     if (!data.success || !data.data || data.data.length === 0) { container.innerHTML = '<p class="empty">Aucun article publié</p>'; return; }
     container.innerHTML = '';
-    data.data.forEach(function(a){
+    data.data.forEach(a => {
       var div = document.createElement('div');
       div.style.cssText = 'display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.5);border-radius:12px;padding:12px;margin-bottom:8px;';
       var statusText = a.status==='active' ? 'En vente' : (a.status==='reserved' ? 'Réservé (commande en cours)' : (a.status==='sold' ? 'Vendu' : 'Inactif'));
@@ -826,22 +903,24 @@ function loadShopArticles() {
         delBtn.className = 'btn btn-danger btn-sm';
         delBtn.style.cssText = 'width:auto;padding:6px 12px;';
         delBtn.textContent = 'Supprimer';
-        delBtn.onclick = function(){ deleteArticle(a.id); };
+        delBtn.onclick = () => deleteArticle(a.id);
         div.appendChild(delBtn);
       }
       container.appendChild(div);
     });
-  }).catch(function(e){ console.error(e); });
+  }).catch(e => console.error(e));
 }
 function deleteArticle(articleId) {
   if (!confirm('Supprimer cet article ?')) return;
-  fetch(BACKEND_URL + '/api/articles/' + articleId, { method:'DELETE' }).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/articles/' + articleId, { method:'DELETE' })
+  .then(r => r.json())
+  .then(data => {
     if (data.success) { showAlert('Article supprimé !', 'success'); loadShopArticles(); loadProducts(); loadStats(); }
     else showAlert(data.message, 'error');
-  }).catch(function(e){ showAlert('Erreur: '+e.message, 'error'); });
+  }).catch(e => showAlert('Erreur: '+e.message, 'error'));
 }
 
-document.getElementById('btnPublish').addEventListener('click', function(){
+document.getElementById('btnPublish').addEventListener('click', () => {
   var html = '<h3>Publier un article</h3>';
   html += '<input type="text" id="pubTitle" placeholder="Titre" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:10px;">';
   html += '<textarea id="pubDesc" placeholder="Description" rows="3" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;"></textarea>';
@@ -859,7 +938,7 @@ document.getElementById('btnPublish').addEventListener('click', function(){
   function renderThumbs() {
     var thumbs = overlay.querySelector('#pubThumbs');
     thumbs.innerHTML = '';
-    photos.forEach(function(p, idx){
+    photos.forEach((p, idx) => {
       var wrap = document.createElement('div');
       wrap.style.cssText = 'position:relative;width:64px;height:64px;';
       wrap.innerHTML = '<img src="' + p.dataUrl + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;"><button type="button" data-idx="'+idx+'" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#E74C3C;color:white;border:none;font-size:12px;">✕</button>';
@@ -868,15 +947,15 @@ document.getElementById('btnPublish').addEventListener('click', function(){
     });
     overlay.querySelector('#pubPhotoCount').textContent = photos.length;
   }
-  overlay.querySelector('#pubCameraBtn').addEventListener('click', function(){
+  overlay.querySelector('#pubCameraBtn').addEventListener('click', () => {
     if (photos.length >= MAX_PHOTOS) { showAlert('Maximum 10 photos.', 'error'); return; }
     overlay.querySelector('#pubImageCamera').click();
   });
-  overlay.querySelector('#pubImageCamera').addEventListener('change', function(e){
+  overlay.querySelector('#pubImageCamera').addEventListener('change', e => {
     var file = e.target.files[0];
     if (!file) return;
     var reader = new FileReader();
-    reader.onload = function(ev){ photos.push({dataUrl: ev.target.result}); renderThumbs(); };
+    reader.onload = ev => { photos.push({dataUrl: ev.target.result}); renderThumbs(); };
     reader.readAsDataURL(file);
     e.target.value = '';
   });
@@ -891,33 +970,40 @@ document.getElementById('btnPublish').addEventListener('click', function(){
     var submitBtn = this;
     submitBtn.disabled = true;
     function submitArticle(urls) {
-      fetch(BACKEND_URL + '/api/articles', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ title:title, description:description, price:parseInt(price), category:category, images:urls, sellerId:currentUserId, sellerName:currentUser.name })
-      }).then(function(r){return r.json();}).then(function(data){
+      apiFetch('/api/articles', {
+        method:'POST',
+        body: JSON.stringify({ title, description, price:parseInt(price), category, images:urls, sellerName: currentUser.name })
+      })
+      .then(r => r.json())
+      .then(data => {
         submitBtn.disabled = false;
         if (data.success) { showAlert('Article publié !', 'success'); overlay.remove(); loadShopArticles(); loadProducts(); loadStats(); }
         else showAlert(data.message, 'error');
-      }).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur: '+e.message, 'error'); });
+      })
+      .catch(e => { submitBtn.disabled=false; showAlert('Erreur: '+e.message, 'error'); });
     }
     var urls = [], i = 0;
     function uploadNext() {
       if (i >= photos.length) { submitArticle(urls); return; }
       statusEl.textContent = 'Envoi photo ' + (i+1) + '/' + photos.length + '...';
-      fetch(BACKEND_URL + '/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ base64: photos[i].dataUrl }) })
-      .then(function(r){return r.json();}).then(function(data){
+      apiFetch('/api/upload', { method:'POST', body: JSON.stringify({ base64: photos[i].dataUrl }) })
+      .then(r => r.json())
+      .then(data => {
         if (data.success) { urls.push(data.url); i++; uploadNext(); }
         else { submitBtn.disabled=false; showAlert('Erreur upload photo '+(i+1), 'error'); }
-      }).catch(function(e){ submitBtn.disabled=false; showAlert('Erreur upload: '+e.message, 'error'); });
+      })
+      .catch(e => { submitBtn.disabled=false; showAlert('Erreur upload: '+e.message, 'error'); });
     }
     uploadNext();
   });
 });
 
-/* MESSAGES */
+// ===================== MESSAGES =====================
 function loadMessages() {
   if (!currentUserId) return;
-  fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
     var container = document.getElementById('contactsList');
     var empty = document.getElementById('emptyMessages');
     var view = document.getElementById('discussionView');
@@ -929,7 +1015,7 @@ function loadMessages() {
     }
     empty.style.display = 'none';
     var contacts = {};
-    data.data.forEach(function(msg){
+    data.data.forEach(msg => {
       var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
       var otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
       var preview = msg.audioUrl ? 'Message vocal' : (msg.text || '');
@@ -940,8 +1026,8 @@ function loadMessages() {
       if (msgTime && (!existingTime || msgTime > existingTime)) { contacts[otherId].lastMessage = preview; contacts[otherId].time = msg.createdAt; }
     });
     var keys = Object.keys(contacts);
-    keys.sort(function(a,b){ return (parseServerDate(contacts[b].time)||0) - (parseServerDate(contacts[a].time)||0); });
-    container.innerHTML = keys.map(function(id){
+    keys.sort((a,b) => (parseServerDate(contacts[b].time)||0) - (parseServerDate(contacts[a].time)||0));
+    container.innerHTML = keys.map(id => {
       var c = contacts[id];
       var isActive = (activeConversationId===id) ? 'active' : '';
       var unreadBadge = c.unread>0 ? '<span class="contact-row-badge">'+c.unread+'</span>' : '';
@@ -950,18 +1036,18 @@ function loadMessages() {
       var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
       return '<div class="contact-row '+isActive+'" data-id="'+id+'"><div class="contact-row-avatar">'+avatarHtml+'</div><div class="contact-row-info"><div class="contact-row-name">'+c.name+'</div><div class="contact-row-preview">'+c.lastMessage+'</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span style="font-size:11px;color:#aaa;">'+timeStr+'</span>'+unreadBadge+'</div></div>';
     }).join('');
-    document.querySelectorAll('.contact-row').forEach(function(el){
+    document.querySelectorAll('.contact-row').forEach(el => {
       el.addEventListener('click', function(){
         activeConversationId = this.dataset.id;
         activeChatProduct = null;
-        document.querySelectorAll('.contact-row').forEach(function(c){ c.classList.remove('active'); });
+        document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
         this.classList.add('active');
         openDiscussion(this.dataset.id, contacts[this.dataset.id].name);
       });
     });
     if (!activeConversationId && keys.length>0) { activeConversationId = keys[0]; openDiscussion(activeConversationId, contacts[activeConversationId].name); }
     else if (activeConversationId && contacts[activeConversationId]) openDiscussion(activeConversationId, contacts[activeConversationId].name);
-  }).catch(function(e){ console.error(e); });
+  }).catch(e => console.error(e));
 }
 
 function openDiscussion(contactId, contactName) {
@@ -970,14 +1056,14 @@ function openDiscussion(contactId, contactName) {
   document.getElementById('emptyMessages').style.display = 'none';
   view.innerHTML = '<div class="glass"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h3 style="margin:0;">'+contactName+'</h3><button class="btn btn-sm btn-outline" id="btnCloseDiscussion">'+ICONS.cross+'</button></div><div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div><div id="messagesList" style="max-height:300px;overflow-y:auto;padding:4px 0;"></div><div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="messageInput" placeholder="Écris ton message..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:14px;font-size:16px;"><button class="btn btn-outline" id="btnRecordVoice" type="button" style="width:auto;padding:12px 14px;">'+ICONS.mic+'</button><button class="btn btn-primary" id="btnSendMessage" style="width:auto;padding:12px 20px;">Envoyer</button></div></div>';
 
-  document.getElementById('btnCloseDiscussion').addEventListener('click', function(){ view.style.display='none'; activeConversationId=null; });
+  document.getElementById('btnCloseDiscussion').addEventListener('click', () => { view.style.display='none'; activeConversationId=null; });
   document.getElementById('btnSendMessage').addEventListener('click', function(){
     var text = document.getElementById('messageInput').value.trim();
     if (!text || !activeConversationId) { showAlert('Message ou destinataire manquant', 'error'); return; }
     document.getElementById('messageInput').value = '';
-    sendMessagePayload({ senderId: currentUserId, receiverId: activeConversationId, text: text, senderName: currentUser.name });
+    sendMessagePayload({ receiverId: activeConversationId, text });
   });
-  document.getElementById('messageInput').addEventListener('keypress', function(e){ if (e.key==='Enter') document.getElementById('btnSendMessage').click(); });
+  document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key==='Enter') document.getElementById('btnSendMessage').click(); });
   initVoiceButton();
 
   var productCard = document.getElementById('discussionProductCard');
@@ -985,7 +1071,7 @@ function openDiscussion(contactId, contactName) {
     var p = activeChatProduct;
     productCard.style.display = 'flex';
     productCard.innerHTML = '<img src="'+(p.image||(p.images&&p.images[0])||'')+'"><div class="dp-info"><div class="dp-title">'+(p.title||'Article')+'</div><div class="dp-price">'+(p.price||0)+' FCFA</div></div><button id="discussionBuyBtn">Acheter</button>';
-    document.getElementById('discussionBuyBtn').addEventListener('click', function(){ buyProduct(p.id, p.price, p.sellerId); });
+    document.getElementById('discussionBuyBtn').addEventListener('click', () => buyProduct(p.id, p.price, p.sellerId));
   } else { productCard.style.display='none'; productCard.innerHTML=''; }
 
   loadConversation(contactId);
@@ -993,13 +1079,15 @@ function openDiscussion(contactId, contactName) {
 
 function loadConversation(contactId) {
   if (!currentUserId || !contactId) return;
-  fetch(BACKEND_URL + '/api/messages/' + currentUserId).then(function(r){return r.json();}).then(function(data){
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
     var container = document.getElementById('messagesList');
     if (!container || !data.success) return;
-    var messages = data.data.filter(function(m){ return (m.senderId===currentUserId&&m.receiverId===contactId)||(m.senderId===contactId&&m.receiverId===currentUserId); });
-    messages.sort(function(a,b){ return (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0); });
+    var messages = data.data.filter(m => (m.senderId===currentUserId && m.receiverId===contactId) || (m.senderId===contactId && m.receiverId===currentUserId));
+    messages.sort((a,b) => (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0));
     if (messages.length===0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; }
-    container.innerHTML = messages.map(function(msg){
+    container.innerHTML = messages.map(msg => {
       var isMine = msg.senderId===currentUserId;
       var d = parseServerDate(msg.createdAt);
       var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
@@ -1007,12 +1095,13 @@ function loadConversation(contactId) {
       return '<div class="message-bubble '+(isMine?'mine':'other')+'"><div class="bubble">'+bodyHtml+'<span class="time">'+timeStr+'</span></div></div>';
     }).join('');
     container.scrollTop = container.scrollHeight;
-  }).catch(function(e){ console.error(e); });
+  }).catch(e => console.error(e));
 }
 function sendMessagePayload(payload) {
-  fetch(BACKEND_URL + '/api/messages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-  .then(function(r){return r.json();}).then(function(data){ if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); })
-  .catch(function(e){ showAlert('Erreur: '+e.message, 'error'); });
+  apiFetch('/api/messages', { method:'POST', body: JSON.stringify(payload) })
+  .then(r => r.json())
+  .then(data => { if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); })
+  .catch(e => showAlert('Erreur: '+e.message, 'error'));
 }
 
 var mediaRecorder = null, audioChunks = [], recordStartTime = 0;
@@ -1026,29 +1115,29 @@ function initVoiceButton() {
   });
 }
 function startRecording(btn) {
-  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
     audioChunks = []; recordStartTime = Date.now();
     mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = function(e){ audioChunks.push(e.data); };
-    mediaRecorder.onstop = function(){
-      stream.getTracks().forEach(function(t){t.stop();});
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
       var duration = Math.round((Date.now()-recordStartTime)/1000);
       var blob = new Blob(audioChunks, {type:'audio/webm'});
       var reader = new FileReader();
-      reader.onload = function(e){ sendMessagePayload({ senderId:currentUserId, receiverId:activeConversationId, senderName:currentUser.name, audioUrl:e.target.result, audioDuration:duration }); };
+      reader.onload = e => sendMessagePayload({ receiverId: activeConversationId, audioUrl: e.target.result, audioDuration: duration });
       reader.readAsDataURL(blob);
     };
     mediaRecorder.start();
     btn.classList.add('recording');
-  }).catch(function(){ showAlert("Impossible d'accéder au micro.", 'error'); });
+  }).catch(() => showAlert("Impossible d'accéder au micro.", 'error'));
 }
 function stopRecording(btn) { if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop(); btn.classList.remove('recording'); }
 
-/* AUTO-REFRESH */
+// ===================== AUTO-REFRESH =====================
 var refreshInterval = null;
 function startAutoRefresh() {
   clearInterval(refreshInterval);
-  refreshInterval = setInterval(function(){
+  refreshInterval = setInterval(() => {
     var ordersActive = document.getElementById('pageOrders').classList.contains('active');
     var shopActive = document.getElementById('pageShop').classList.contains('active');
     var homeActive = document.getElementById('pageHome').classList.contains('active');
@@ -1058,9 +1147,14 @@ function startAutoRefresh() {
   }, 15000);
 }
 
-document.getElementById('btnLogout').addEventListener('click', function(){ localStorage.removeItem(STORAGE_KEY); location.reload(); });
+document.getElementById('btnLogout').addEventListener('click', () => {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUserId');
+  localStorage.removeItem('currentUser');
+  location.reload();
+});
 
-console.log('BLK Marketplace charge');
+console.log('BLK Marketplace chargé');
 </script>
 </body>
 </html>
