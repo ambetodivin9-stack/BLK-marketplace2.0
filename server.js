@@ -46,22 +46,30 @@ const COMMISSION_SELLER = 0.04;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['vêtements', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
-// Fonction corrigée pour formater le téléphone
-function formatPhoneForYabetoo(phone) {
-  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
-  if (formatted.startsWith('0')) formatted = formatted.substring(1);
-  if (!formatted.startsWith('242')) formatted = '242' + formatted;
-  // On retourne le numéro sans le +
-  return formatted;
-}
-
+// Helper : validation du montant
 function parseAmount(value) {
   const amount = Number(value);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('AMOUNT_INVALID');
   return amount;
 }
 
-// Middleware d'authentification
+// Helper : formatage du numéro pour Yabetoo (sans +, robuste)
+function formatPhoneForYabetoo(phone) {
+  // Ne garder que les chiffres
+  let digits = String(phone).replace(/\D/g, '');
+  // Supprimer le préfixe 242 s'il existe déjà pour éviter les doublons
+  if (digits.startsWith('242')) {
+    digits = digits.substring(3);
+  }
+  // Supprimer un éventuel 0 initial local
+  if (digits.startsWith('0')) {
+    digits = digits.substring(1);
+  }
+  // Ajouter 242
+  return '242' + digits;
+}
+
+// Middleware d'authentification JWT
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -78,7 +86,7 @@ function authenticate(req, res, next) {
   }
 }
 
-// ========== ROUTES DE BASE ==========
+// ==================== ROUTES DE BASE ====================
 app.get('/', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
@@ -88,22 +96,32 @@ app.get('/', (req, res) => {
 app.get('/ping', (req, res) => res.send('pong'));
 app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED_CATEGORIES }));
 
-// ========== AUTHENTIFICATION ==========
+// ==================== AUTHENTIFICATION ====================
 app.post('/api/auth/register', async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) return res.status(400).json({ success: false, message: 'Champs requis' });
+
     const usersRef = db.collection('users');
     const existing = await usersRef.where('email', '==', email).get();
     if (!existing.empty) return res.status(409).json({ success: false, message: 'Email déjà utilisé' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRef = usersRef.doc();
     await userRef.set({
-      name, email, password: hashedPassword,
-      phone: '', photo: '', walletBalance: 0, flames: 0,
-      blockedUsers: [], online: true, createdAt: new Date()
+      name,
+      email,
+      password: hashedPassword,
+      phone: '',
+      photo: '',
+      walletBalance: 0,
+      flames: 0,
+      blockedUsers: [],
+      online: true,
+      createdAt: new Date()
     });
+
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email } });
   } catch (error) {
@@ -116,12 +134,15 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
+
     const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
     if (snapshot.empty) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
+
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
+
     const token = jwt.sign({ userId: userDoc.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email } });
   } catch (error) {
@@ -129,7 +150,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// ========== ARTICLES ==========
+// ==================== ARTICLES ====================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
@@ -184,10 +205,18 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
     const article = {
-      title, description, price: articlePrice, category,
-      image: imageList[0], images: imageList,
-      sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      status: 'active', views: 0, createdAt: new Date()
+      title,
+      description,
+      price: articlePrice,
+      category,
+      image: imageList[0],
+      images: imageList,
+      sellerId,
+      sellerName: sellerName || 'Anonyme',
+      sellerPhoto: sellerPhoto || '',
+      status: 'active',
+      views: 0,
+      createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
@@ -253,7 +282,7 @@ app.post('/api/upload', authenticate, async (req, res) => {
   }
 });
 
-// ========== UTILISATEURS ==========
+// ==================== UTILISATEURS ====================
 app.get('/api/users/:userId', async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false, articlesCount: 0, followersCount: 0, followingCount: 0 } });
@@ -269,10 +298,18 @@ app.get('/api/users/:userId', async (req, res) => {
     res.json({
       success: true,
       data: {
-        name: data.name, photo: data.photo || '', flames: data.flames || 0,
-        walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
-        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false,
-        articlesCount: articlesSnapshot.size, followersCount: followersSnapshot.size, followingCount: followingSnapshot.size
+        name: data.name,
+        photo: data.photo || '',
+        flames: data.flames || 0,
+        walletBalance: data.walletBalance || 0,
+        phone: data.phone || '',
+        email: data.email || '',
+        isSeller: data.isSeller || false,
+        blockedUsers: data.blockedUsers || [],
+        online: data.online || false,
+        articlesCount: articlesSnapshot.size,
+        followersCount: followersSnapshot.size,
+        followingCount: followingSnapshot.size
       }
     });
   } catch (error) {
@@ -352,7 +389,7 @@ app.post('/api/users/follow', authenticate, async (req, res) => {
   }
 });
 
-// ========== WALLET ==========
+// ==================== WALLET ====================
 app.get('/api/wallet/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ balance: 5000 });
   try {
@@ -373,7 +410,7 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
 
     const depositAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone); // maintenant sans le +
+    const formattedPhone = formatPhoneForYabetoo(phone); // sans le +, format 242XXXXXXXXX
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -395,8 +432,12 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     }
 
     const confirmPayload = {
-      client_secret: clientSecret, amount: depositAmount, currency: 'xaf',
-      first_name: 'Client', last_name: 'BLK', receipt_email: userDoc.data()?.email || 'client@blk.com',
+      client_secret: clientSecret,
+      amount: depositAmount,
+      currency: 'xaf',
+      first_name: 'Client',
+      last_name: 'BLK',
+      receipt_email: userDoc.data()?.email || 'client@blk.com',
       payment_method_data: { type: 'momo', momo: { country: 'cg', msisdn: formattedPhone, operator_name: operatorName } }
     };
     const confirmResponse = await axios.post(
@@ -407,8 +448,14 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     const confirmData = confirmResponse.data;
 
     const transactionRef = await db.collection('transactions').add({
-      userId, amount: depositAmount, phone: formattedPhone, operator: operatorName,
-      yabetooId: intent.id, status: 'pending', type: 'deposit', createdAt: new Date()
+      userId,
+      amount: depositAmount,
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooId: intent.id,
+      status: 'pending',
+      type: 'deposit',
+      createdAt: new Date()
     });
     await transactionRef.update({ transactionId: confirmData.transactionId || confirmData.intentId || intent.id, status: confirmData.status || 'pending' });
 
@@ -424,8 +471,11 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
     if (error.message === 'PHONE_INVALID') return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide' });
     return res.status(502).json({
-      success: false, message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
-      yabetoo_http_status: error.response?.status || null, yabetoo_error: error.response?.data || null, raw_message: error.message
+      success: false,
+      message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
+      yabetoo_http_status: error.response?.status || null,
+      yabetoo_error: error.response?.data || null,
+      raw_message: error.message
     });
   }
 });
@@ -490,6 +540,7 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
     const { toPhone, amount } = req.body;
     const fromUserId = req.userId;
     if (!toPhone || !amount) return res.status(400).json({ success: false, message: 'toPhone et amount requis' });
+
     const transferAmount = parseAmount(amount);
     const recipientSnapshot = await db.collection('users').where('phone', '==', toPhone).limit(1).get();
     if (recipientSnapshot.empty) return res.status(404).json({ success: false, message: 'Aucun utilisateur BLK trouve avec ce numero' });
@@ -527,8 +578,9 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     const { amount, phone, operator } = req.body;
     const userId = req.userId;
     if (!amount || !phone) return res.status(400).json({ success: false, message: 'amount et phone requis' });
+
     const withdrawAmount = parseAmount(amount);
-    const formattedPhone = formatPhoneForYabetoo(phone);
+    const formattedPhone = formatPhoneForYabetoo(phone); // format 242XXXXXXXXX
     const operatorName = (operator || 'mtn').toLowerCase();
 
     const userRef = db.collection('users').doc(userId);
@@ -541,15 +593,17 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       const disbursementResponse = await axios.post(
         `${YABETOO_API_BASE}/disbursement`,
         {
-          amount: withdrawAmount, currency: 'XAF',
+          amount: withdrawAmount,
+          currency: 'XAF',
           first_name: doc.data()?.name?.split(' ')[0] || 'Client',
           last_name: doc.data()?.name?.split(' ').slice(1).join(' ') || 'BLK',
-          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'CG', operator_name: operatorName } }
+          payment_method_data: { type: 'momo', momo: { msisdn: formattedPhone, country: 'cg', operator_name: operatorName } }
         },
         { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}`, 'Content-Type': 'application/json' } }
       );
       disbursement = disbursementResponse.data;
     } catch (yabetooError) {
+      console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
       return res.status(502).json({
         success: false,
         message: "Le retrait Yabetoo a echoue (aucun montant debite). Si l'erreur mentionne un acces partenaire manquant, il faut en faire la demande a Yabetoo.",
@@ -560,9 +614,15 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     const newBalance = currentBalance - withdrawAmount;
     await userRef.update({ walletBalance: newBalance });
     await db.collection('transactions').add({
-      userId, amount: withdrawAmount, phone: formattedPhone, operator: operatorName,
-      yabetooDisbursementId: disbursement.id || null, type: 'withdraw', status: 'pending',
-      description: 'Retrait Yabetoo (execution J+1)', createdAt: new Date()
+      userId,
+      amount: withdrawAmount,
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooDisbursementId: disbursement.id || null,
+      type: 'withdraw',
+      status: 'pending',
+      description: 'Retrait Yabetoo (execution J+1)',
+      createdAt: new Date()
     });
 
     res.json({ success: true, message: "Retrait initie. Yabetoo l'executera automatiquement sous 24h vers ton Mobile Money.", newBalance });
@@ -573,7 +633,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
   }
 });
 
-// ========== ORDRES ==========
+// ==================== ORDRES ====================
 app.post('/api/orders/create', authenticate, async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, orderId: 'mock-' + Date.now(), message: 'Commande creee (simulee)', totalAmount: 15450, buyerCommission: 450, sellerCommission: 600, expiresAt: new Date(Date.now() + ORDER_DELAY_MS) });
@@ -612,12 +672,17 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
     });
 
     const order = {
-      articleId, buyerId, sellerId,
+      articleId,
+      buyerId,
+      sellerId,
       buyerPhone: buyerPhone || buyerDoc.data()?.phone || '',
-      amount: orderAmount, buyerCommission, totalAmount,
+      amount: orderAmount,
+      buyerCommission,
+      totalAmount,
       sellerCommission: Math.round(orderAmount * COMMISSION_SELLER),
       status: 'en attente de confirmation',
-      buyerConfirmed: false, buyerConfirmedAt: null,
+      buyerConfirmed: false,
+      buyerConfirmedAt: null,
       flamesGiven: false,
       expiresAt: new Date(Date.now() + ORDER_DELAY_MS),
       createdAt: new Date()
@@ -792,7 +857,7 @@ async function autoExpireOrders() {
 }
 setInterval(autoExpireOrders, 5 * 60 * 1000);
 
-// ========== FLAMMES ==========
+// ==================== FLAMMES ====================
 app.post('/api/flames', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, flames: 5 });
   try {
@@ -820,7 +885,7 @@ app.get('/api/flames/:userId', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ========== STATISTIQUES ==========
+// ==================== STATISTIQUES ====================
 app.get('/api/stats/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: { totalArticles: 0, totalSales: 0, totalRevenue: 0, totalPurchases: 0, totalSpent: 0, history: [] } });
   try {
@@ -855,7 +920,7 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ========== MESSAGES ==========
+// ==================== MESSAGES ====================
 app.get('/api/messages/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
@@ -896,11 +961,18 @@ app.post('/api/messages', authenticate, async (req, res) => {
     if (blockedUsers.includes(senderId)) return res.status(403).json({ success: false, message: 'Vous etes bloque par ce destinataire' });
 
     const message = {
-      senderId, receiverId, text: text || '', audioUrl: audioUrl || '', audioDuration: audioDuration || 0,
-      senderName, senderPhoto,
+      senderId,
+      receiverId,
+      text: text || '',
+      audioUrl: audioUrl || '',
+      audioDuration: audioDuration || 0,
+      senderName,
+      senderPhoto,
       receiverName: receiverDoc.exists ? (receiverDoc.data().name || 'Utilisateur') : 'Utilisateur',
       receiverPhoto: receiverDoc.exists ? (receiverDoc.data().photo || '') : '',
-      participants: [senderId, receiverId], read: false, createdAt: new Date()
+      participants: [senderId, receiverId],
+      read: false,
+      createdAt: new Date()
     };
     const docRef = await db.collection('messages').add(message);
     await db.collection('notifications').add({ userId: receiverId, message: `Nouveau message de ${senderName}`, type: 'new_message', read: false, messageId: docRef.id, createdAt: new Date() });
@@ -908,7 +980,7 @@ app.post('/api/messages', authenticate, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ========== NOTIFICATIONS ==========
+// ==================== NOTIFICATIONS ====================
 app.get('/api/notifications/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
