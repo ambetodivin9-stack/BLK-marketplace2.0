@@ -44,7 +44,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chaine-secrete-tres-longue-a-chang
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.04;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
-const ALLOWED_CATEGORIES = ['vêtements', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
+const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
 function parseAmount(value) {
   const amount = Number(value);
@@ -84,16 +84,15 @@ app.get('/', (req, res) => {
 app.get('/ping', (req, res) => res.send('pong'));
 app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED_CATEGORIES }));
 
+// ==================== AUTH ====================
 app.post('/api/auth/register', async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) return res.status(400).json({ success: false, message: 'Champs requis' });
-
     const usersRef = db.collection('users');
     const existing = await usersRef.where('email', '==', email).get();
     if (!existing.empty) return res.status(409).json({ success: false, message: 'Email déjà utilisé' });
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRef = usersRef.doc();
     await userRef.set({
@@ -101,7 +100,6 @@ app.post('/api/auth/register', async (req, res) => {
       phone: '', photo: '', walletBalance: 0, flames: 0,
       blockedUsers: [], online: true, createdAt: new Date()
     });
-
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email } });
   } catch (error) {
@@ -114,15 +112,12 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
-
     const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
     if (snapshot.empty) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
-
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
-
     const token = jwt.sign({ userId: userDoc.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email } });
   } catch (error) {
@@ -130,6 +125,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// ==================== ARTICLES ====================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
@@ -170,7 +166,7 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
 app.post('/api/articles', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, id: 'mock-' + Date.now() });
   try {
-    const { title, description, price, category, image, images, sellerName, sellerPhoto } = req.body;
+    const { title, description, price, category, image, images, sellerName, sellerPhoto, condition, size, hashtags } = req.body;
     const sellerId = req.userId;
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
@@ -178,16 +174,32 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (!ALLOWED_CATEGORIES.includes(category)) {
       return res.status(400).json({ success: false, message: `Categorie non autorisee. Autorise: ${ALLOWED_CATEGORIES.join(', ')}` });
     }
+    if (!condition || !['neuf', 'bon_etat', 'correct'].includes(condition)) {
+      return res.status(400).json({ success: false, message: 'Condition invalide' });
+    }
     const articlePrice = parseAmount(price);
     let imageList = Array.isArray(images) ? images.filter(Boolean).slice(0, 10) : [];
     if (imageList.length === 0 && image) imageList = [image];
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
     const article = {
-      title, description, price: articlePrice, category,
-      image: imageList[0], images: imageList,
-      sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      status: 'active', views: 0, createdAt: new Date()
+      title,
+      description,
+      price: articlePrice,
+      category,
+      condition,
+      size: size || '',
+      hashtags: Array.isArray(hashtags) ? hashtags : [],
+      image: imageList[0],
+      images: imageList,
+      sellerId,
+      sellerName: sellerName || 'Anonyme',
+      sellerPhoto: sellerPhoto || '',
+      status: 'active',
+      views: 0,
+      favorites: 0,
+      stock: 1,
+      createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
@@ -253,6 +265,7 @@ app.post('/api/upload', authenticate, async (req, res) => {
   }
 });
 
+// ==================== UTILISATEURS ====================
 app.get('/api/users/:userId', async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false, articlesCount: 0, followersCount: 0, followingCount: 0 } });
@@ -350,6 +363,7 @@ app.post('/api/users/follow', authenticate, async (req, res) => {
   }
 });
 
+// ==================== WALLET ====================
 app.get('/api/wallet/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ balance: 5000 });
   try {
@@ -568,6 +582,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
   }
 });
 
+// ==================== ORDRES ====================
 app.post('/api/orders/create', authenticate, async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, orderId: 'mock-' + Date.now(), message: 'Commande creee (simulee)', totalAmount: 15450, buyerCommission: 450, sellerCommission: 600, expiresAt: new Date(Date.now() + ORDER_DELAY_MS) });
@@ -786,6 +801,7 @@ async function autoExpireOrders() {
 }
 setInterval(autoExpireOrders, 5 * 60 * 1000);
 
+// ==================== FLAMMES ====================
 app.post('/api/flames', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, flames: 5 });
   try {
@@ -813,6 +829,7 @@ app.get('/api/flames/:userId', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ==================== STATISTIQUES ====================
 app.get('/api/stats/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: { totalArticles: 0, totalSales: 0, totalRevenue: 0, totalPurchases: 0, totalSpent: 0, history: [] } });
   try {
@@ -847,6 +864,7 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ==================== MESSAGES ====================
 app.get('/api/messages/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
@@ -899,6 +917,7 @@ app.post('/api/messages', authenticate, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ==================== NOTIFICATIONS ====================
 app.get('/api/notifications/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
