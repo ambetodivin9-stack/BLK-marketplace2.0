@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* CSS identique à votre version précédente */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;padding-bottom:80px;color:#1a1a1a;-webkit-font-smoothing:antialiased;}
 .kente{height:6px;background:linear-gradient(90deg,#FFD700 20%,#2ECC71 40%,#E74C3C 60%,#FFD700 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
@@ -318,7 +317,7 @@ var TAB_ICONS = {
 document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = ICONS[el.dataset.ic] || ''; });
 
 // ===================== GLOBAL VARS =====================
-var BACKEND_URL = 'https://blk-marketplace2-0.onrender.com'; // Remplacer par votre URL
+var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com'; // URL backend mise à jour
 var authToken = localStorage.getItem('authToken') || null;
 var currentUserId = localStorage.getItem('currentUserId') || null;
 var currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
