@@ -19,12 +19,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .empty{text-align:center;color:#999;padding:20px;}
 .icon-inline{display:inline-flex;width:14px;height:14px;vertical-align:-2px;}
 .icon-inline svg{width:100%;height:100%;}
-.icon-inline-md{display:inline-flex;width:18px;height:18px;vertical-align:-4px;}
-.icon-inline-md svg{width:100%;height:100%;}
-.icon-inline-lg{display:inline-flex;width:26px;height:26px;}
-.icon-inline-lg svg{width:100%;height:100%;}
-.auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#2d1506;padding:20px;position:relative;overflow:hidden;}
-.auth-card{position:relative;z-index:1;max-width:400px;width:100%;background:rgba(35,18,8,.55);backdrop-filter:blur(14px);border:1px solid rgba(255,215,0,.18);border-radius:32px;padding:36px 28px 28px;text-align:center;}
+.auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#2d1506;padding:20px;}
+.auth-card{max-width:400px;width:100%;background:rgba(35,18,8,.55);backdrop-filter:blur(14px);border:1px solid rgba(255,215,0,.18);border-radius:32px;padding:36px 28px 28px;text-align:center;}
 .auth-title{font-size:26px;font-weight:300;color:#fff8ec;margin-bottom:4px;}
 .auth-title span{font-weight:800;background:linear-gradient(135deg,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .auth-subtitle{font-size:14px;color:rgba(255,248,236,.65);margin-bottom:28px;}
@@ -84,7 +80,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .wallet-btn-transfer{background:rgba(52,152,219,.15);color:#3498DB;}
 .profile-avatar-new{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#FF8C00);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;}
 .profile-header-new{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
-.profile-stats-new{display:flex;gap:16px;justify-content:space-around;background:rgba(255,255,255,.6);border-radius:20px;padding:16px;margin-bottom:16px;}
+.profile-stats-new{display:flex;gap:16px;justify-content:center;background:rgba(255,255,255,.6);border-radius:20px;padding:16px;margin-bottom:16px;}
 .stat-number-new{font-size:22px;font-weight:800;}
 .stat-label-new{font-size:11px;color:#999;}
 .page{display:none;}
@@ -102,11 +98,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .contact-row-preview{font-size:13px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .contact-row-badge{background:#2ECC71;color:#fff;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:11px;display:flex;align-items:center;justify-content:center;}
 #btnRecordVoice.recording{background:#E74C3C;color:#fff;border-color:#E74C3C;}
-.message-bubble{display:flex;margin-bottom:8px;}
-.message-bubble.mine{justify-content:flex-end;}
-.message-bubble .bubble{max-width:75%;padding:8px 12px;border-radius:14px;background:#f0f0f0;font-size:14px;}
-.message-bubble.mine .bubble{background:#E74C3C;color:#fff;}
-.message-bubble .time{display:block;font-size:10px;opacity:.6;margin-top:2px;}
 .discussion-product-card{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(0,0,0,.03);border-radius:14px;margin-bottom:10px;}
 .discussion-product-card img{width:48px;height:48px;border-radius:10px;object-fit:cover;}
 .discussion-product-card .dp-info{flex:1;min-width:0;}
@@ -115,24 +106,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .discussion-product-card button{padding:8px 14px;border:none;border-radius:20px;background:#E74C3C;color:#fff;font-weight:700;font-size:12px;}
 .product-story-overlay{position:fixed;inset:0;background:#000;z-index:3000;display:none;opacity:0;transition:opacity .25s ease;}
 .product-story-overlay.active{display:block;opacity:1;}
-.story-bg{position:absolute;inset:0;background-size:cover;background-position:center;}
-.story-gradient{position:absolute;left:0;right:0;bottom:0;height:60%;background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.85) 65%,rgba(0,0,0,.96) 100%);}
 .story-close{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);border:none;color:#fff;z-index:2;display:flex;align-items:center;justify-content:center;}
 .story-content{position:absolute;left:0;right:0;bottom:0;padding:20px 20px 28px;color:#fff;z-index:1;}
-.story-seller-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
 .story-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#FF8C00);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;flex-shrink:0;}
 .story-avatar img{width:100%;height:100%;object-fit:cover;}
-.story-seller-name{font-weight:700;font-size:14px;}
-.story-seller-meta{font-size:12px;opacity:.75;}
-.story-title{font-size:20px;font-weight:800;margin-bottom:4px;}
-.story-price{font-size:22px;font-weight:900;color:#FFD700;margin-bottom:18px;}
-.swipe-slider{position:relative;height:56px;border-radius:30px;overflow:hidden;display:flex;align-items:center;padding:4px;}
-.swipe-slider.buy{background:rgba(231,76,60,.28);}
-.swipe-slider.chat{background:rgba(255,255,255,.2);}
-.swipe-slider .swipe-label{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:14px;pointer-events:none;color:#fff;transition:opacity .2s ease;}
-.swipe-slider .swipe-handle{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:2;touch-action:none;}
-.swipe-slider .swipe-handle svg{width:22px;height:22px;color:#E74C3C;}
-.swipe-slider.completed .swipe-label{opacity:0;}
 .order-ring-wrap{display:flex;align-items:center;gap:14px;background:#0a0a0a;border-radius:20px;padding:14px 18px;margin-top:10px;cursor:pointer;}
 .order-ring-wrap.readonly{cursor:default;}
 .order-ring-box{position:relative;width:64px;height:64px;flex-shrink:0;}
@@ -149,8 +126,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .confirm-anim-card h3{font-size:18px;font-weight:800;margin-bottom:6px;}
 .confirm-anim-card p{font-size:14px;color:#999;}
 @media (min-width:500px){.shop-stats-grid{grid-template-columns:repeat(4,1fr);}.articles-grid{grid-template-columns:repeat(3,1fr);}}
-
-/* Carrousel */
 .carousel-container{position:relative;overflow:hidden;border-radius:16px;margin-bottom:12px;}
 .carousel-track{display:flex;transition:transform .3s ease;}
 .carousel-slide{min-width:100%;}
@@ -161,8 +136,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .carousel-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;border-radius:50%;width:32px;height:32px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2;}
 .carousel-btn.left{left:8px;}
 .carousel-btn.right{right:8px;}
-
-/* Formulaire publication */
 .publish-field{margin-bottom:16px;}
 .publish-field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#555;}
 .publish-field input[type="text"],.publish-field input[type="number"],.publish-field textarea,.publish-field select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:15px;}
@@ -171,14 +144,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .publish-thumb img{width:100%;height:100%;object-fit:cover;}
 .publish-thumb button{position:absolute;top:2px;right:2px;background:#E74C3C;border:none;border-radius:50%;width:20px;height:20px;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .publish-add-btn{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border:2px dashed #ccc;border-radius:10px;background:#f9f9f9;cursor:pointer;color:#aaa;font-size:24px;}
-
-/* Animation de paiement */
 .spinner-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:5000;}
 .spinner-overlay.active{display:flex;}
 .spinner{width:50px;height:50px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
-/* Messagerie */
 .chat-header{display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:10;}
 .chat-back-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#E74C3C;}
 .chat-contact-info{flex:1;display:flex;align-items:center;gap:10px;}
@@ -220,6 +189,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
     <form id="authForm" autocomplete="off">
       <div class="auth-input-group" id="nameGroup"><input type="text" id="loginName" placeholder="Nom complet"></div>
+      <div class="auth-input-group" id="phoneGroup" style="display:none;"><input type="tel" id="loginPhone" placeholder="Numéro de téléphone"></div>
       <div class="auth-input-group"><input type="email" id="loginEmail" placeholder="Adresse e-mail" required></div>
       <div class="auth-input-group"><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
       <button type="submit" class="auth-btn" id="btnLogin">Se connecter</button>
@@ -301,8 +271,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
     <div class="profile-stats-new">
       <div><span class="stat-number-new" id="profileFlamesNew">0</span><span class="stat-label-new">Flammes</span></div>
-      <div><span class="stat-number-new" id="profileFollowersNew">0</span><span class="stat-label-new">Abonnés</span></div>
-      <div><span class="stat-number-new" id="profileFollowingNew">0</span><span class="stat-label-new">Abonnements</span></div>
     </div>
     <button class="btn btn-danger" id="btnLogout" style="margin-top:20px;">Déconnexion</button>
   </div>
@@ -320,7 +288,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<!-- Fiche produit overlay (avec carrousel) -->
+<!-- Fiche produit overlay -->
 <div class="product-story-overlay" id="productStory">
   <button class="story-close" id="storyClose">&#10005;</button>
   <div class="story-content" style="top:0;bottom:0;overflow-y:auto;background:#fff;color:#1a1a1a;padding:0;">
@@ -336,7 +304,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<!-- Spinner de chargement -->
+<!-- Spinner -->
 <div class="spinner-overlay" id="spinnerOverlay">
   <div class="spinner"></div>
 </div>
@@ -431,6 +399,7 @@ var isLoginMode = true;
 function toggleAuthMode() {
   isLoginMode = !isLoginMode;
   document.getElementById('nameGroup').style.display = isLoginMode ? 'none' : 'block';
+  document.getElementById('phoneGroup').style.display = isLoginMode ? 'none' : 'block';
   document.getElementById('btnLogin').textContent = isLoginMode ? 'Se connecter' : "S'inscrire";
   document.getElementById('showLogin').className = isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   document.getElementById('showRegister').className = !isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
@@ -445,8 +414,9 @@ document.getElementById('authForm').addEventListener('submit', function(e){
   var name = document.getElementById('loginName').value.trim();
   var email = document.getElementById('loginEmail').value.trim();
   var password = document.getElementById('loginPassword').value;
+  var phone = document.getElementById('loginPhone').value.trim();
   var errorDiv = document.getElementById('authError');
-  if (!email || !password || (!isLoginMode && !name)) {
+  if (!email || !password || (!isLoginMode && (!name || !phone))) {
     errorDiv.style.display = 'block';
     errorDiv.textContent = 'Remplis tous les champs.';
     return;
@@ -456,7 +426,7 @@ document.getElementById('authForm').addEventListener('submit', function(e){
   btn.disabled = true;
 
   var url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
-  var body = isLoginMode ? { email, password } : { name, email, password };
+  var body = isLoginMode ? { email, password } : { name, email, password, phone };
 
   apiFetch(url, { method: 'POST', body: JSON.stringify(body) })
   .then(r => r.json())
@@ -511,7 +481,7 @@ function showMainApp() {
   loadMessages();
   loadShopArticles();
   loadStats();
-  loadFollowCounts(currentUserId);
+  loadFlames(currentUserId);
   initTabs();
   startAutoRefresh();
 }
@@ -548,7 +518,7 @@ function initTabs() {
       if (pageId === 'pageOrders') loadOrders();
       if (pageId === 'pageMessages') loadMessages();
       if (pageId === 'pageShop') { loadShopArticles(); loadStats(); }
-      if (pageId === 'pageProfile') loadFollowCounts(currentUserId);
+      if (pageId === 'pageProfile') loadFlames(currentUserId);
     }
   }
   tabs.forEach(tab => tab.addEventListener('click', (e) => { e.preventDefault(); setActive(tab); }));
@@ -557,17 +527,13 @@ function initTabs() {
   window.addEventListener('resize', () => moveBubble(document.querySelector('.tab-item.active')));
 }
 
-// ===================== FOLLOW COUNTS =====================
-function loadFollowCounts(userId) {
+// ===================== FLAMES =====================
+function loadFlames(userId) {
   if (!userId) return;
-  apiFetch('/api/users/' + userId)
+  apiFetch('/api/flames/' + userId)
   .then(r => r.json())
   .then(data => {
-    if (data.success) {
-      document.getElementById('profileFollowersNew').textContent = data.data.followersCount || 0;
-      document.getElementById('profileFollowingNew').textContent = data.data.followingCount || 0;
-      document.getElementById('profileFlamesNew').textContent = data.data.flames || 0;
-    }
+    document.getElementById('profileFlamesNew').textContent = data.flames || 0;
   }).catch(() => {});
 }
 
@@ -644,9 +610,9 @@ function showProductModal(product) {
       </div>
 
       <div style="display:flex;gap:12px;margin-bottom:12px;font-size:13px;color:#555;">
-        <span>👁 ${product.views || 0} vues</span>
-        <span>❤️ ${product.favorites || 0} favoris</span>
-        <span>📦 ${product.stock || 1} dispo</span>
+        <span>Vues: ${product.views || 0}</span>
+        <span>Favoris: ${product.favorites || 0}</span>
+        <span>Stock: ${product.stock || 1}</span>
       </div>
 
       ${product.size ? `<div style="margin-bottom:12px;"><strong>TAILLE</strong><div style="display:flex;gap:6px;margin-top:4px;">${['XS','S','M','L','XL','XXL'].map(s => `<span style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:${s===product.size?'#E74C3C':'#f9f9f9'};color:${s===product.size?'#fff':'#333'};">${s}</span>`).join('')}</div></div>` : ''}
@@ -654,7 +620,7 @@ function showProductModal(product) {
       <div style="margin-bottom:12px;">
         <strong>DESCRIPTION</strong>
         <p style="margin:4px 0 0;color:#666;">${product.description || ''}</p>
-        <span style="color:#E74C3C;cursor:pointer;">Lire plus →</span>
+        <span style="color:#E74C3C;cursor:pointer;">Lire plus</span>
       </div>
 
       ${product.hashtags && product.hashtags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${product.hashtags.map(tag => `<span style="background:#f0f0f0;padding:4px 8px;border-radius:12px;font-size:12px;">#${tag}</span>`).join('')}</div>` : ''}
@@ -663,14 +629,14 @@ function showProductModal(product) {
         <div class="story-avatar" style="width:40px;height:40px;">${product.sellerName ? product.sellerName.charAt(0).toUpperCase() : '?'}</div>
         <div>
           <div style="font-weight:700;">${product.sellerName || 'Anonyme'}</div>
-          <div style="font-size:12px;color:#999;">⭐ 4.9 · 142 ventes · En ligne</div>
+          <div style="font-size:12px;color:#999;">Vendeur</div>
         </div>
-        <button class="btn btn-sm btn-outline" style="margin-left:auto;" onclick="openDiscussion('${product.sellerId}', '${product.sellerName || 'Vendeur'}')">💬 Message</button>
+        <button class="btn btn-sm btn-outline" style="margin-left:auto;" id="btnMessageSeller">Message</button>
       </div>
 
       <div style="display:flex;gap:10px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="showCheckoutModal(${JSON.stringify(product).replace(/"/g, '&quot;')})">🛍 Acheter maintenant</button>
-        <button class="btn btn-outline" style="width:auto;padding:14px;" onclick="toggleFavorite('${product.id}')">❤️</button>
+        <button class="btn btn-primary" style="flex:1;" id="btnBuyNow">Acheter maintenant</button>
+        <button class="btn btn-outline" style="width:auto;padding:14px;" id="btnToggleFavorite">Favori</button>
       </div>
     </div>
   `;
@@ -691,29 +657,35 @@ function showProductModal(product) {
     document.getElementById('carouselRight').addEventListener('click', () => updateCarousel((currentIndex + 1) % images.length));
     dots.forEach(dot => dot.addEventListener('click', () => updateCarousel(parseInt(dot.dataset.index))));
   }
+
+  document.getElementById('btnBuyNow').addEventListener('click', () => showCheckoutModal(product));
+  document.getElementById('btnMessageSeller').addEventListener('click', () => {
+    document.getElementById('productStory').classList.remove('active');
+    openDiscussion(product.sellerId, product.sellerName || 'Vendeur');
+  });
+  document.getElementById('btnToggleFavorite').addEventListener('click', () => toggleFavorite(product.id));
 }
 
 document.getElementById('storyClose').addEventListener('click', () => {
   document.getElementById('productStory').classList.remove('active');
 });
 
-// ===================== NOUVELLE PAGE DE COMMANDE =====================
+// ===================== CHECKOUT =====================
 function showCheckoutModal(product) {
   document.getElementById('productStory').classList.remove('active');
 
-  var shipping = 1000;
-  var protection = 500;
-  var total = product.price + shipping + protection;
+  const buyerCommission = Math.round(product.price * 0.03);
+  const total = product.price + buyerCommission;
 
   var html = `
     <div style="padding:20px;">
-      <h3 style="text-align:center;margin-bottom:16px;">🛍 Passer commande</h3>
+      <h3 style="text-align:center;margin-bottom:16px;">Passer commande</h3>
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:#f9f9f9;border-radius:12px;">
         <img src="${product.image || (product.images && product.images[0])}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;">
         <div>
           <div style="font-weight:700;">${product.title}</div>
-          <div style="font-size:13px;color:#999;">By ${product.sellerName || 'Vendeur'} · Taille ${product.size || 'M'}</div>
+          <div style="font-size:13px;color:#999;">Par ${product.sellerName || 'Vendeur'}</div>
           <div style="font-weight:800;color:#E74C3C;">${product.price} FCFA</div>
         </div>
       </div>
@@ -721,25 +693,25 @@ function showCheckoutModal(product) {
       <div style="margin-bottom:16px;">
         <label style="font-weight:600;font-size:14px;">MODE DE PAIEMENT</label>
         <div style="display:flex;gap:10px;margin-top:8px;">
-          <button class="btn btn-sm payment-method-btn active" data-method="mtn" style="flex:1;">💛 MTN Mobile Money</button>
-          <button class="btn btn-sm payment-method-btn" data-method="airtel" style="flex:1;">❤️ Airtel Money</button>
+          <button class="btn btn-sm payment-method-btn active" data-method="mtn" style="flex:1;">MTN Mobile Money</button>
+          <button class="btn btn-sm payment-method-btn" data-method="airtel" style="flex:1;">Airtel Money</button>
         </div>
       </div>
 
       <div style="margin-bottom:16px;">
         <label style="font-weight:600;font-size:14px;">TON NUMÉRO MOBILE MONEY</label>
-        <input type="tel" id="checkoutPhone" placeholder="📱 Ex: 065918166" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;margin-top:6px;font-size:15px;">
+        <input type="tel" id="checkoutPhone" placeholder="Ex: 065918166" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;margin-top:6px;font-size:15px;">
       </div>
 
       <div style="background:#f9f9f9;border-radius:12px;padding:12px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Article</span><span>${product.price} FCFA</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Livraison</span><span>${shipping} FCFA</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Protection BLK</span><span>${protection} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Commission BLK (3%)</span><span>${buyerCommission} FCFA</span></div>
         <hr style="border:none;border-top:1px solid #ddd;margin:8px 0;">
-        <div style="display:flex;justify-content:space-between;font-weight:800;"><span>Total</span><span style="color:#E74C3C;">${total} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;"><span>Total à payer</span><span style="color:#E74C3C;">${total} FCFA</span></div>
+        <div style="margin-top:8px;font-size:12px;color:#27ae60;">Protection BLK incluse - remboursé si non reçu</div>
       </div>
 
-      <button class="btn btn-primary" id="confirmPaymentBtn">💳 Confirmer le paiement</button>
+      <button class="btn btn-primary" id="confirmPaymentBtn">Confirmer le paiement</button>
       <button class="btn btn-outline" id="cancelCheckoutBtn" style="margin-top:8px;">Annuler</button>
       <div id="checkoutStatus" style="margin-top:10px;font-size:13px;text-align:center;"></div>
     </div>
@@ -808,12 +780,17 @@ function showCheckoutModal(product) {
   });
 }
 
-// ===================== FORMULAIRE DE PUBLICATION =====================
+// ===================== FAVORIS (à implémenter plus tard) =====================
+function toggleFavorite(articleId) {
+  showAlert('Favori mis à jour (fonction à connecter)', 'info');
+}
+
+// ===================== PUBLICATION =====================
 document.getElementById('btnPublish').addEventListener('click', () => {
   var html = `
     <h3>Vendre un article</h3>
     <div class="publish-field">
-      <label>Photos (max 10, uniquement des images)</label>
+      <label>Photos (max 10)</label>
       <div class="publish-photos" id="publishPhotos"></div>
       <input type="file" id="pubImageInput" accept="image/*" multiple style="display:none;">
     </div>
@@ -826,23 +803,27 @@ document.getElementById('btnPublish').addEventListener('click', () => {
       <input type="number" id="pubPrice" placeholder="Ex: 12500">
     </div>
     <div class="publish-field">
+      <label>Quantité disponible *</label>
+      <input type="number" id="pubStock" value="1" min="1">
+    </div>
+    <div class="publish-field">
       <label>Catégorie *</label>
       <select id="pubCategory">
-        <option value="robes">👗 Robes</option>
-        <option value="hauts">👕 Hauts</option>
-        <option value="bas">👖 Bas</option>
-        <option value="chaussures">👟 Chaussures</option>
-        <option value="sacs">👜 Sacs</option>
-        <option value="bijoux">💍 Bijoux</option>
-        <option value="accessoires">🧣 Accessoires</option>
+        <option value="robes">Robes</option>
+        <option value="hauts">Hauts</option>
+        <option value="bas">Bas</option>
+        <option value="chaussures">Chaussures</option>
+        <option value="sacs">Sacs</option>
+        <option value="bijoux">Bijoux</option>
+        <option value="accessoires">Accessoires</option>
       </select>
     </div>
     <div class="publish-field">
       <label>État *</label>
       <select id="pubCondition">
-        <option value="neuf">✨ Neuf</option>
-        <option value="bon_etat">👌 Bon état</option>
-        <option value="correct">🔄 Correct</option>
+        <option value="neuf">Neuf</option>
+        <option value="bon_etat">Bon état</option>
+        <option value="correct">Correct</option>
       </select>
     </div>
     <div class="publish-field">
@@ -865,7 +846,7 @@ document.getElementById('btnPublish').addEventListener('click', () => {
       <label>Hashtags (séparés par des virgules)</label>
       <input type="text" id="pubHashtags" placeholder="Ex: wax, robe, madeincongo">
     </div>
-    <button class="btn btn-primary" id="pubSubmit">🚀 Publier l'article</button>
+    <button class="btn btn-primary" id="pubSubmit">Publier l'article</button>
     <button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button>
     <div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>
   `;
@@ -921,9 +902,10 @@ document.getElementById('btnPublish').addEventListener('click', () => {
     var size = overlay.querySelector('#pubSize').value;
     var description = overlay.querySelector('#pubDescription').value.trim();
     var hashtagsInput = overlay.querySelector('#pubHashtags').value.trim();
+    var stock = overlay.querySelector('#pubStock').value.trim();
     var statusEl = overlay.querySelector('#pubStatus');
 
-    if (!title || !price || !description || photos.length === 0) {
+    if (!title || !price || !description || photos.length === 0 || !stock) {
       showAlert('Remplis tous les champs obligatoires et ajoute au moins une photo.', 'error');
       return;
     }
@@ -942,7 +924,8 @@ document.getElementById('btnPublish').addEventListener('click', () => {
           body: JSON.stringify({
             title, price: parseInt(price), category, condition, size, description, hashtags,
             images: urls,
-            sellerName: currentUser.name
+            sellerName: currentUser.name,
+            stock: parseInt(stock)
           })
         })
         .then(r => r.json())
@@ -1199,8 +1182,8 @@ function openOrderConfirm(orderId) {
     .then(data => {
       if (data.success) {
         overlay.remove();
-        showConfirmAnimation('Commande confirmée !', 'Le vendeur a été crédité.');
-        loadOrders(); loadProducts(); loadShopArticles(); loadStats();
+        showConfirmAnimation('Commande confirmée !', 'Le vendeur a été crédité et une flamme lui a été attribuée.');
+        loadOrders(); loadProducts(); loadShopArticles(); loadStats(); loadFlames(currentUserId);
       } else {
         this.disabled = false;
         statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'La confirmation a échoué.';
@@ -1223,7 +1206,7 @@ function loadShopArticles() {
       var div = document.createElement('div');
       div.style.cssText = 'display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.5);border-radius:12px;padding:12px;margin-bottom:8px;';
       var statusText = a.status==='active' ? 'En vente' : (a.status==='reserved' ? 'Réservé (commande en cours)' : (a.status==='sold' ? 'Vendu' : 'Inactif'));
-      div.innerHTML = '<img src="' + (a.image||'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px;height:50px;object-fit:cover;border-radius:8px;"><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA<br><span style="font-size:11px;color:#999;">' + statusText + '</span></div>';
+      div.innerHTML = '<img src="' + (a.image||'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px;height:50px;object-fit:cover;border-radius:8px;"><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA · Stock: ' + (a.stock || 0) + '<br><span style="font-size:11px;color:#999;">' + statusText + '</span></div>';
       if (a.status === 'active') {
         var delBtn = document.createElement('button');
         delBtn.className = 'btn btn-danger btn-sm';
@@ -1246,7 +1229,7 @@ function deleteArticle(articleId) {
   }).catch(e => showAlert('Erreur: '+e.message, 'error'));
 }
 
-// ===================== MESSAGERIE AMÉLIORÉE (WhatsApp-like) =====================
+// ===================== MESSAGERIE =====================
 function loadMessages() {
   if (!currentUserId) return;
   apiFetch('/api/messages/' + currentUserId)
@@ -1256,7 +1239,6 @@ function loadMessages() {
     var empty = document.getElementById('emptyMessages');
     var view = document.getElementById('discussionView');
 
-    // Si aucune conversation n'est active, on affiche la liste
     if (!activeConversationId) {
       view.style.display = 'none';
       container.style.display = 'flex';
@@ -1274,7 +1256,6 @@ function loadMessages() {
 
     empty.style.display = 'none';
 
-    // Construire la liste des contacts
     var contacts = {};
     data.data.forEach(msg => {
       var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
@@ -1325,15 +1306,13 @@ function loadMessages() {
     }).join('');
 
     document.querySelectorAll('.contact-row').forEach(el => {
-      el.addEventListener('click', function(event) {
+      el.addEventListener('click', function() {
         var contactId = this.dataset.id;
         var contactName = contacts[contactId]?.name || 'Contact';
         activeConversationId = contactId;
         activeChatProduct = null;
-
         document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
         this.classList.add('active');
-
         openDiscussion(contactId, contactName);
       });
     });
@@ -1346,8 +1325,8 @@ function loadMessages() {
 }
 
 function openDiscussion(contactId, contactName) {
-  var messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
-  if (messagesTab) messagesTab.click();
+  document.getElementById('productStory')?.classList.remove('active');
+  document.querySelectorAll('.modal-overlay.active').forEach(o => o.remove());
 
   var view = document.getElementById('discussionView');
   var container = document.getElementById('contactsList');
@@ -1364,7 +1343,7 @@ function openDiscussion(contactId, contactName) {
   .then(data => {
     if (data.success) {
       contactAvatar = data.data.photo ? `<img src="${data.data.photo}" alt="">` : (data.data.name || '?').charAt(0).toUpperCase();
-      contactStatus = data.data.online ? '🟢 En ligne maintenant' : 'Hors ligne';
+      contactStatus = data.data.online ? 'En ligne maintenant' : 'Hors ligne';
       var avatarEl = document.getElementById('discussionAvatar');
       var statusEl = document.getElementById('discussionStatus');
       if (avatarEl) avatarEl.innerHTML = contactAvatar;
@@ -1384,16 +1363,16 @@ function openDiscussion(contactId, contactName) {
           </div>
         </div>
         <div class="chat-actions">
-          <button class="chat-action-btn" id="btnVideoCall" title="Appel vidéo">📹</button>
-          <button class="chat-action-btn" id="btnAudioCall" title="Appel audio">📞</button>
+          <button class="chat-action-btn" id="btnVideoCall" title="Appel vidéo">Vidéo</button>
+          <button class="chat-action-btn" id="btnAudioCall" title="Appel audio">Audio</button>
         </div>
       </div>
       <div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div>
       <div class="chat-messages" id="messagesList"></div>
       <div class="chat-input-bar">
-        <button class="chat-mic-btn" id="btnRecordVoice" type="button">🎙️</button>
+        <button class="chat-mic-btn" id="btnRecordVoice" type="button">Mic</button>
         <input type="text" id="messageInput" placeholder="Écris ton message...">
-        <button class="chat-send-btn" id="btnSendMessage">➤</button>
+        <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
       </div>
     </div>
   `;
