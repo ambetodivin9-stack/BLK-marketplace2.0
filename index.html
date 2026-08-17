@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BLK Marketplace</title>
+<style>
+/* ... (tout le CSS original reste inchangé, sauf modifications éventuelles) */
+</style>
+</head>
+<body>
+<div class="kente"></div>
+<div class="splash-screen" id="splashScreen">
+  <img src="" alt="BLK" class="splash-logo" id="splashLogo">
+</div>
+
+<div class="auth-page" id="authPage">
+  <div class="auth-card">
+    <div class="auth-title">Welcome to <br><span>BLKmarketplace</span></div>
+    <p class="auth-subtitle">Shop unique finds with an African touch.</p>
+    <div id="authModeToggle" style="display:flex;gap:10px;margin-bottom:20px;">
+      <button class="btn btn-sm btn-primary" id="showLogin">Connexion</button>
+      <button class="btn btn-sm btn-outline" id="showRegister">Inscription</button>
+    </div>
+    <form id="authForm" autocomplete="off">
+      <div class="auth-input-group" id="nameGroup"><input type="text" id="loginName" placeholder="Nom complet"></div>
+      <div class="auth-input-group" id="phoneGroup" style="display:none;"><input type="tel" id="loginPhone" placeholder="Numéro de téléphone"></div>
+      <div class="auth-input-group"><input type="email" id="loginEmail" placeholder="Adresse e-mail" required></div>
+      <div class="auth-input-group"><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
+      <button type="submit" class="auth-btn" id="btnLogin">Se connecter</button>
+    </form>
+    <div id="authError"></div>
+  </div>
+</div>
+
+<div class="app" id="appContainer">
+  <div id="alertBox" class="alert"><span class="alert-icon" id="alertIcon"></span><span class="alert-text"></span></div>
+
+  <!-- Page Accueil -->
+  <div class="page active" id="pageHome">
+    <div class="home-header">
+      <div class="brand-row"><span class="brand-logo-text">BLK</span></div>
+      <div class="search-bar">
+        <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input type="text" id="searchInput" placeholder="Rechercher...">
+      </div>
+    </div>
+    <div id="categoryFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-sm btn-primary" data-cat="all">Tous</button>
+      <button class="btn btn-sm btn-outline" data-cat="robes">Robes</button>
+      <button class="btn btn-sm btn-outline" data-cat="hauts">Hauts</button>
+      <button class="btn btn-sm btn-outline" data-cat="bas">Bas</button>
+      <button class="btn btn-sm btn-outline" data-cat="chaussures">Chaussures</button>
+      <button class="btn btn-sm btn-outline" data-cat="sacs">Sacs</button>
+      <button class="btn btn-sm btn-outline" data-cat="bijoux">Bijoux</button>
+      <button class="btn btn-sm btn-outline" data-cat="accessoires">Accessoires</button>
+    </div>
+    <div id="productsGrid" class="articles-grid"></div>
+    <div id="emptyHome" class="empty" style="display:none;">Aucun article</div>
+  </div>
+
+  <!-- Page Magasin -->
+  <div class="page" id="pageShop">
+    <h2 style="color:#E74C3C;margin-bottom:8px;">Mon Magasin</h2>
+    <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;">Publier un article</button>
+    <div class="shop-stats"><div class="shop-stats-grid">
+      <div class="stat-card stat-sales"><div class="stat-card-icon" data-ic="box"></div><div class="stat-card-content"><span class="stat-card-number" id="statTotalSales">0</span><span class="stat-card-label">Articles vendus</span></div></div>
+      <div class="stat-card stat-published"><div class="stat-card-icon" data-ic="note"></div><div class="stat-card-content"><span class="stat-card-number" id="statTotalArticles">0</span><span class="stat-card-label">Articles publiés</span></div></div>
+      <div class="stat-card stat-revenue"><div class="stat-card-icon" data-ic="coin"></div><div class="stat-card-content"><span class="stat-card-number" id="statTotalRevenue">0</span><span class="stat-card-label">Chiffre d'affaires</span></div></div>
+      <div class="stat-card stat-orders"><div class="stat-card-icon" data-ic="cart"></div><div class="stat-card-content"><span class="stat-card-number" id="statTotalOrders">0</span><span class="stat-card-label">Commandes</span></div></div>
+    </div></div>
+    <div id="shopArticles" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- Page Messages -->
+  <div class="page" id="pageMessages">
+    <h2 style="color:#E74C3C;">Messagerie</h2>
+    <div id="contactsList" style="display:flex;flex-direction:column;margin-bottom:12px;"></div>
+    <div id="discussionView" style="display:none;"></div>
+    <div id="emptyMessages" class="empty" style="display:block;">Aucune discussion</div>
+  </div>
+
+  <!-- Page Commandes -->
+  <div class="page" id="pageOrders">
+    <h2 style="color:#E74C3C;">Mes Commandes</h2>
+    <div id="ordersList"></div>
+    <div id="emptyOrders" class="empty" style="display:none;">Aucune commande</div>
+  </div>
+
+  <!-- Page Profil -->
+  <div class="page" id="pageProfile">
+    <div class="profile-header-new">
+      <div class="profile-avatar-new"><span id="profileAvatarLetter">D</span></div>
+      <div><h2 id="profileNameNew">Utilisateur</h2><p id="profileEmailNew" style="color:#999;font-size:14px;"></p><p id="profilePhoneNew" style="color:#999;font-size:14px;"></p></div>
+    </div>
+    <div class="wallet-card">
+      <div style="text-align:center;">
+        <span style="font-size:12px;color:rgba(255,255,255,.4);">WALLET BLK</span>
+        <div><span class="wallet-balance-new" id="walletBalanceNew">0</span><span style="color:rgba(255,255,255,.3);"> FCFA</span></div>
+      </div>
+      <div class="wallet-actions" style="margin-top:16px;">
+        <button class="wallet-btn wallet-btn-deposit" id="btnDepositNew">Déposer</button>
+        <button class="wallet-btn wallet-btn-withdraw" id="btnWithdrawNew">Retirer</button>
+        <button class="wallet-btn wallet-btn-transfer" id="btnTransferNew">Transférer</button>
+      </div>
+    </div>
+    <!-- Suppression des abonnés/abonnements, uniquement les flammes -->
+    <div class="profile-stats-new" style="justify-content:center;">
+      <div><span class="stat-number-new" id="profileFlamesNew">0</span><span class="stat-label-new">Flammes</span></div>
+    </div>
+    <button class="btn btn-danger" id="btnLogout" style="margin-top:20px;">Déconnexion</button>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar" id="tabs">
+  <div class="tab-slider" id="tabSlider">
+    <div class="tab-bubble" id="tabBubble"><span class="tab-bubble-icon" id="tabBubbleIcon"></span></div>
+    <button class="tab-item active" data-tab="pageHome" data-icon="home"><span class="tab-icon-svg"></span><span class="tab-label">Accueil</span></button>
+    <button class="tab-item" data-tab="pageShop" data-icon="shop"><span class="tab-icon-svg"></span><span class="tab-label">Magasin</span></button>
+    <button class="tab-item" data-tab="pageMessages" data-icon="messages"><span class="tab-icon-svg"></span><span class="tab-label">Messages</span></button>
+    <button class="tab-item" data-tab="pageOrders" data-icon="orders"><span class="tab-icon-svg"></span><span class="tab-label">Commandes</span></button>
+    <button class="tab-item" data-tab="pageProfile" data-icon="profile"><span class="tab-icon-svg"></span><span class="tab-label">Profil</span></button>
+  </div>
+</div>
+
+<!-- Fiche produit overlay (avec carrousel) -->
+<div class="product-story-overlay" id="productStory">
+  <button class="story-close" id="storyClose">&#10005;</button>
+  <div class="story-content" style="top:0;bottom:0;overflow-y:auto;background:#fff;color:#1a1a1a;padding:0;">
+    <div id="productDetailContent"></div>
+  </div>
+</div>
+
+<!-- Animation confirmation -->
+<div class="confirm-anim-overlay" id="confirmAnimOverlay">
+  <div class="confirm-anim-card">
+    <h3 id="confirmAnimTitle">Confirmé !</h3>
+    <p id="confirmAnimSubtitle"></p>
+  </div>
+</div>
+
+<!-- Spinner de chargement -->
+<div class="spinner-overlay" id="spinnerOverlay">
+  <div class="spinner"></div>
+</div>
+
+<script>
+// ===================== ICONS =====================
+var ICONS = {
+  flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-6.8 0-2.7-1.7-4.6-2.8-6.4-.6 1.7-1.5 2.6-2.4 2.6.6-2.8-.8-5.6-3.2-7 .4 2.8-1 4.8-2.8 6.6-1.3 1.4-1.8 2.8-1.8 4.2C6 19.3 8 22 12 22Z"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg>',
+  note:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v6h6"/></svg>',
+  coin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2.5 3h2.5l2.3 11.4a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L21 7H6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>',
+  crossCircle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/></svg>',
+  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>',
+  cross:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>'
+};
+var TAB_ICONS = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>',
+  shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5h16v4"/><path d="M5 9v11h14V9"/></svg>',
+  messages:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5Z"/></svg>',
+  orders:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/></svg>',
+  profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4.5-6 7-6s6 2 7 6"/></svg>'
+};
+document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = ICONS[el.dataset.ic] || ''; });
+
+// ===================== GLOBAL VARS =====================
+var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
+var authToken = localStorage.getItem('authToken') || null;
+var currentUserId = localStorage.getItem('currentUserId') || null;
+var currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+var allProducts = [], selectedCategory = 'all';
+var activeConversationId = null, activeChatProduct = null;
+
+// ===================== UTILS =====================
+function apiFetch(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+    ...options.headers
+  };
+  return fetch(BACKEND_URL + url, { ...options, headers });
+}
+
+function showAlert(message, type) {
+  var box = document.getElementById('alertBox');
+  var t = type || 'success';
+  var ic = t === 'success' ? 'check' : (t === 'error' ? 'crossCircle' : 'info');
+  box.innerHTML = '<span class="alert-icon">' + ICONS[ic] + '</span><span class="alert-text"></span>';
+  box.querySelector('.alert-text').textContent = message;
+  box.className = 'alert alert-' + t;
+  box.style.display = 'flex';
+  clearTimeout(box._t);
+  box._t = setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+function openModal(html) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.innerHTML = '<div class="modal-box" style="max-width:400px;width:100%;background:white;border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto;">' + html + '</div>';
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function formatNumber(num) {
+  if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num/1000).toFixed(1) + 'k';
+  return String(num);
+}
+function parseServerDate(val) {
+  if (!val) return null;
+  if (val._seconds) return new Date(val._seconds * 1000);
+  if (val.seconds) return new Date(val.seconds * 1000);
+  var d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+function showConfirmAnimation(title, subtitle) {
+  var overlay = document.getElementById('confirmAnimOverlay');
+  document.getElementById('confirmAnimTitle').textContent = title || 'Confirmé !';
+  document.getElementById('confirmAnimSubtitle').textContent = subtitle || '';
+  overlay.classList.add('visible');
+  clearTimeout(overlay._t);
+  overlay._t = setTimeout(() => { overlay.classList.remove('visible'); }, 2200);
+  overlay.onclick = () => { overlay.classList.remove('visible'); };
+}
+function showSpinner(show) {
+  document.getElementById('spinnerOverlay').classList.toggle('active', show);
+}
+
+// ===================== AUTH =====================
+var isLoginMode = true;
+function toggleAuthMode() {
+  isLoginMode = !isLoginMode;
+  document.getElementById('nameGroup').style.display = isLoginMode ? 'none' : 'block';
+  document.getElementById('phoneGroup').style.display = isLoginMode ? 'none' : 'block';
+  document.getElementById('btnLogin').textContent = isLoginMode ? 'Se connecter' : "S'inscrire";
+  document.getElementById('showLogin').className = isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('showRegister').className = !isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('authError').style.display = 'none';
+}
+document.getElementById('showLogin').addEventListener('click', () => { if (!isLoginMode) toggleAuthMode(); });
+document.getElementById('showRegister').addEventListener('click', () => { if (isLoginMode) toggleAuthMode(); });
+toggleAuthMode();
+
+document.getElementById('authForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = document.getElementById('loginName').value.trim();
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  var phone = document.getElementById('loginPhone').value.trim();
+  var errorDiv = document.getElementById('authError');
+  if (!email || !password || (!isLoginMode && (!name || !phone))) {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Remplis tous les champs.';
+    return;
+  }
+  errorDiv.style.display = 'none';
+  var btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+
+  var url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+  var body = isLoginMode ? { email, password } : { name, email, password, phone };
+
+  apiFetch(url, { method: 'POST', body: JSON.stringify(body) })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserId', data.userId);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      authToken = data.token;
+      currentUserId = data.userId;
+      currentUser = data.user;
+      document.getElementById('authPage').style.display = 'none';
+      showSplash();
+    } else {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = data.message || 'Erreur';
+    }
+  })
+  .catch(err => {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Erreur réseau : ' + err.message;
+  })
+  .finally(() => { btn.disabled = false; });
+});
+
+// Check if already logged in on load
+if (authToken && currentUserId) {
+  document.getElementById('authPage').style.display = 'none';
+  currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  showSplash();
+} else {
+  document.getElementById('authPage').style.display = 'flex';
+}
+
+// ===================== SPLASH & APP =====================
+function showSplash() {
+  var splash = document.getElementById('splashScreen');
+  splash.classList.add('active');
+  setTimeout(() => {
+    splash.classList.remove('active');
+    document.getElementById('appContainer').classList.add('active');
+    document.getElementById('tabs').classList.add('show');
+    showMainApp();
+  }, 1200);
+}
+
+function showMainApp() {
+  updateProfileUI(currentUser);
+  loadProducts();
+  loadWallet();
+  loadOrders();
+  loadMessages();
+  loadShopArticles();
+  loadStats();
+  loadFlames(currentUserId);
+  initTabs();
+  startAutoRefresh();
+}
+
+function updateProfileUI(user) {
+  document.getElementById('profileNameNew').textContent = user.name || 'Utilisateur';
+  document.getElementById('profileEmailNew').textContent = user.email || '';
+  document.getElementById('profilePhoneNew').textContent = user.phone || '';
+  document.getElementById('profileAvatarLetter').textContent = (user.name || 'U').charAt(0).toUpperCase();
+}
+
+// ===================== TABS =====================
+function initTabs() {
+  var tabs = document.querySelectorAll('.tab-item');
+  var bubble = document.getElementById('tabBubble');
+  var bubbleIcon = document.getElementById('tabBubbleIcon');
+  tabs.forEach(tab => { tab.querySelector('.tab-icon-svg').innerHTML = TAB_ICONS[tab.dataset.icon] || ''; });
+  function moveBubble(tab) {
+    var tabRect = tab.getBoundingClientRect();
+    var sliderRect = tab.parentElement.getBoundingClientRect();
+    var center = (tabRect.left - sliderRect.left) + tabRect.width/2;
+    bubble.style.transform = 'translateX(' + (center - 26) + 'px)';
+    bubbleIcon.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
+  }
+  function setActive(tab) {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    moveBubble(tab);
+    var pageId = tab.dataset.tab;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    var target = document.getElementById(pageId);
+    if (target) {
+      target.classList.add('active');
+      if (pageId === 'pageOrders') loadOrders();
+      if (pageId === 'pageMessages') loadMessages();
+      if (pageId === 'pageShop') { loadShopArticles(); loadStats(); }
+      if (pageId === 'pageProfile') loadFlames(currentUserId);
+    }
+  }
+  tabs.forEach(tab => tab.addEventListener('click', (e) => { e.preventDefault(); setActive(tab); }));
+  var active = document.querySelector('.tab-item.active') || tabs[0];
+  requestAnimationFrame(() => moveBubble(active));
+  window.addEventListener('resize', () => moveBubble(document.querySelector('.tab-item.active')));
+}
+
+// ===================== FLAMES =====================
+function loadFlames(userId) {
+  if (!userId) return;
+  apiFetch('/api/flames/' + userId)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('profileFlamesNew').textContent = data.flames || 0;
+  }).catch(() => {});
+}
+
+// ===================== PRODUCTS =====================
+function loadProducts() {
+  apiFetch('/api/articles')
+  .then(r => r.json())
+  .then(data => {
+    allProducts = (data.success && data.data) ? data.data : [];
+    renderProducts(allProducts);
+  }).catch(() => { allProducts = []; renderProducts([]); });
+}
+function renderProducts(products) {
+  var grid = document.getElementById('productsGrid');
+  var empty = document.getElementById('emptyHome');
+  var filtered = products || [];
+  if (selectedCategory !== 'all') filtered = filtered.filter(p => p.category === selectedCategory);
+  var q = document.getElementById('searchInput').value.toLowerCase();
+  if (q) filtered = filtered.filter(p => p.title && p.title.toLowerCase().includes(q));
+  grid.innerHTML = '';
+  if (filtered.length === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  filtered.forEach(p => {
+    var card = document.createElement('div');
+    card.className = 'article-card';
+    card.innerHTML = '<img src="' + (p.image || (p.images && p.images[0]) || 'https://via.placeholder.com/400x400/F5F0E8/CCCCCC?text=BLK') + '">';
+    card.addEventListener('click', () => {
+      card.classList.add('tap-anim');
+      setTimeout(() => { card.classList.remove('tap-anim'); showProductModal(p); }, 150);
+    });
+    grid.appendChild(card);
+  });
+}
+document.getElementById('searchInput').addEventListener('input', () => renderProducts(allProducts));
+document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('#categoryFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
+    this.className = 'btn btn-sm btn-primary';
+    selectedCategory = this.dataset.cat;
+    renderProducts(allProducts);
+  });
+});
+
+// ===================== FICHE PRODUIT =====================
+function showProductModal(product) {
+  var overlay = document.getElementById('productStory');
+  var content = document.getElementById('productDetailContent');
+  var images = (Array.isArray(product.images) && product.images.length > 0) ? product.images : [product.image].filter(Boolean);
+
+  var html = `
+    <div style="padding:16px;">
+      <div class="carousel-container" id="carousel">
+        <div class="carousel-track" id="carouselTrack">
+          ${images.map(img => `<div class="carousel-slide"><img src="${img}" alt=""></div>`).join('')}
+        </div>
+        ${images.length > 1 ? `
+          <button class="carousel-btn left" id="carouselLeft">‹</button>
+          <button class="carousel-btn right" id="carouselRight">›</button>
+          <div class="carousel-dots" id="carouselDots">
+            ${images.map((_,i) => `<span class="carousel-dot ${i===0?'active':''}" data-index="${i}"></span>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <h2 style="margin:0;">${product.title || 'Sans titre'}</h2>
+          <p style="margin:4px 0 0;color:#999;">${product.category || ''} · ${product.condition || ''}</p>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:22px;font-weight:900;color:#E74C3C;">${product.price || 0} FCFA</span>
+          ${product.oldPrice ? `<br><s style="color:#999;">${product.oldPrice} FCFA</s>` : ''}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:12px;font-size:13px;color:#555;">
+        <span>👁 ${product.views || 0} vues</span>
+        <span>❤️ ${product.favorites || 0} favoris</span>
+        <span>📦 ${product.stock || 1} dispo</span>
+      </div>
+
+      ${product.size ? `<div style="margin-bottom:12px;"><strong>TAILLE</strong><div style="display:flex;gap:6px;margin-top:4px;">${['XS','S','M','L','XL','XXL'].map(s => `<span style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:${s===product.size?'#E74C3C':'#f9f9f9'};color:${s===product.size?'#fff':'#333'};">${s}</span>`).join('')}</div></div>` : ''}
+
+      <div style="margin-bottom:12px;">
+        <strong>DESCRIPTION</strong>
+        <p style="margin:4px 0 0;color:#666;">${product.description || ''}</p>
+        <span style="color:#E74C3C;cursor:pointer;">Lire plus →</span>
+      </div>
+
+      ${product.hashtags && product.hashtags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${product.hashtags.map(tag => `<span style="background:#f0f0f0;padding:4px 8px;border-radius:12px;font-size:12px;">#${tag}</span>`).join('')}</div>` : ''}
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#f9f9f9;border-radius:12px;">
+        <div class="story-avatar" style="width:40px;height:40px;">${product.sellerName ? product.sellerName.charAt(0).toUpperCase() : '?'}</div>
+        <div>
+          <div style="font-weight:700;">${product.sellerName || 'Anonyme'}</div>
+          <div style="font-size:12px;color:#999;">⭐ 4.9 · 142 ventes</div>
+        </div>
+        <button class="btn btn-sm btn-outline" style="margin-left:auto;" id="btnMessageSeller">💬 Message</button>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" style="flex:1;" id="btnBuyNow">🛍 Acheter maintenant</button>
+        <button class="btn btn-outline" style="width:auto;padding:14px;" id="btnToggleFavorite">❤️</button>
+      </div>
+    </div>
+  `;
+
+  content.innerHTML = html;
+  overlay.classList.add('active');
+
+  // Gestion du carrousel
+  if (images.length > 1) {
+    var currentIndex = 0;
+    var track = document.getElementById('carouselTrack');
+    var dots = document.querySelectorAll('.carousel-dot');
+    function updateCarousel(index) {
+      track.style.transform = `translateX(-${index * 100}%)`;
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+      currentIndex = index;
+    }
+    document.getElementById('carouselLeft').addEventListener('click', () => updateCarousel((currentIndex - 1 + images.length) % images.length));
+    document.getElementById('carouselRight').addEventListener('click', () => updateCarousel((currentIndex + 1) % images.length));
+    dots.forEach(dot => dot.addEventListener('click', () => updateCarousel(parseInt(dot.dataset.index))));
+  }
+
+  // Boutons d'action
+  document.getElementById('btnBuyNow').addEventListener('click', () => showCheckoutModal(product));
+  document.getElementById('btnMessageSeller').addEventListener('click', () => {
+    document.getElementById('productStory').classList.remove('active');
+    openDiscussion(product.sellerId, product.sellerName || 'Vendeur');
+  });
+  document.getElementById('btnToggleFavorite').addEventListener('click', () => toggleFavorite(product.id));
+}
+
+document.getElementById('storyClose').addEventListener('click', () => {
+  document.getElementById('productStory').classList.remove('active');
+});
+
+// ===================== NOUVELLE PAGE DE COMMANDE =====================
+function showCheckoutModal(product) {
+  document.getElementById('productStory').classList.remove('active');
+
+  const buyerCommission = Math.round(product.price * 0.03);
+  const total = product.price + buyerCommission;
+
+  var html = `
+    <div style="padding:20px;">
+      <h3 style="text-align:center;margin-bottom:16px;">Passer commande</h3>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:#f9f9f9;border-radius:12px;">
+        <img src="${product.image || (product.images && product.images[0])}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;">
+        <div>
+          <div style="font-weight:700;">${product.title}</div>
+          <div style="font-size:13px;color:#999;">Par ${product.sellerName || 'Vendeur'}</div>
+          <div style="font-weight:800;color:#E74C3C;">${product.price} FCFA</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">MODE DE PAIEMENT</label>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-sm payment-method-btn active" data-method="mtn" style="flex:1;">MTN Mobile Money</button>
+          <button class="btn btn-sm payment-method-btn" data-method="airtel" style="flex:1;">Airtel Money</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">TON NUMÉRO MOBILE MONEY</label>
+        <input type="tel" id="checkoutPhone" placeholder="Ex: 065918166" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;margin-top:6px;font-size:15px;">
+      </div>
+
+      <div style="background:#f9f9f9;border-radius:12px;padding:12px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Article</span><span>${product.price} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Commission BLK (3%)</span><span>${buyerCommission} FCFA</span></div>
+        <hr style="border:none;border-top:1px solid #ddd;margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;font-weight:800;"><span>Total à payer</span><span style="color:#E74C3C;">${total} FCFA</span></div>
+        <div style="margin-top:8px;font-size:12px;color:#27ae60;">Protection BLK incluse - remboursé si non reçu</div>
+      </div>
+
+      <button class="btn btn-primary" id="confirmPaymentBtn">Confirmer le paiement</button>
+      <button class="btn btn-outline" id="cancelCheckoutBtn" style="margin-top:8px;">Annuler</button>
+      <div id="checkoutStatus" style="margin-top:10px;font-size:13px;text-align:center;"></div>
+    </div>
+  `;
+
+  var overlay = openModal(html);
+  var selectedMethod = 'mtn';
+
+  overlay.querySelectorAll('.payment-method-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      overlay.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      selectedMethod = this.dataset.method;
+    });
+  });
+
+  overlay.querySelector('#cancelCheckoutBtn').addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#confirmPaymentBtn').addEventListener('click', function() {
+    var phone = overlay.querySelector('#checkoutPhone').value.trim();
+    var statusEl = overlay.querySelector('#checkoutStatus');
+    if (!phone) {
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Renseigne ton numéro mobile money.';
+      return;
+    }
+    if (!/^[0-9+ ]+$/.test(phone)) {
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Numéro invalide.';
+      return;
+    }
+
+    showSpinner(true);
+    this.disabled = true;
+
+    apiFetch('/api/orders/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        articleId: product.id,
+        sellerId: product.sellerId,
+        amount: product.price,
+        buyerPhone: phone
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      showSpinner(false);
+      this.disabled = false;
+      if (data.success) {
+        overlay.remove();
+        showConfirmAnimation('Paiement confirmé !', `Commande #${data.orderId ? data.orderId.slice(0,8) : ''} créée avec succès.`);
+        loadWallet();
+        loadOrders();
+        loadProducts();
+      } else {
+        statusEl.style.color = '#E74C3C';
+        statusEl.textContent = data.message || 'Erreur lors du paiement.';
+      }
+    })
+    .catch(e => {
+      showSpinner(false);
+      this.disabled = false;
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Erreur réseau: ' + e.message;
+    });
+  });
+}
+
+// ===================== FAVORIS (à implémenter côté backend) =====================
+function toggleFavorite(articleId) {
+  // Code pour ajouter/retirer des favoris
+  // À implémenter selon votre backend
+  showAlert('Favori mis à jour (fonction à connecter)', 'info');
+}
+
+// ===================== FORMULAIRE DE PUBLICATION =====================
+document.getElementById('btnPublish').addEventListener('click', () => {
+  var html = `
+    <h3>Vendre un article</h3>
+    <div class="publish-field">
+      <label>Photos (max 10, uniquement des images)</label>
+      <div class="publish-photos" id="publishPhotos"></div>
+      <input type="file" id="pubImageInput" accept="image/*" multiple style="display:none;">
+    </div>
+    <div class="publish-field">
+      <label>Nom de l'article *</label>
+      <input type="text" id="pubTitle" placeholder="Ex: Robe Wax Élégante">
+    </div>
+    <div class="publish-field">
+      <label>Prix (FCFA) *</label>
+      <input type="number" id="pubPrice" placeholder="Ex: 12500">
+    </div>
+    <div class="publish-field">
+      <label>Quantité disponible *</label>
+      <input type="number" id="pubStock" value="1" min="1">
+    </div>
+    <div class="publish-field">
+      <label>Catégorie *</label>
+      <select id="pubCategory">
+        <option value="robes">Robes</option>
+        <option value="hauts">Hauts</option>
+        <option value="bas">Bas</option>
+        <option value="chaussures">Chaussures</option>
+        <option value="sacs">Sacs</option>
+        <option value="bijoux">Bijoux</option>
+        <option value="accessoires">Accessoires</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label>État *</label>
+      <select id="pubCondition">
+        <option value="neuf">Neuf</option>
+        <option value="bon_etat">Bon état</option>
+        <option value="correct">Correct</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label>Taille</label>
+      <select id="pubSize">
+        <option value="">Sélectionner</option>
+        <option value="XS">XS</option>
+        <option value="S">S</option>
+        <option value="M">M</option>
+        <option value="L">L</option>
+        <option value="XL">XL</option>
+        <option value="XXL">XXL</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label>Description *</label>
+      <textarea id="pubDescription" rows="4" placeholder="Décris ton article..."></textarea>
+    </div>
+    <div class="publish-field">
+      <label>Hashtags (séparés par des virgules)</label>
+      <input type="text" id="pubHashtags" placeholder="Ex: wax, robe, madeincongo">
+    </div>
+    <button class="btn btn-primary" id="pubSubmit">Publier l'article</button>
+    <button class="btn btn-outline" onclick="this.parentElement.parentElement.remove()" style="margin-top:8px;">Annuler</button>
+    <div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>
+  `;
+  var overlay = openModal(html);
+  var photos = [];
+  var MAX_PHOTOS = 10;
+
+  function renderPhotos() {
+    var container = overlay.querySelector('#publishPhotos');
+    container.innerHTML = '';
+    photos.forEach((photo, index) => {
+      var thumb = document.createElement('div');
+      thumb.className = 'publish-thumb';
+      thumb.innerHTML = `<img src="${photo.dataUrl}"><button data-index="${index}">✕</button>`;
+      thumb.querySelector('button').addEventListener('click', () => {
+        photos.splice(index, 1);
+        renderPhotos();
+      });
+      container.appendChild(thumb);
+    });
+    if (photos.length < MAX_PHOTOS) {
+      var addBtn = document.createElement('div');
+      addBtn.className = 'publish-add-btn';
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', () => overlay.querySelector('#pubImageInput').click());
+      container.appendChild(addBtn);
+    }
+  }
+
+  overlay.querySelector('#pubImageInput').addEventListener('change', e => {
+    var files = e.target.files;
+    for (var i = 0; i < files.length; i++) {
+      if (photos.length >= MAX_PHOTOS) break;
+      var file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        photos.push({ dataUrl: ev.target.result });
+        renderPhotos();
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  });
+
+  renderPhotos();
+
+  overlay.querySelector('#pubSubmit').addEventListener('click', function() {
+    var title = overlay.querySelector('#pubTitle').value.trim();
+    var price = overlay.querySelector('#pubPrice').value.trim();
+    var category = overlay.querySelector('#pubCategory').value;
+    var condition = overlay.querySelector('#pubCondition').value;
+    var size = overlay.querySelector('#pubSize').value;
+    var description = overlay.querySelector('#pubDescription').value.trim();
+    var hashtagsInput = overlay.querySelector('#pubHashtags').value.trim();
+    var stock = overlay.querySelector('#pubStock').value.trim();
+    var statusEl = overlay.querySelector('#pubStatus');
+
+    if (!title || !price || !description || photos.length === 0 || !stock) {
+      showAlert('Remplis tous les champs obligatoires et ajoute au moins une photo.', 'error');
+      return;
+    }
+    var hashtags = hashtagsInput ? hashtagsInput.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    var submitBtn = this;
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Upload des photos...';
+
+    var urls = [];
+    var i = 0;
+    function uploadNext() {
+      if (i >= photos.length) {
+        apiFetch('/api/articles', {
+          method: 'POST',
+          body: JSON.stringify({
+            title, price: parseInt(price), category, condition, size, description, hashtags,
+            images: urls,
+            sellerName: currentUser.name,
+            stock: parseInt(stock)
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          submitBtn.disabled = false;
+          if (data.success) {
+            showAlert('Article publié !', 'success');
+            overlay.remove();
+            loadShopArticles(); loadProducts(); loadStats();
+          } else {
+            statusEl.style.color = '#E74C3C';
+            statusEl.textContent = data.message || 'Erreur';
+          }
+        })
+        .catch(e => {
+          submitBtn.disabled = false;
+          statusEl.style.color = '#E74C3C';
+          statusEl.textContent = 'Erreur: ' + e.message;
+        });
+        return;
+      }
+      statusEl.textContent = `Upload photo ${i+1}/${photos.length}...`;
+      apiFetch('/api/upload', {
+        method: 'POST',
+        body: JSON.stringify({ base64: photos[i].dataUrl })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          urls.push(data.url);
+          i++;
+          uploadNext();
+        } else {
+          submitBtn.disabled = false;
+          statusEl.style.color = '#E74C3C';
+          statusEl.textContent = 'Erreur upload: ' + data.message;
+        }
+      })
+      .catch(e => {
+        submitBtn.disabled = false;
+        statusEl.style.color = '#E74C3C';
+        statusEl.textContent = 'Erreur réseau: ' + e.message;
+      });
+    }
+    uploadNext();
+  });
+});
+
+// ===================== WALLET =====================
+function loadWallet() {
+  if (!currentUserId) return;
+  apiFetch('/api/wallet/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var balance = data.balance || 0;
+    document.getElementById('walletBalanceNew').textContent = balance;
+    if (currentUser) currentUser.walletBalance = balance;
+  }).catch(() => {});
+}
+document.getElementById('btnDepositNew').addEventListener('click', () => openMoneyForm('deposit'));
+document.getElementById('btnWithdrawNew').addEventListener('click', () => openMoneyForm('withdraw'));
+document.getElementById('btnTransferNew').addEventListener('click', openTransferForm);
+
+function openTransferForm() {
+  var html = '<h3 style="margin-bottom:14px;text-align:center;">Transférer à un utilisateur BLK</h3>';
+  html += '<input type="tel" id="transferPhone" placeholder="Numéro du destinataire" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<input type="number" id="transferAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<button class="btn btn-primary" id="transferSubmit">Envoyer</button>';
+  html += '<button class="btn btn-outline" id="transferCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="transferStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  overlay.querySelector('#transferCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#transferSubmit').addEventListener('click', function(){
+    var toPhone = overlay.querySelector('#transferPhone').value.trim();
+    var amount = overlay.querySelector('#transferAmount').value;
+    var statusEl = overlay.querySelector('#transferStatus');
+    if (!toPhone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
+    this.disabled = true;
+    apiFetch('/api/wallet/transfer', {
+      method:'POST',
+      body: JSON.stringify({ toPhone, amount: parseInt(amount) })
+    })
+    .then(r => r.json())
+    .then(data => {
+      this.disabled = false;
+      if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); setTimeout(() => overlay.remove(), 1500); }
+      else { statusEl.style.color='#E74C3C'; statusEl.textContent=data.message||'Le transfert a échoué.'; }
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+  });
+}
+function openMoneyForm(kind) {
+  var isDeposit = kind === 'deposit';
+  var html = '<h3 style="text-align:center;margin-bottom:14px;">' + (isDeposit?'Déposer sur ton wallet':'Retirer de ton wallet') + '</h3>';
+  html += '<div style="display:flex;gap:10px;margin-bottom:10px;"><button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button><button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button></div>';
+  html += '<input type="tel" id="moneyPhone" placeholder="Numéro" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<input type="number" id="moneyAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid #ddd;border-radius:10px;font-size:16px;">';
+  html += '<button class="btn btn-primary" id="moneySubmit">' + (isDeposit?'Confirmer le dépôt':'Confirmer le retrait') + '</button>';
+  html += '<button class="btn btn-outline" id="moneyCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="moneyStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  var selectedOp = 'mtn';
+  overlay.querySelectorAll('.money-op-btn').forEach(btn => {
+    btn.addEventListener('click', function(){
+      overlay.querySelectorAll('.money-op-btn').forEach(b => b.className='btn btn-sm btn-outline money-op-btn');
+      this.className = 'btn btn-sm money-op-btn';
+      selectedOp = this.dataset.op;
+    });
+  });
+  overlay.querySelector('#moneyCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#moneySubmit').addEventListener('click', function(){
+    var phone = overlay.querySelector('#moneyPhone').value.trim();
+    var amount = overlay.querySelector('#moneyAmount').value;
+    var statusEl = overlay.querySelector('#moneyStatus');
+    if (!phone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
+    this.disabled = true;
+    if (isDeposit) {
+      statusEl.style.color='#999'; statusEl.textContent='Envoi de la demande...';
+      apiFetch('/api/payment/initiate', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
+        if (data.success) {
+          statusEl.style.color='#27ae60';
+          statusEl.textContent = data.status === 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
+          loadWallet();
+          if (data.status === 'succeeded') { showConfirmAnimation('Dépôt confirmé !', amount+' FCFA crédités'); setTimeout(() => overlay.remove(), 1500); }
+        } else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le dépôt a échoué.'; }
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    } else {
+      statusEl.style.color='#999'; statusEl.textContent='Traitement du retrait...';
+      apiFetch('/api/wallet/withdraw', {
+        method:'POST',
+        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.disabled = false;
+        if (data.success) { statusEl.style.color='#27ae60'; statusEl.textContent=data.message; loadWallet(); showConfirmAnimation('Retrait initié !', amount+' FCFA sous 24h'); setTimeout(() => overlay.remove(), 1500); }
+        else { statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'Le retrait a échoué.'; }
+      })
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+    }
+  });
+}
+
+// ===================== STATS =====================
+function loadStats() {
+  if (!currentUserId) return;
+  apiFetch('/api/stats/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      var s = data.data;
+      document.getElementById('statTotalSales').textContent = s.totalSales || 0;
+      document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
+      document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
+      document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
+    }
+  }).catch(() => {});
+}
+
+// ===================== ORDER TIMER & LIST =====================
+setInterval(() => {
+  document.querySelectorAll('.order-ring').forEach(ring => {
+    var expires = parseServerDate(ring.dataset.expires);
+    var total = parseFloat(ring.dataset.total) || (6*3600*1000);
+    var textEl = ring.querySelector('.order-ring-text');
+    var fg = ring.querySelector('circle.fg');
+    if (!expires) { textEl.textContent=''; return; }
+    var diff = expires.getTime() - Date.now();
+    var circ = 175.9;
+    fg.setAttribute('stroke-dasharray', circ);
+    if (diff <= 0) { textEl.textContent='Expiré'; fg.style.strokeDashoffset=0; return; }
+    var frac = Math.max(0, Math.min(1, diff/total));
+    fg.style.strokeDashoffset = (circ * (1-frac)).toFixed(1);
+    var h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+    textEl.textContent = h>0 ? (h+'h'+(m<10?'0':'')+m) : ((m<10?'0':'')+m+':'+(s<10?'0':'')+s);
+  });
+}, 1000);
+
+function loadOrders() {
+  if (!currentUserId) return;
+  apiFetch('/api/orders/' + currentUserId)
+  .then(r => r.json())
+  .then(orders => {
+    var container = document.getElementById('ordersList');
+    var empty = document.getElementById('emptyOrders');
+    if (!Array.isArray(orders) || orders.length === 0) { container.innerHTML=''; empty.style.display='block'; return; }
+    empty.style.display = 'none';
+    container.innerHTML = '';
+    orders.forEach(order => {
+      var card = document.createElement('div');
+      card.className = 'glass';
+      card.style.marginBottom = '12px';
+      var statusText = '<span class="icon-inline">' + ICONS.info + '</span> En attente';
+      if (order.status === 'livré') statusText = '<span class="icon-inline">' + ICONS.check + '</span> Livré';
+      else if (order.status === 'annulé') statusText = 'Annulé';
+      else if (order.status === 'expiré') statusText = 'Expiré';
+      var articleTitle = (order.article && order.article.title) || 'Article';
+      var amount = order.totalAmount || order.amount || 0;
+
+      var ringHtml = '';
+      if (order.status === 'en attente de confirmation' && order.expiresAt) {
+        var isBuyer = order.buyerId === currentUserId;
+        var createdMs = order.createdAt ? (parseServerDate(order.createdAt)||new Date()).getTime() : Date.now();
+        var expiresMs = (parseServerDate(order.expiresAt)||new Date()).getTime();
+        var totalMs = expiresMs - createdMs;
+        var expiresIso = new Date(parseServerDate(order.expiresAt)).toISOString();
+        ringHtml = '<div class="order-ring-wrap' + (isBuyer?'':' readonly') + '" data-order-id="' + order.id + '">' +
+          '<div class="order-ring-box order-ring" data-expires="' + expiresIso + '" data-total="' + totalMs + '">' +
+          '<svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28"/></svg>' +
+          '<div class="order-ring-text"></div></div>' +
+          '<div class="order-ring-label"><span>' + (isBuyer?'En attente de livraison':'Livraison en cours') + '</span>' +
+          '<span class="small">' + (isBuyer?'Touche pour confirmer réception':"En attente de l'acheteur") + '</span></div></div>';
+      }
+      card.innerHTML = '<div><strong>' + articleTitle + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:#999;">' + statusText + '</span></div>' + ringHtml;
+      if (order.status === 'en attente de confirmation' && order.buyerId === currentUserId) {
+        card.querySelector('.order-ring-wrap').addEventListener('click', () => openOrderConfirm(order.id));
+      }
+      container.appendChild(card);
+    });
+  })
+  .catch(e => { console.error(e); document.getElementById('ordersList').innerHTML = '<p class="empty">Erreur chargement</p>'; });
+}
+
+function openOrderConfirm(orderId) {
+  var html = '<h3 style="margin-bottom:12px;">Confirmer la réception</h3>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;"><input type="checkbox" id="ocRecu"> J\'ai bien reçu l\'article</label>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px;"><input type="checkbox" id="ocEtat"> Il est en bon état</label>';
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:14px;"><input type="checkbox" id="ocConfirme"> Je confirme la transaction</label>';
+  html += '<button class="btn btn-success" id="ocSubmit">Confirmer le paiement</button>';
+  html += '<button class="btn btn-outline" id="ocCancel" style="margin-top:8px;">Annuler</button>';
+  html += '<div id="ocStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>';
+  var overlay = openModal(html);
+  overlay.querySelector('#ocCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#ocSubmit').addEventListener('click', function(){
+    var statusEl = overlay.querySelector('#ocStatus');
+    var recu = overlay.querySelector('#ocRecu').checked;
+    var bonEtat = overlay.querySelector('#ocEtat').checked;
+    var confirme = overlay.querySelector('#ocConfirme').checked;
+    if (!recu || !bonEtat || !confirme) { statusEl.style.color='#E74C3C'; statusEl.textContent='Coche les 3 cases pour confirmer.'; return; }
+    this.disabled = true;
+    statusEl.style.color='#999'; statusEl.textContent='Confirmation en cours...';
+    apiFetch('/api/orders/confirm', {
+      method:'POST',
+      body: JSON.stringify({ orderId, confirmations: { recu:true, bon_etat:true, confirme:true } })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        overlay.remove();
+        showConfirmAnimation('Commande confirmée !', 'Le vendeur a été crédité et une flamme lui a été attribuée.');
+        loadOrders(); loadProducts(); loadShopArticles(); loadStats(); loadFlames(currentUserId);
+      } else {
+        this.disabled = false;
+        statusEl.style.color='#E74C3C'; statusEl.textContent = data.message || 'La confirmation a échoué.';
+      }
+    })
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur: '+e.message; });
+  });
+}
+
+// ===================== MAGASIN =====================
+function loadShopArticles() {
+  if (!currentUserId) return;
+  apiFetch('/api/articles/seller/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('shopArticles');
+    if (!data.success || !data.data || data.data.length === 0) { container.innerHTML = '<p class="empty">Aucun article publié</p>'; return; }
+    container.innerHTML = '';
+    data.data.forEach(a => {
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.5);border-radius:12px;padding:12px;margin-bottom:8px;';
+      var statusText = a.status==='active' ? 'En vente' : (a.status==='reserved' ? 'Réservé (commande en cours)' : (a.status==='sold' ? 'Vendu' : 'Inactif'));
+      div.innerHTML = '<img src="' + (a.image||'https://via.placeholder.com/50x50/F5F0E8/CCCCCC?text=BLK') + '" style="width:50px;height:50px;object-fit:cover;border-radius:8px;"><div style="flex:1;"><strong>' + a.title + '</strong><br>' + a.price + ' FCFA · Stock: ' + (a.stock || 0) + '<br><span style="font-size:11px;color:#999;">' + statusText + '</span></div>';
+      if (a.status === 'active') {
+        var delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-danger btn-sm';
+        delBtn.style.cssText = 'width:auto;padding:6px 12px;';
+        delBtn.textContent = 'Supprimer';
+        delBtn.onclick = () => deleteArticle(a.id);
+        div.appendChild(delBtn);
+      }
+      container.appendChild(div);
+    });
+  }).catch(e => console.error(e));
+}
+function deleteArticle(articleId) {
+  if (!confirm('Supprimer cet article ?')) return;
+  apiFetch('/api/articles/' + articleId, { method:'DELETE' })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { showAlert('Article supprimé !', 'success'); loadShopArticles(); loadProducts(); loadStats(); }
+    else showAlert(data.message, 'error');
+  }).catch(e => showAlert('Erreur: '+e.message, 'error'));
+}
+
+// ===================== MESSAGERIE AMÉLIORÉE (WhatsApp-like) =====================
+function loadMessages() {
+  if (!currentUserId) return;
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('contactsList');
+    var empty = document.getElementById('emptyMessages');
+    var view = document.getElementById('discussionView');
+
+    if (!activeConversationId) {
+      view.style.display = 'none';
+      container.style.display = 'flex';
+    }
+
+    if (!data.success || !data.data || data.data.length === 0) {
+      container.innerHTML = '';
+      if (!activeConversationId) {
+        empty.style.display = 'block';
+      } else {
+        empty.style.display = 'none';
+      }
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    var contacts = {};
+    data.data.forEach(msg => {
+      var otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+      var otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+      var preview = msg.audioUrl ? 'Message vocal' : (msg.text || '');
+      if (!contacts[otherId]) {
+        contacts[otherId] = {
+          name: otherName || 'Utilisateur',
+          lastMessage: preview,
+          time: msg.createdAt,
+          unread: (msg.receiverId === currentUserId && !msg.read) ? 1 : 0,
+          photo: msg.senderId === currentUserId ? msg.receiverPhoto : msg.senderPhoto
+        };
+      } else {
+        if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread++;
+        var existingTime = parseServerDate(contacts[otherId].time);
+        var msgTime = parseServerDate(msg.createdAt);
+        if (msgTime && (!existingTime || msgTime > existingTime)) {
+          contacts[otherId].lastMessage = preview;
+          contacts[otherId].time = msg.createdAt;
+        }
+      }
+    });
+
+    var keys = Object.keys(contacts);
+    keys.sort((a, b) => (parseServerDate(contacts[b].time) || 0) - (parseServerDate(contacts[a].time) || 0));
+
+    container.innerHTML = keys.map(id => {
+      var c = contacts[id];
+      var isActive = (activeConversationId === id) ? 'active' : '';
+      var unreadBadge = c.unread > 0 ? `<span class="contact-row-badge">${c.unread}</span>` : '';
+      var avatarHtml = c.photo ? `<img src="${c.photo}">` : `<span>${(c.name || 'U').charAt(0).toUpperCase()}</span>`;
+      var d = parseServerDate(c.time);
+      var timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      return `
+        <div class="contact-row ${isActive}" data-id="${id}">
+          <div class="contact-row-avatar">${avatarHtml}</div>
+          <div class="contact-row-info">
+            <div class="contact-row-name">${c.name}</div>
+            <div class="contact-row-preview">${c.lastMessage}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span style="font-size:11px;color:#aaa;">${timeStr}</span>
+            ${unreadBadge}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.contact-row').forEach(el => {
+      el.addEventListener('click', function() {
+        var contactId = this.dataset.id;
+        var contactName = contacts[contactId]?.name || 'Contact';
+        activeConversationId = contactId;
+        activeChatProduct = null;
+        document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        openDiscussion(contactId, contactName);
+      });
+    });
+
+    if (activeConversationId && contacts[activeConversationId]) {
+      openDiscussion(activeConversationId, contacts[activeConversationId].name);
+    }
+  })
+  .catch(e => console.error(e));
+}
+
+function openDiscussion(contactId, contactName) {
+  document.getElementById('productStory')?.classList.remove('active');
+  document.querySelectorAll('.modal-overlay.active').forEach(o => o.remove());
+
+  var view = document.getElementById('discussionView');
+  var container = document.getElementById('contactsList');
+  var empty = document.getElementById('emptyMessages');
+
+  view.style.display = 'block';
+  container.style.display = 'none';
+  empty.style.display = 'none';
+
+  var contactAvatar = '';
+  var contactStatus = 'Hors ligne';
+  apiFetch('/api/users/' + contactId)
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      contactAvatar = data.data.photo ? `<img src="${data.data.photo}" alt="">` : (data.data.name || '?').charAt(0).toUpperCase();
+      contactStatus = data.data.online ? 'En ligne maintenant' : 'Hors ligne';
+      var avatarEl = document.getElementById('discussionAvatar');
+      var statusEl = document.getElementById('discussionStatus');
+      if (avatarEl) avatarEl.innerHTML = contactAvatar;
+      if (statusEl) statusEl.textContent = contactStatus;
+    }
+  }).catch(() => {});
+
+  view.innerHTML = `
+    <div class="glass" style="padding:0;margin:0;border-radius:0;">
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnCloseDiscussion">‹</button>
+        <div class="chat-contact-info">
+          <div class="chat-contact-avatar" id="discussionAvatar">${contactAvatar}</div>
+          <div>
+            <div class="chat-contact-name">${contactName}</div>
+            <div class="chat-contact-status" id="discussionStatus">${contactStatus}</div>
+          </div>
+        </div>
+        <div class="chat-actions">
+          <button class="chat-action-btn" id="btnVideoCall" title="Appel vidéo">📹</button>
+          <button class="chat-action-btn" id="btnAudioCall" title="Appel audio">📞</button>
+        </div>
+      </div>
+      <div id="discussionProductCard" class="discussion-product-card" style="display:none;"></div>
+      <div class="chat-messages" id="messagesList"></div>
+      <div class="chat-input-bar">
+        <button class="chat-mic-btn" id="btnRecordVoice" type="button">🎙️</button>
+        <input type="text" id="messageInput" placeholder="Écris ton message...">
+        <button class="chat-send-btn" id="btnSendMessage">➤</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btnCloseDiscussion').addEventListener('click', () => {
+    view.style.display = 'none';
+    container.style.display = 'flex';
+    activeConversationId = null;
+    loadMessages();
+  });
+
+  document.getElementById('btnSendMessage').addEventListener('click', function() {
+    var text = document.getElementById('messageInput').value.trim();
+    if (!text || !activeConversationId) {
+      showAlert('Message ou destinataire manquant', 'error');
+      return;
+    }
+    document.getElementById('messageInput').value = '';
+    sendMessagePayload({ receiverId: activeConversationId, text });
+  });
+
+  document.getElementById('messageInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') document.getElementById('btnSendMessage').click();
+  });
+
+  initVoiceButton();
+
+  document.getElementById('btnVideoCall').addEventListener('click', () => {
+    const roomName = `BLK-${currentUserId}-${contactId}-video`;
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+  });
+  document.getElementById('btnAudioCall').addEventListener('click', () => {
+    const roomName = `BLK-${currentUserId}-${contactId}-audio`;
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+  });
+
+  var productCard = document.getElementById('discussionProductCard');
+  if (activeChatProduct && activeChatProduct.sellerId === contactId) {
+    var p = activeChatProduct;
+    productCard.style.display = 'flex';
+    productCard.innerHTML = `<img src="${p.image || (p.images && p.images[0]) || ''}"><div class="dp-info"><div class="dp-title">${p.title || 'Article'}</div><div class="dp-price">${p.price || 0} FCFA</div></div><button id="discussionBuyBtn">Acheter</button>`;
+    document.getElementById('discussionBuyBtn').addEventListener('click', () => showCheckoutModal(p));
+  } else {
+    productCard.style.display = 'none';
+    productCard.innerHTML = '';
+  }
+
+  loadConversation(contactId);
+}
+
+function loadConversation(contactId) {
+  if (!currentUserId || !contactId) return;
+  apiFetch('/api/messages/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    var container = document.getElementById('messagesList');
+    if (!container || !data.success) return;
+    var messages = data.data.filter(m => (m.senderId===currentUserId && m.receiverId===contactId) || (m.senderId===contactId && m.receiverId===currentUserId));
+    messages.sort((a,b) => (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0));
+    if (messages.length===0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; }
+    container.innerHTML = messages.map(msg => {
+      var isMine = msg.senderId===currentUserId;
+      var d = parseServerDate(msg.createdAt);
+      var timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+      var bodyHtml = msg.audioUrl ? '<div class="audio-message"><audio controls src="'+msg.audioUrl+'"></audio><span>'+(msg.audioDuration||0)+'s</span></div>' : (msg.text||'');
+      return '<div class="message-row '+(isMine?'mine':'other')+'"><div class="message-bubble">'+bodyHtml+'<span class="message-time">'+timeStr+'</span></div></div>';
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+  }).catch(e => console.error(e));
+}
+function sendMessagePayload(payload) {
+  apiFetch('/api/messages', { method:'POST', body: JSON.stringify(payload) })
+  .then(r => r.json())
+  .then(data => { if (data.success) { loadConversation(activeConversationId); loadMessages(); } else showAlert(data.message,'error'); })
+  .catch(e => showAlert('Erreur: '+e.message, 'error'));
+}
+
+var mediaRecorder = null, audioChunks = [], recordStartTime = 0;
+function initVoiceButton() {
+  var btn = document.getElementById('btnRecordVoice');
+  if (!btn || btn._bound) return;
+  btn._bound = true;
+  btn.addEventListener('click', function(){
+    if (!activeConversationId) { showAlert("Ouvre une discussion d'abord", 'error'); return; }
+    if (!mediaRecorder || mediaRecorder.state==='inactive') startRecording(btn); else stopRecording(btn);
+  });
+}
+function startRecording(btn) {
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+    audioChunks = []; recordStartTime = Date.now();
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      var duration = Math.round((Date.now()-recordStartTime)/1000);
+      var blob = new Blob(audioChunks, {type:'audio/webm'});
+      var reader = new FileReader();
+      reader.onload = e => sendMessagePayload({ receiverId: activeConversationId, audioUrl: e.target.result, audioDuration: duration });
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+  }).catch(() => showAlert("Impossible d'accéder au micro.", 'error'));
+}
+function stopRecording(btn) { if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop(); btn.classList.remove('recording'); }
+
+// ===================== AUTO-REFRESH =====================
+var refreshInterval = null;
+function startAutoRefresh() {
+  clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => {
+    var ordersActive = document.getElementById('pageOrders').classList.contains('active');
+    var shopActive = document.getElementById('pageShop').classList.contains('active');
+    var homeActive = document.getElementById('pageHome').classList.contains('active');
+    if (ordersActive) loadOrders();
+    if (shopActive) { loadShopArticles(); loadStats(); }
+    if (homeActive) loadProducts();
+  }, 15000);
+}
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUserId');
+  localStorage.removeItem('currentUser');
+  location.reload();
+});
+
+console.log('BLK Marketplace chargé');
+</script>
+</body>
+</html>
