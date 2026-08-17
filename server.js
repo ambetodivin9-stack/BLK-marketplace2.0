@@ -42,7 +42,7 @@ const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 const JWT_SECRET = process.env.JWT_SECRET || 'chaine-secrete-tres-longue-a-changer-en-production';
 
 const COMMISSION_BUYER = 0.03;
-const COMMISSION_SELLER = 0.03;
+const COMMISSION_SELLER = 0.04;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
@@ -53,10 +53,10 @@ function parseAmount(value) {
 }
 
 function formatPhoneForYabetoo(phone) {
-  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
-  if (formatted.startsWith('0')) formatted = formatted.substring(1);
-  if (!formatted.startsWith('242')) formatted = '242' + formatted;
-  return '+' + formatted;
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('242')) digits = digits.substring(3);
+  if (digits.startsWith('0')) digits = digits.substring(1);
+  return '242' + digits;
 }
 
 function authenticate(req, res, next) {
@@ -75,7 +75,6 @@ function authenticate(req, res, next) {
   }
 }
 
-// ==================== ROUTES DE BASE ====================
 app.get('/', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
@@ -89,8 +88,8 @@ app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED
 app.post('/api/auth/register', async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
-    const { email, password, name, phone } = req.body;
-    if (!email || !password || !name || !phone) return res.status(400).json({ success: false, message: 'Champs requis' });
+    const { email, password, name } = req.body;
+    if (!email || !password || !name) return res.status(400).json({ success: false, message: 'Champs requis' });
     const usersRef = db.collection('users');
     const existing = await usersRef.where('email', '==', email).get();
     if (!existing.empty) return res.status(409).json({ success: false, message: 'Email déjà utilisé' });
@@ -98,11 +97,11 @@ app.post('/api/auth/register', async (req, res) => {
     const userRef = usersRef.doc();
     await userRef.set({
       name, email, password: hashedPassword,
-      phone, photo: '', walletBalance: 0, flames: 0,
+      phone: '', photo: '', walletBalance: 0, flames: 0,
       blockedUsers: [], online: true, createdAt: new Date()
     });
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone } });
+    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -120,7 +119,7 @@ app.post('/api/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const token = jwt.sign({ userId: userDoc.id, email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '' } });
+    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -149,7 +148,7 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
     const { sellerId } = req.params;
-    const snapshot = await db.collection('products').where('sellerId', '==', sellerId).get();
+    const snapshot = await db.collection('products').where('sellerId', '==', sellerId).where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
     articles.sort((a, b) => {
@@ -157,7 +156,7 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
     });
-    articles = articles.slice(0, 200);
+    articles = articles.slice(0, 100);
     res.json({ success: true, data: articles });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -165,9 +164,9 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
 });
 
 app.post('/api/articles', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, id: 'mock-' + Date.now() });
   try {
-    const { title, description, price, category, image, images, sellerName, sellerPhoto, condition, size, hashtags, stock } = req.body;
+    const { title, description, price, category, image, images, sellerName, sellerPhoto, condition, size, hashtags } = req.body;
     const sellerId = req.userId;
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
@@ -179,17 +178,28 @@ app.post('/api/articles', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Condition invalide' });
     }
     const articlePrice = parseAmount(price);
-    const quantity = stock && Number.isInteger(Number(stock)) && Number(stock) > 0 ? Number(stock) : 1;
     let imageList = Array.isArray(images) ? images.filter(Boolean).slice(0, 10) : [];
     if (imageList.length === 0 && image) imageList = [image];
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
     const article = {
-      title, description, price: articlePrice, category, condition,
-      size: size || '', hashtags: Array.isArray(hashtags) ? hashtags : [],
-      image: imageList[0], images: imageList,
-      sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      status: 'active', views: 0, favorites: 0, stock: quantity, createdAt: new Date()
+      title,
+      description,
+      price: articlePrice,
+      category,
+      condition,
+      size: size || '',
+      hashtags: Array.isArray(hashtags) ? hashtags : [],
+      image: imageList[0],
+      images: imageList,
+      sellerId,
+      sellerName: sellerName || 'Anonyme',
+      sellerPhoto: sellerPhoto || '',
+      status: 'active',
+      views: 0,
+      favorites: 0,
+      stock: 1,
+      createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
@@ -200,7 +210,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
 });
 
 app.delete('/api/articles/:id', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true });
   try {
     const { id } = req.params;
     const articleRef = db.collection('products').doc(id);
@@ -217,7 +227,7 @@ app.delete('/api/articles/:id', authenticate, async (req, res) => {
 });
 
 app.post('/api/articles/view/:id', async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, views: 1 });
   try {
     const { id } = req.params;
     const doc = await db.collection('products').doc(id).get();
@@ -258,19 +268,23 @@ app.post('/api/upload', authenticate, async (req, res) => {
 // ==================== UTILISATEURS ====================
 app.get('/api/users/:userId', async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false } });
+    return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false, articlesCount: 0, followersCount: 0, followingCount: 0 } });
   }
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouve' });
     const data = doc.data();
+    const articlesSnapshot = await db.collection('products').where('sellerId', '==', userId).where('status', '==', 'active').get();
+    const followersSnapshot = await db.collection('follows').where('followingId', '==', userId).get();
+    const followingSnapshot = await db.collection('follows').where('followerId', '==', userId).get();
     res.json({
       success: true,
       data: {
         name: data.name, photo: data.photo || '', flames: data.flames || 0,
         walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
-        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false
+        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false,
+        articlesCount: articlesSnapshot.size, followersCount: followersSnapshot.size, followingCount: followingSnapshot.size
       }
     });
   } catch (error) {
@@ -279,7 +293,7 @@ app.get('/api/users/:userId', async (req, res) => {
 });
 
 app.put('/api/users/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true });
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -298,7 +312,7 @@ app.put('/api/users/:userId', authenticate, async (req, res) => {
 });
 
 app.post('/api/users/online', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true });
   try {
     const { online } = req.body;
     await db.collection('users').doc(req.userId).set({ online: online || false }, { merge: true });
@@ -309,7 +323,7 @@ app.post('/api/users/online', authenticate, async (req, res) => {
 });
 
 app.post('/api/users/block', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, message: 'Simulation' });
   try {
     const { blockedId } = req.body;
     const blockerId = req.userId;
@@ -329,9 +343,29 @@ app.post('/api/users/block', authenticate, async (req, res) => {
   }
 });
 
+app.post('/api/users/follow', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.json({ success: true, message: 'Simulation' });
+  try {
+    const { followingId } = req.body;
+    const followerId = req.userId;
+    if (!followingId || followingId === followerId) return res.status(400).json({ success: false, message: 'ID invalide' });
+    const followRef = db.collection('follows').where('followerId', '==', followerId).where('followingId', '==', followingId).limit(1);
+    const snapshot = await followRef.get();
+    if (!snapshot.empty) {
+      await snapshot.docs[0].ref.delete();
+      return res.json({ success: true, following: false });
+    } else {
+      await db.collection('follows').add({ followerId, followingId, createdAt: new Date() });
+      return res.json({ success: true, following: true });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ==================== WALLET ====================
 app.get('/api/wallet/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ balance: 5000 });
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -348,7 +382,6 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     const userId = req.userId;
     if (!amount || !phone) return res.status(400).json({ success: false, message: 'amount et phone requis' });
     if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
-    if (!YABETOO_SECRET) return res.status(500).json({ success: false, message: 'Clé Yabetoo manquante' });
 
     const depositAmount = parseAmount(amount);
     const formattedPhone = formatPhoneForYabetoo(phone);
@@ -373,12 +406,8 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     }
 
     const confirmPayload = {
-      client_secret: clientSecret,
-      amount: depositAmount,
-      currency: 'xaf',
-      first_name: 'Client',
-      last_name: 'BLK',
-      receipt_email: userDoc.data()?.email || 'client@blk.com',
+      client_secret: clientSecret, amount: depositAmount, currency: 'xaf',
+      first_name: 'Client', last_name: 'BLK', receipt_email: userDoc.data()?.email || 'client@blk.com',
       payment_method_data: { type: 'momo', momo: { country: 'cg', msisdn: formattedPhone, operator_name: operatorName } }
     };
     const confirmResponse = await axios.post(
@@ -405,11 +434,8 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
     return res.status(502).json({
-      success: false,
-      message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
-      yabetoo_http_status: error.response?.status || null,
-      yabetoo_error: error.response?.data || null,
-      raw_message: error.message
+      success: false, message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
+      yabetoo_http_status: error.response?.status || null, yabetoo_error: error.response?.data || null, raw_message: error.message
     });
   }
 });
@@ -468,7 +494,7 @@ app.post('/api/payment/callback', async (req, res) => {
 });
 
 app.post('/api/wallet/transfer', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, message: 'Transfert simule avec succes !' });
   try {
     const { toPhone, amount } = req.body;
     const fromUserId = req.userId;
@@ -505,8 +531,7 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
 });
 
 app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
-  if (!YABETOO_SECRET) return res.status(500).json({ success: false, message: 'Clé Yabetoo manquante' });
+  if (!firebaseReady) return res.json({ success: true, message: 'Retrait simule avec succes !', newBalance: 5000 });
   try {
     const { amount, phone, operator } = req.body;
     const userId = req.userId;
@@ -523,7 +548,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     let disbursement;
     try {
       const disbursementResponse = await axios.post(
-        `${YABETOO_API_BASE}/disbursements`,
+        `${YABETOO_API_BASE}/disbursement`,
         {
           amount: withdrawAmount, currency: 'XAF',
           first_name: doc.data()?.name?.split(' ')[0] || 'Client',
@@ -537,7 +562,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
       return res.status(502).json({
         success: false,
-        message: "Le retrait Yabetoo a echoue (aucun montant debite).",
+        message: "Le retrait Yabetoo a echoue (aucun montant debite). Si l'erreur mentionne un acces partenaire manquant, il faut en faire la demande a Yabetoo.",
         yabetoo_error: yabetooError.response?.data || null
       });
     }
@@ -559,7 +584,9 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
 
 // ==================== ORDRES ====================
 app.post('/api/orders/create', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) {
+    return res.json({ success: true, orderId: 'mock-' + Date.now(), message: 'Commande creee (simulee)', totalAmount: 15450, buyerCommission: 450, sellerCommission: 600, expiresAt: new Date(Date.now() + ORDER_DELAY_MS) });
+  }
   try {
     const { articleId, sellerId, amount, buyerPhone } = req.body;
     const buyerId = req.userId;
@@ -571,7 +598,6 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
     const articleSnap = await articleRef.get();
     if (!articleSnap.exists) return res.status(404).json({ success: false, message: 'Article introuvable' });
     if (articleSnap.data().status !== 'active') return res.status(409).json({ success: false, message: "Cet article vient d'etre reserve par un autre acheteur." });
-    if ((articleSnap.data().stock || 0) < 1) return res.status(409).json({ success: false, message: 'Article épuisé' });
 
     const buyerDoc = await db.collection('users').doc(buyerId).get();
     const blockedUsers = buyerDoc.data()?.blockedUsers || [];
@@ -588,16 +614,10 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
       const freshBuyerDoc = await t.get(db.collection('users').doc(buyerId));
       const freshArticleDoc = await t.get(articleRef);
       if (freshArticleDoc.data().status !== 'active') throw new Error('ARTICLE_RESERVED');
-      if ((freshArticleDoc.data().stock || 0) < 1) throw new Error('ARTICLE_OUT_OF_STOCK');
       const freshBalance = freshBuyerDoc.data().walletBalance || 0;
       if (freshBalance < totalAmount) throw new Error('INSUFFICIENT_BALANCE');
       t.update(db.collection('users').doc(buyerId), { walletBalance: freshBalance - totalAmount });
-      t.update(articleRef, {
-        status: 'reserved',
-        reservedAt: new Date(),
-        reservedBy: buyerId,
-        stock: admin.firestore.FieldValue.increment(-1)
-      });
+      t.update(articleRef, { status: 'reserved', reservedAt: new Date(), reservedBy: buyerId });
     });
 
     const order = {
@@ -619,7 +639,6 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
     res.json({ success: true, orderId, message: 'Commande creee avec succes ! Livraison sous 6h.', totalAmount, buyerCommission, sellerCommission: Math.round(orderAmount * COMMISSION_SELLER), expiresAt: order.expiresAt });
   } catch (error) {
     if (error.message === 'ARTICLE_RESERVED') return res.status(409).json({ success: false, message: 'Article déjà réservé' });
-    if (error.message === 'ARTICLE_OUT_OF_STOCK') return res.status(409).json({ success: false, message: 'Article épuisé' });
     if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ success: false, message: 'Solde insuffisant' });
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
     console.error('Order Error:', error.message);
@@ -628,7 +647,7 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
 });
 
 app.post('/api/orders/confirm', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, message: 'Commande confirmee (simulee)' });
   try {
     const { orderId, confirmations } = req.body;
     const buyerId = req.userId;
@@ -655,8 +674,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     const amountToSeller = order.amount - sellerCommission;
     const adminTotal = buyerCommission + sellerCommission;
 
-    let flameGiven = order.flamesGiven || false;
-
     await db.runTransaction(async (t) => {
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
@@ -665,30 +682,13 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
       t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
-      if (!flameGiven) {
-        const currentFlames = sellerDoc.data()?.flames || 0;
-        t.update(sellerRef, { flames: currentFlames + 1 });
-        flameGiven = true;
-      }
-      t.update(orderRef, {
-        status: 'livré',
-        buyerConfirmed: true,
-        buyerConfirmedAt: new Date(),
-        confirmations,
-        sellerReceived: amountToSeller,
-        adminCommission: adminTotal,
-        flamesGiven: flameGiven
-      });
+      t.update(orderRef, { status: 'livré', buyerConfirmed: true, buyerConfirmedAt: new Date(), confirmations, sellerReceived: amountToSeller, adminCommission: adminTotal });
     });
-
-    if (flameGiven) {
-      await db.collection('notifications').add({ userId: order.sellerId, message: 'Tu as recu une flamme !', type: 'flame_received', read: false, orderId, createdAt: new Date() });
-    }
 
     await db.collection('notifications').add({ userId: order.sellerId, message: `Vente confirmee ! ${amountToSeller} FCFA credites sur ton wallet.`, type: 'sale_confirmed', read: false, orderId, createdAt: new Date() });
     await db.collection('notifications').add({ userId: order.buyerId, message: `Commande #${orderId.slice(0,8)} confirmee avec succes.`, type: 'order_confirmed', read: false, orderId, createdAt: new Date() });
 
-    res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal, flameGiven });
+    res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
     console.error('Confirm Error:', error.message);
@@ -697,7 +697,7 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
 });
 
 app.get('/api/orders/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json([]);
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -742,7 +742,7 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
 });
 
 app.post('/api/orders/cancel/:orderId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, message: 'Commande annulee (simulee)' });
   try {
     const { orderId } = req.params;
     const userId = req.userId;
@@ -763,7 +763,7 @@ app.post('/api/orders/cancel/:orderId', authenticate, async (req, res) => {
       const buyerDoc = await t.get(buyerRef);
       const buyerBalance = buyerDoc.data()?.walletBalance || 0;
       t.update(buyerRef, { walletBalance: buyerBalance + order.totalAmount });
-      t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
+      t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null });
       t.update(orderRef, { status: 'annulé', cancelledAt: new Date(), cancelledBy: userId });
     });
 
@@ -791,7 +791,7 @@ async function autoExpireOrders() {
           const buyerDoc = await t.get(buyerRef);
           const buyerBalance = buyerDoc.data()?.walletBalance || 0;
           t.update(buyerRef, { walletBalance: buyerBalance + order.totalAmount });
-          t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
+          t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null });
           t.update(doc.ref, { status: 'expiré', expiredAt: new Date() });
         });
         await db.collection('notifications').add({ userId: order.buyerId, message: 'Ta commande a expire, tu as ete rembourse.', type: 'order_expired', read: false, orderId: doc.id, createdAt: new Date() });
@@ -803,7 +803,7 @@ setInterval(autoExpireOrders, 5 * 60 * 1000);
 
 // ==================== FLAMMES ====================
 app.post('/api/flames', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, flames: 5 });
   try {
     const { sellerId } = req.body;
     const buyerId = req.userId;
@@ -821,7 +821,7 @@ app.post('/api/flames', authenticate, async (req, res) => {
 });
 
 app.get('/api/flames/:userId', async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ flames: 3 });
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
@@ -831,7 +831,7 @@ app.get('/api/flames/:userId', async (req, res) => {
 
 // ==================== STATISTIQUES ====================
 app.get('/api/stats/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, data: { totalArticles: 0, totalSales: 0, totalRevenue: 0, totalPurchases: 0, totalSpent: 0, history: [] } });
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -866,7 +866,7 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
 
 // ==================== MESSAGES ====================
 app.get('/api/messages/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -890,7 +890,7 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
 });
 
 app.post('/api/messages', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, id: 'mock-' + Date.now() });
   try {
     const { receiverId, text, audioUrl, audioDuration } = req.body;
     const senderId = req.userId;
@@ -919,7 +919,7 @@ app.post('/api/messages', authenticate, async (req, res) => {
 
 // ==================== NOTIFICATIONS ====================
 app.get('/api/notifications/:userId', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
     const { userId } = req.params;
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
@@ -937,7 +937,7 @@ app.get('/api/notifications/:userId', authenticate, async (req, res) => {
 });
 
 app.post('/api/notifications/read/:id', authenticate, async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) return res.json({ success: true });
   try {
     const { id } = req.params;
     await db.collection('notifications').doc(id).update({ read: true });
