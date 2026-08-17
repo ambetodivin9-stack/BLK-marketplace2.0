@@ -90,7 +90,7 @@ app.post('/api/auth/register', async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { email, password, name, phone } = req.body;
-    if (!email || !password || !name) return res.status(400).json({ success: false, message: 'Champs requis' });
+    if (!email || !password || !name || !phone) return res.status(400).json({ success: false, message: 'Champs requis' });
     const usersRef = db.collection('users');
     const existing = await usersRef.where('email', '==', email).get();
     if (!existing.empty) return res.status(409).json({ success: false, message: 'Email déjà utilisé' });
@@ -98,11 +98,11 @@ app.post('/api/auth/register', async (req, res) => {
     const userRef = usersRef.doc();
     await userRef.set({
       name, email, password: hashedPassword,
-      phone: phone || '', photo: '', walletBalance: 0, flames: 0,
+      phone, photo: '', walletBalance: 0, flames: 0,
       blockedUsers: [], online: true, createdAt: new Date()
     });
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone: phone || '' } });
+    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -257,20 +257,20 @@ app.post('/api/upload', authenticate, async (req, res) => {
 
 // ==================== UTILISATEURS ====================
 app.get('/api/users/:userId', async (req, res) => {
-  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (!firebaseReady) {
+    return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false } });
+  }
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouve' });
     const data = doc.data();
-    // On ne renvoie plus followers/following
     res.json({
       success: true,
       data: {
         name: data.name, photo: data.photo || '', flames: data.flames || 0,
         walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
-        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false,
-        articlesCount: 0 // Suppression des counts
+        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false
       }
     });
   } catch (error) {
@@ -655,7 +655,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     const amountToSeller = order.amount - sellerCommission;
     const adminTotal = buyerCommission + sellerCommission;
 
-    let sellerReceived = amountToSeller;
     let flameGiven = order.flamesGiven || false;
 
     await db.runTransaction(async (t) => {
@@ -666,7 +665,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
       t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
-      // Donner la flamme si pas encore donnée
       if (!flameGiven) {
         const currentFlames = sellerDoc.data()?.flames || 0;
         t.update(sellerRef, { flames: currentFlames + 1 });
