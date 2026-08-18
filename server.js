@@ -46,6 +46,10 @@ const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
+const ADMIN_PHONE = '242065918166';
+const ADMIN_USER_ID = 'admin';
+const AUTO_WITHDRAW_INTERVAL_MS = 60 * 60 * 1000;
+
 function parseAmount(value) {
   const amount = Number(value);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('AMOUNT_INVALID');
@@ -75,7 +79,26 @@ function authenticate(req, res, next) {
   }
 }
 
-// ==================== ROUTES DE BASE ====================
+async function ensureAdminDocument() {
+  if (!firebaseReady) return;
+  const adminRef = db.collection('users').doc(ADMIN_USER_ID);
+  const adminDoc = await adminRef.get();
+  if (!adminDoc.exists) {
+    await adminRef.set({
+      name: 'Administrateur BLK',
+      email: 'admin@blk.com',
+      phone: ADMIN_PHONE,
+      walletBalance: 0,
+      photo: '',
+      flames: 0,
+      blockedUsers: [],
+      online: false,
+      createdAt: new Date()
+    });
+    console.log('Document admin créé');
+  }
+}
+
 app.get('/', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
@@ -334,7 +357,7 @@ app.get('/api/wallet/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { userId } = req.params;
-    if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
+    if (userId !== req.userId && userId !== ADMIN_USER_ID) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const doc = await db.collection('users').doc(userId).get();
     res.json({ balance: doc.data()?.walletBalance || 0 });
   } catch (error) {
@@ -660,16 +683,45 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     await db.runTransaction(async (t) => {
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
+
+      // Créditer le vendeur
       const sellerRef = db.collection('users').doc(order.sellerId);
       const sellerDoc = await t.get(sellerRef);
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
       t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
+
+      // Créditer l'admin avec les commissions
+      const adminRef = db.collection('users').doc(ADMIN_USER_ID);
+      const adminDoc = await t.get(adminRef);
+      let adminBalance = 0;
+      if (adminDoc.exists) {
+        adminBalance = adminDoc.data().walletBalance || 0;
+      } else {
+        t.set(adminRef, {
+          name: 'Administrateur BLK',
+          email: 'admin@blk.com',
+          phone: ADMIN_PHONE,
+          walletBalance: 0,
+          photo: '',
+          flames: 0,
+          blockedUsers: [],
+          online: false,
+          createdAt: new Date()
+        });
+      }
+      t.update(adminRef, { walletBalance: adminBalance + adminTotal });
+
+      // Mettre à jour l'article
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
+
+      // Gestion des flammes
       if (!flameGiven) {
         const currentFlames = sellerDoc.data()?.flames || 0;
         t.update(sellerRef, { flames: currentFlames + 1 });
         flameGiven = true;
       }
+
+      // Mise à jour de la commande
       t.update(orderRef, {
         status: 'livré',
         buyerConfirmed: true,
@@ -677,6 +729,8 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
         confirmations,
         sellerReceived: amountToSeller,
         adminCommission: adminTotal,
+        adminReceived: adminTotal,
+        adminPhone: ADMIN_PHONE,
         flamesGiven: flameGiven
       });
     });
@@ -684,7 +738,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     if (flameGiven) {
       await db.collection('notifications').add({ userId: order.sellerId, message: 'Tu as recu une flamme !', type: 'flame_received', read: false, orderId, createdAt: new Date() });
     }
-
     await db.collection('notifications').add({ userId: order.sellerId, message: `Vente confirmee ! ${amountToSeller} FCFA credites sur ton wallet.`, type: 'sale_confirmed', read: false, orderId, createdAt: new Date() });
     await db.collection('notifications').add({ userId: order.buyerId, message: `Commande #${orderId.slice(0,8)} confirmee avec succes.`, type: 'order_confirmed', read: false, orderId, createdAt: new Date() });
 
@@ -700,22 +753,20 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { userId } = req.params;
-    if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
+    if (userId !== req.userId && userId !== ADMIN_USER_ID) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const orders = [];
 
     const buyerSnapshot = await db.collection('orders').where('buyerId', '==', userId).get();
-    const buyerOrders = [];
     for (const doc of buyerSnapshot.docs) {
       const order = doc.data();
       const articleDoc = await db.collection('products').doc(order.articleId).get();
       const article = articleDoc.data();
       const sellerDoc = await db.collection('users').doc(order.sellerId).get();
       const seller = sellerDoc.data();
-      buyerOrders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, seller: seller ? { name: seller.name, photo: seller.photo || '' } : null });
+      orders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, seller: seller ? { name: seller.name, photo: seller.photo || '' } : null });
     }
 
     const sellerSnapshot = await db.collection('orders').where('sellerId', '==', userId).get();
-    const sellerOrders = [];
     for (const doc of sellerSnapshot.docs) {
       if (!orders.find(o => o.id === doc.id)) {
         const order = doc.data();
@@ -723,18 +774,17 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
         const article = articleDoc.data();
         const buyerDoc = await db.collection('users').doc(order.buyerId).get();
         const buyer = buyerDoc.data();
-        sellerOrders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null });
+        orders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null });
       }
     }
 
-    const allOrders = buyerOrders.concat(sellerOrders);
-    allOrders.sort((a, b) => {
+    orders.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
     });
 
-    res.json(allOrders.slice(0, 200));
+    res.json(orders.slice(0, 200));
   } catch (error) {
     console.error('Orders Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
@@ -834,7 +884,7 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { userId } = req.params;
-    if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
+    if (userId !== req.userId && userId !== ADMIN_USER_ID) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const articlesSnapshot = await db.collection('products').where('sellerId', '==', userId).where('status', '==', 'active').get();
     const ordersSnapshot = await db.collection('orders').where('sellerId', '==', userId).where('status', '==', 'livré').get();
     let totalSales = 0, totalRevenue = 0;
@@ -945,7 +995,69 @@ app.post('/api/notifications/read/:id', authenticate, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ==================== ADMIN: RETRAIT AUTOMATIQUE ====================
+async function autoWithdrawAdmin() {
+  if (!firebaseReady || !YABETOO_SECRET) return;
+  try {
+    const adminRef = db.collection('users').doc(ADMIN_USER_ID);
+    const adminDoc = await adminRef.get();
+    if (!adminDoc.exists) {
+      await ensureAdminDocument();
+      return;
+    }
+    const balance = adminDoc.data().walletBalance || 0;
+    if (balance <= 0) return;
+
+    console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA`);
+    const formattedPhone = formatPhoneForYabetoo(ADMIN_PHONE);
+    const operatorName = 'mtn'; // à adapter selon l'opérateur réel
+
+    const disbursementResponse = await axios.post(
+      `${YABETOO_API_BASE}/disbursements`,
+      {
+        amount: balance,
+        currency: 'XAF',
+        first_name: 'Admin',
+        last_name: 'BLK',
+        payment_method_data: {
+          type: 'momo',
+          momo: {
+            msisdn: formattedPhone,
+            country: 'cg',
+            operator_name: operatorName
+          }
+        }
+      },
+      { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}`, 'Content-Type': 'application/json' } }
+    );
+
+    const disbursement = disbursementResponse.data;
+    console.log('Disbursement admin créé:', disbursement);
+
+    await adminRef.update({ walletBalance: 0 });
+    await db.collection('transactions').add({
+      userId: ADMIN_USER_ID,
+      amount: balance,
+      phone: formattedPhone,
+      operator: operatorName,
+      yabetooDisbursementId: disbursement.id || null,
+      type: 'withdraw_auto',
+      status: 'pending',
+      description: 'Retrait automatique admin',
+      createdAt: new Date()
+    });
+  } catch (error) {
+    console.error('Erreur autoWithdrawAdmin:', error.message);
+  }
+}
+
+setTimeout(() => { autoWithdrawAdmin(); }, 10000);
+setInterval(autoWithdrawAdmin, AUTO_WITHDRAW_INTERVAL_MS);
+
+if (firebaseReady) {
+  ensureAdminDocument().then(() => console.log('Admin document prêt'));
+}
+
 app.listen(PORT, () => {
-  console.log(`BLK API running on port ${PORT}`);
-  console.log(`Mode: ${firebaseReady ? '100% REEL' : 'SIMULATION'}`);
+  console.log(`Serveur BLK démarré sur le port ${PORT}`);
 });
