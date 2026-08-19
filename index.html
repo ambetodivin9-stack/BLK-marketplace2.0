@@ -31,7 +31,6 @@ body.dark {
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px;-webkit-font-smoothing:antialiased;transition:background 0.3s, color 0.3s;}
 .kente{height:6px;background:linear-gradient(90deg,#E74C3C 20%,#FF8C00 40%,#2ECC71 60%,#E74C3C 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
 
-/* Boutons génériques */
 .btn{padding:12px;border:none;border-radius:14px;font-weight:700;cursor:pointer;width:100%;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;transition:transform .15s ease, background .2s ease;position:relative;overflow:hidden;}
 .btn:active{transform:scale(.96);}
 .btn-primary{background:var(--accent);color:#fff;}
@@ -43,7 +42,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .glass{background:var(--card-bg);border-radius:20px;padding:15px;margin-bottom:10px;border:1px solid var(--border);backdrop-filter:blur(10px);}
 .empty{text-align:center;color:#999;padding:20px;}
 
-/* Authentification */
 .auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);padding:20px;}
 .auth-card{max-width:400px;width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:32px;padding:36px 28px 28px;text-align:center;box-shadow:0 10px 30px var(--shadow);}
 .auth-title{font-size:26px;font-weight:300;color:var(--text);margin-bottom:4px;}
@@ -55,7 +53,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .auth-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:30px;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;}
 #authError{color:var(--accent);font-size:14px;margin-top:8px;display:none;}
 
-/* Application principale */
 .app{display:none;max-width:600px;margin:0 auto;padding:70px 16px 20px;}
 .app.active{display:block;}
 .home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
@@ -65,7 +62,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .search-bar input{flex:1;border:none;background:transparent;font-size:16px;outline:none;color:var(--text);}
 .search-icon{width:20px;height:20px;color:var(--accent);}
 
-/* Dropdown recherche utilisateurs */
 .user-search-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--card-bg);border:1px solid var(--border);border-radius:0 0 12px 12px;max-height:250px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px var(--shadow);display:none;margin-top:5px;}
 .user-search-dropdown.active{display:block;}
 .user-search-item{display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-bottom:1px solid var(--border);}
@@ -77,17 +73,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .user-search-name{font-weight:600;}
 .user-search-flames{font-size:12px;color:var(--accent2);}
 
-/* Animation flammes */
 @keyframes flamePulse{0%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}50%{transform:scale(1.1);text-shadow:0 0 15px rgba(255,100,0,0.9);}100%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}}
 .flame-animated{display:inline-block;animation:flamePulse 1.2s infinite;color:var(--accent2);font-weight:800;}
 
-/* Grille articles */
 .articles-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}
 .article-card{background:var(--card-bg);border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:transform .15s ease, box-shadow .2s ease;}
 .article-card.tap-anim{transform:scale(.93);}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
 
-/* Stats magasin */
 .shop-stats{padding:10px 0;margin-bottom:10px;}
 .shop-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 .stat-card{background:var(--card-bg);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
@@ -101,7 +94,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-card-number{font-size:20px;font-weight:800;}
 .stat-card-label{font-size:11px;color:#999;margin-top:2px;}
 
-/* Tab bar */
 .tab-bar{position:fixed;bottom:10px;left:10px;right:10px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
 .tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:8px 6px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
@@ -115,7 +107,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-item.active .tab-icon-svg{opacity:0;}
 .tab-item.active .tab-label{color:var(--accent);font-weight:800;}
 
-/* Wallet */
 .wallet-card{background:var(--card-bg);border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px;box-shadow:0 8px 20px var(--shadow);}
 .wallet-balance-new{font-size:32px;font-weight:900;color:var(--accent);}
 .wallet-actions{display:flex;gap:10px;justify-content:center;}
@@ -124,33 +115,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .wallet-btn-withdraw{background:rgba(231,76,60,.1);color:var(--accent);}
 .wallet-btn-transfer{background:rgba(52,152,219,.1);color:#3498DB;}
 
-/* Profil */
 .profile-header-new{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
 .profile-avatar-new{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;overflow:hidden;}
 .profile-stats-new{display:flex;gap:16px;justify-content:center;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:14px;margin-bottom:14px;}
 .stat-number-new{font-size:20px;font-weight:800;color:var(--accent);}
 .stat-label-new{font-size:11px;color:#999;}
 
-/* Boutons réseaux sociaux */
 .follow-buttons{display:flex;gap:20px;justify-content:center;margin:16px 0;}
 .follow-btn{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--input-bg);border:2px solid var(--border);transition:transform .2s, border-color .2s;cursor:pointer;}
 .follow-btn:hover{transform:scale(1.1);border-color:var(--accent);}
 .follow-btn svg{width:28px;height:28px;fill:var(--text);}
 
-/* Point vert en ligne */
 .online-dot{width:10px;height:10px;background:var(--accent3);border-radius:50%;display:inline-block;margin-left:6px;}
 
-/* Pages */
 .page{display:none;min-height:calc(100vh - 160px);}
 .page.active{display:block;}
 
-/* Alertes */
 .alert{padding:10px;border-radius:12px;margin-bottom:10px;display:none;align-items:center;gap:8px;font-size:14px;}
 .alert-success{background:#d4edda;color:#155724;}
 .alert-error{background:#f8d7da;color:#721c24;}
 .alert-info{background:#d1ecf1;color:#0c5460;}
 
-/* Messagerie */
 .contact-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--border);cursor:pointer;}
 .contact-row.active{background:rgba(231,76,60,.1);}
 .contact-row-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;font-weight:800;flex-shrink:0;}
@@ -176,7 +161,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;font-size:15px;background:var(--input-bg);color:var(--text);}
 .chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 
-/* Fiche produit - carrousel */
 .carousel-container{position:relative;overflow:hidden;border-radius:16px;margin-bottom:12px;}
 .carousel-track{display:flex;transition:transform .3s ease;}
 .carousel-slide{min-width:100%;}
@@ -188,7 +172,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .carousel-btn.left{left:8px;}
 .carousel-btn.right{right:8px;}
 
-/* Formulaire publication */
 .publish-field{margin-bottom:16px;}
 .publish-field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#555;}
 .publish-field input[type="text"],.publish-field input[type="number"],.publish-field textarea,.publish-field select{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:var(--input-bg);color:var(--text);}
@@ -198,12 +181,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .publish-thumb button{position:absolute;top:2px;right:2px;background:var(--accent);border:none;border-radius:50%;width:20px;height:20px;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .publish-add-btn{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border:2px dashed var(--accent);border-radius:10px;background:var(--input-bg);cursor:pointer;color:var(--accent);font-size:24px;}
 
-/* Modales - design compact */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
 .modal-overlay.active{display:flex;}
 .modal-content{max-width:400px;width:100%;background:var(--card-bg);border-radius:20px;padding:20px;max-height:85vh;overflow-y:auto;box-shadow:0 10px 30px var(--shadow);}
 
-/* Spinner */
 .spinner-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:5000;}
 .spinner-overlay.active{display:flex;}
 .spinner{width:50px;height:50px;border:5px solid rgba(231,76,60,.3);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
@@ -375,7 +356,8 @@ let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 let allProducts = [];
 let selectedCategory = 'all';
 let activeConversationId = null;
-const PLACEHOLDER_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#eee"/><text x="50%" y="50%" font-size="20" text-anchor="middle" fill="#999">BLK</text></svg>';
+// Placeholder en base64 pour éviter les guillemets dans l'URL
+const PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5CTEs8L3RleHQ+PC9zdmc+';
 
 // ===================== UTILITAIRES =====================
 function apiFetch(url, options = {}) {
