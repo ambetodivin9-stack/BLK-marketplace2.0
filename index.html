@@ -195,6 +195,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .alert-error{background:#f8d7da;color:#721c24;}
 .alert-info{background:#d1ecf1;color:#0c5460;}
 
+/* Messagerie */
+.contact-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--border);cursor:pointer;}
+.contact-row.active{background:rgba(231,76,60,.1);}
+.contact-row-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;font-weight:800;flex-shrink:0;}
+.contact-row-avatar img{width:100%;height:100%;object-fit:cover;}
+.contact-row-info{flex:1;min-width:0;}
+.contact-row-name{font-weight:700;font-size:15px;}
+.contact-row-preview{font-size:13px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.contact-row-badge{background:var(--accent3);color:#fff;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:11px;display:flex;align-items:center;justify-content:center;}
+.chat-header{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.chat-back-btn{background:none;border:none;font-size:22px;cursor:pointer;color:var(--accent);}
+.chat-contact-info{flex:1;display:flex;align-items:center;gap:10px;}
+.chat-contact-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;overflow:hidden;}
+.chat-contact-avatar img{width:100%;height:100%;object-fit:cover;}
+.chat-contact-name{font-weight:700;}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;background:var(--bg);min-height:300px;max-height:calc(100vh - 250px);}
+.message-row{display:flex;margin-bottom:10px;}
+.message-row.mine{justify-content:flex-end;}
+.message-bubble{max-width:75%;padding:10px 14px;border-radius:18px;background:var(--card-bg);box-shadow:0 1px 2px var(--shadow);font-size:14px;position:relative;border:1px solid var(--border);}
+.message-row.mine .message-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px;border:none;}
+.message-row.other .message-bubble{background:var(--card-bg);border-bottom-left-radius:4px;}
+.message-time{display:block;font-size:10px;opacity:.6;margin-top:2px;text-align:right;}
+.chat-input-bar{display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border-top:1px solid var(--border);position:sticky;bottom:0;}
+.chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;font-size:15px;background:var(--input-bg);color:var(--text);}
+.chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;}
+
 /* Modales */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
 .modal-overlay.active{display:flex;}
@@ -652,71 +678,201 @@ function showUserProfile(userId) {
     });
 }
 
-// ===================== MESSAGERIE (simplifiée) =====================
-function openDiscussion(contactId, contactName) {
-  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-  const messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
-  messagesTab.classList.add('active');
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('pageMessages').classList.add('active');
-  activeConversationId = contactId;
-  loadMessagesForContact(contactId, contactName);
+// ===================== MESSAGERIE =====================
+function loadMessages() {
+  if (!currentUserId) return;
+  apiFetch('/api/messages/' + currentUserId)
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById('contactsList');
+      const empty = document.getElementById('emptyMessages');
+      const view = document.getElementById('discussionView');
+
+      if (!activeConversationId) {
+        view.style.display = 'none';
+        container.style.display = 'flex';
+      }
+
+      if (!data.success || !data.data || data.data.length === 0) {
+        container.innerHTML = '';
+        if (!activeConversationId) {
+          empty.style.display = 'block';
+        } else {
+          empty.style.display = 'none';
+        }
+        return;
+      }
+
+      empty.style.display = 'none';
+
+      let contacts = {};
+      data.data.forEach(msg => {
+        const otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+        const otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+        const preview = msg.text || '';
+        if (!contacts[otherId]) {
+          contacts[otherId] = {
+            name: otherName || 'Utilisateur',
+            lastMessage: preview,
+            time: msg.createdAt,
+            unread: (msg.receiverId === currentUserId && !msg.read) ? 1 : 0,
+            photo: msg.senderId === currentUserId ? msg.receiverPhoto : msg.senderPhoto
+          };
+        } else {
+          if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread++;
+          const existingTime = parseServerDate(contacts[otherId].time);
+          const msgTime = parseServerDate(msg.createdAt);
+          if (msgTime && (!existingTime || msgTime > existingTime)) {
+            contacts[otherId].lastMessage = preview;
+            contacts[otherId].time = msg.createdAt;
+          }
+        }
+      });
+
+      let keys = Object.keys(contacts);
+      keys.sort((a, b) => (parseServerDate(contacts[b].time) || 0) - (parseServerDate(contacts[a].time) || 0));
+
+      container.innerHTML = keys.map(id => {
+        const c = contacts[id];
+        const isActive = (activeConversationId === id) ? 'active' : '';
+        const unreadBadge = c.unread > 0 ? `<span class="contact-row-badge">${c.unread}</span>` : '';
+        const avatarHtml = c.photo ? `<img src="${c.photo}">` : `<span>${(c.name || 'U').charAt(0).toUpperCase()}</span>`;
+        const d = parseServerDate(c.time);
+        const timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+          <div class="contact-row ${isActive}" data-id="${id}">
+            <div class="contact-row-avatar">${avatarHtml}</div>
+            <div class="contact-row-info">
+              <div class="contact-row-name">${c.name}</div>
+              <div class="contact-row-preview">${c.lastMessage}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <span style="font-size:11px;color:#aaa;">${timeStr}</span>
+              ${unreadBadge}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.contact-row').forEach(el => {
+        el.addEventListener('click', function() {
+          const contactId = this.dataset.id;
+          const contactName = contacts[contactId]?.name || 'Contact';
+          activeConversationId = contactId;
+          document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
+          openDiscussion(contactId, contactName);
+        });
+      });
+    })
+    .catch(e => {
+      console.error('Erreur chargement messages:', e);
+      document.getElementById('contactsList').innerHTML = '<p class="empty">Erreur de chargement</p>';
+    });
 }
 
-function loadMessagesForContact(contactId, contactName) {
+function openDiscussion(contactId, contactName) {
+  const view = document.getElementById('discussionView');
   const container = document.getElementById('contactsList');
-  if (container) container.innerHTML = '';
-  const discussionView = document.getElementById('discussionView');
-  const emptyMessages = document.getElementById('emptyMessages');
-  if (discussionView) {
-    discussionView.style.display = 'block';
-    emptyMessages.style.display = 'none';
-    discussionView.innerHTML = `
-      <div class="chat-header">
-        <button class="chat-back-btn" onclick="closeDiscussion()">‹</button>
-        <div class="chat-contact-info">
-          <div class="chat-contact-avatar">${contactName.charAt(0)}</div>
-          <div class="chat-contact-name">${contactName}</div>
-        </div>
-      </div>
-      <div class="chat-messages" id="messagesList">
-        <p class="empty">Démarrez la conversation</p>
-      </div>
-      <div class="chat-input-bar">
-        <input type="text" id="messageInput" placeholder="Écris ton message...">
-        <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
-      </div>
-    `;
-    document.getElementById('btnSendMessage').addEventListener('click', () => {
-      const input = document.getElementById('messageInput');
-      const text = input.value.trim();
-      if (text && activeConversationId) {
-        sendMessagePayload({ receiverId: activeConversationId, text });
-        input.value = '';
-      }
-    });
-  }
-}
-function closeDiscussion() {
-  document.getElementById('discussionView').style.display = 'none';
-  document.getElementById('emptyMessages').style.display = 'block';
-  activeConversationId = null;
-  loadMessages();
-}
-function sendMessagePayload(payload) {
-  apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(payload) })
+  const empty = document.getElementById('emptyMessages');
+
+  view.style.display = 'block';
+  container.style.display = 'none';
+  empty.style.display = 'none';
+  activeConversationId = contactId;
+
+  // Obtenir les infos du contact pour l'avatar
+  let contactAvatar = '';
+  apiFetch('/api/users/' + contactId)
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        const messagesList = document.getElementById('messagesList');
-        if (messagesList && payload.text) {
-          messagesList.innerHTML += `
-            <div class="message-row mine">
-              <div class="message-bubble">${payload.text}</div>
+        contactAvatar = data.data.photo ? `<img src="${data.data.photo}" alt="">` : (data.data.name || '?').charAt(0).toUpperCase();
+        updateDiscussionHeader(contactName, contactAvatar);
+      } else {
+        updateDiscussionHeader(contactName, contactName.charAt(0).toUpperCase());
+      }
+    })
+    .catch(() => {
+      updateDiscussionHeader(contactName, contactName.charAt(0).toUpperCase());
+    });
+
+  function updateDiscussionHeader(name, avatar) {
+    view.innerHTML = `
+      <div class="glass" style="padding:0;margin:0;border-radius:0;">
+        <div class="chat-header">
+          <button class="chat-back-btn" id="btnCloseDiscussion">‹</button>
+          <div class="chat-contact-info">
+            <div class="chat-contact-avatar">${avatar}</div>
+            <div>
+              <div class="chat-contact-name">${name}</div>
             </div>
-          `;
-          messagesList.scrollTop = messagesList.scrollHeight;
-        }
+          </div>
+        </div>
+        <div class="chat-messages" id="messagesList"></div>
+        <div class="chat-input-bar">
+          <input type="text" id="messageInput" placeholder="Écris ton message...">
+          <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btnCloseDiscussion').addEventListener('click', () => {
+      view.style.display = 'none';
+      container.style.display = 'flex';
+      empty.style.display = 'none';
+      activeConversationId = null;
+      loadMessages();
+    });
+
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !activeConversationId) {
+        showAlert('Message vide ou destinataire manquant', 'error');
+        return;
+      }
+      input.value = '';
+      sendMessagePayload({ receiverId: activeConversationId, text });
+    }
+
+    document.getElementById('btnSendMessage').addEventListener('click', sendMessage);
+    document.getElementById('messageInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    loadConversation(contactId);
+  }
+}
+
+function loadConversation(contactId) {
+  if (!currentUserId || !contactId) return;
+  apiFetch('/api/messages/' + currentUserId)
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById('messagesList');
+      if (!container || !data.success) return;
+      const messages = data.data.filter(m => (m.senderId===currentUserId && m.receiverId===contactId) || (m.senderId===contactId && m.receiverId===currentUserId));
+      messages.sort((a,b) => (parseServerDate(a.createdAt)||0)-(parseServerDate(b.createdAt)||0));
+      if (messages.length===0) { container.innerHTML='<p class="empty">Aucun message</p>'; return; }
+      container.innerHTML = messages.map(msg => {
+        const isMine = msg.senderId===currentUserId;
+        const d = parseServerDate(msg.createdAt);
+        const timeStr = d ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+        return '<div class="message-row '+(isMine?'mine':'other')+'"><div class="message-bubble">'+msg.text+'<span class="message-time">'+timeStr+'</span></div></div>';
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    })
+    .catch(e => console.error(e));
+}
+
+function sendMessagePayload(payload) {
+  apiFetch('/api/messages', { method:'POST', body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        loadConversation(activeConversationId);
+        loadMessages();
       } else {
         showAlert(data.message, 'error');
       }
@@ -969,12 +1125,6 @@ function loadOrders() {
   if (container) container.innerHTML = '<p class="empty">Aucune commande</p>';
 }
 
-// ===================== MESSAGERIE (liste des contacts) =====================
-function loadMessages() {
-  const container = document.getElementById('contactsList');
-  if (container) container.innerHTML = '<p class="empty">Aucune discussion</p>';
-}
-
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
 document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
   applyTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark');
@@ -999,6 +1149,7 @@ if (authToken && currentUserId) {
   initTabs();
   initUserSearch();
   loadStats();
+  loadMessages(); // Charger la messagerie au démarrage
 } else {
   document.getElementById('authPage').style.display = 'flex';
 }
