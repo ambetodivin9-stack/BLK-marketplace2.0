@@ -29,11 +29,11 @@ body.dark {
   --input-bg: #2a2a2a;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:80px;-webkit-font-smoothing:antialiased;transition:background 0.3s, color 0.3s;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px;-webkit-font-smoothing:antialiased;transition:background 0.3s, color 0.3s;}
 .kente{height:6px;background:linear-gradient(90deg,#E74C3C 20%,#FF8C00 40%,#2ECC71 60%,#E74C3C 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
 
 /* Boutons génériques */
-.btn{padding:14px;border:none;border-radius:14px;font-weight:700;cursor:pointer;width:100%;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;transition:transform .15s ease, background .2s ease;position:relative;overflow:hidden;}
+.btn{padding:12px;border:none;border-radius:14px;font-weight:700;cursor:pointer;width:100%;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;transition:transform .15s ease, background .2s ease;position:relative;overflow:hidden;}
 .btn:active{transform:scale(.96);}
 .btn-primary{background:var(--accent);color:#fff;}
 .btn-success{background:var(--accent3);color:#fff;}
@@ -41,7 +41,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-outline{background:transparent;border:2px solid var(--accent);color:var(--accent);}
 .btn-outline:active{background:rgba(231,76,60,.1);}
 .btn-sm{padding:6px 12px;font-size:12px;width:auto;}
-.glass{background:var(--card-bg);border-radius:20px;padding:20px;margin-bottom:16px;border:1px solid var(--border);backdrop-filter:blur(10px);}
+.glass{background:var(--card-bg);border-radius:20px;padding:15px;margin-bottom:10px;border:1px solid var(--border);backdrop-filter:blur(10px);}
 .empty{text-align:center;color:#999;padding:20px;}
 .icon-inline{display:inline-flex;width:14px;height:14px;vertical-align:-2px;}
 .icon-inline svg{width:100%;height:100%;}
@@ -59,12 +59,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #authError{color:var(--accent);font-size:14px;margin-top:8px;display:none;}
 
 /* Application principale */
-.app{display:none;max-width:600px;margin:0 auto;padding:80px 16px 100px;}
+.app{display:none;max-width:600px;margin:0 auto;padding:70px 16px 20px;}
 .app.active{display:block;}
-.home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
 .brand-row{display:flex;align-items:center;gap:8px;padding-left:4px;}
 .brand-logo-text{font-size:28px;font-weight:800;color:var(--text);}
-.search-bar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);position:relative;}
+.search-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);position:relative;}
 .search-bar input{flex:1;border:none;background:transparent;font-size:16px;outline:none;color:var(--text);}
 .search-icon{width:20px;height:20px;color:var(--accent);}
 
@@ -127,34 +127,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 }
 
 /* Grille articles */
-.articles-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px;}
+.articles-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}
 .article-card{background:var(--card-bg);border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:transform .15s ease, box-shadow .2s ease;}
 .article-card.tap-anim{transform:scale(.93);}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
 
 /* Stats magasin */
-.shop-stats{padding:16px 0;margin-bottom:16px;}
-.shop-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
-.stat-card{background:var(--card-bg);border-radius:16px;padding:16px 14px;display:flex;align-items:center;gap:12px;border:1px solid var(--border);}
+.shop-stats{padding:10px 0;margin-bottom:10px;}
+.shop-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.stat-card{background:var(--card-bg);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
 .stat-sales .stat-card-number{color:var(--accent);}
 .stat-published .stat-card-number{color:var(--accent3);}
 .stat-revenue .stat-card-number{color:var(--accent2);}
 .stat-orders .stat-card-number{color:#3498DB;}
-.stat-card-icon{width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(231,76,60,.1);border-radius:12px;flex-shrink:0;color:var(--accent);}
-.stat-card-icon svg{width:24px;height:24px;}
+.stat-card-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(231,76,60,.1);border-radius:12px;flex-shrink:0;color:var(--accent);}
+.stat-card-icon svg{width:20px;height:20px;}
 .stat-card-content{display:flex;flex-direction:column;flex:1;min-width:0;}
-.stat-card-number{font-size:22px;font-weight:800;}
-.stat-card-label{font-size:12px;color:#999;margin-top:2px;}
+.stat-card-number{font-size:20px;font-weight:800;}
+.stat-card-label{font-size:11px;color:#999;margin-top:2px;}
 
 /* Tab bar */
-.tab-bar{position:fixed;bottom:14px;left:12px;right:12px;z-index:1000;display:none;}
+.tab-bar{position:fixed;bottom:10px;left:10px;right:10px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
-.tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:10px 8px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
-/* Bulle ronde */
-.tab-bubble{position:absolute;top:-26px;left:0;width:52px;height:52px;border-radius:50%;background:var(--accent);box-shadow:0 10px 20px rgba(231,76,60,.4),0 0 0 4px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:3;pointer-events:none;}
-.tab-bubble-icon{width:24px;height:24px;color:#fff;}
+.tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:8px 6px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
+.tab-bubble{position:absolute;top:-24px;left:0;width:48px;height:48px;border-radius:50%;background:var(--accent);box-shadow:0 10px 20px rgba(231,76,60,.4),0 0 0 4px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:3;pointer-events:none;}
+.tab-bubble-icon{width:22px;height:22px;color:#fff;}
 .tab-bubble-icon svg{width:100%;height:100%;}
-.tab-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;padding:4px 6px;cursor:pointer;position:relative;z-index:2;flex:1;}
+.tab-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;padding:4px 4px;cursor:pointer;position:relative;z-index:2;flex:1;}
 .tab-icon-svg{width:22px;height:22px;color:#aaa;}
 .tab-icon-svg svg{width:100%;height:100%;}
 .tab-label{font-size:10px;font-weight:600;color:#aaa;}
@@ -162,37 +161,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-item.active .tab-label{color:var(--accent);font-weight:800;}
 
 /* Wallet */
-.wallet-card{background:var(--card-bg);border:1px solid var(--border);border-radius:24px;padding:24px 20px 20px;margin-bottom:24px;box-shadow:0 8px 20px var(--shadow);}
+.wallet-card{background:var(--card-bg);border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px;box-shadow:0 8px 20px var(--shadow);}
 .wallet-balance-new{font-size:32px;font-weight:900;color:var(--accent);}
 .wallet-actions{display:flex;gap:10px;justify-content:center;}
-.wallet-btn{flex:1;padding:12px 8px;border:none;border-radius:14px;font-weight:600;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--input-bg);color:var(--accent);position:relative;overflow:hidden;}
+.wallet-btn{flex:1;padding:10px 6px;border:none;border-radius:14px;font-weight:600;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--input-bg);color:var(--accent);position:relative;overflow:hidden;}
 .wallet-btn-deposit{background:rgba(46,204,113,.1);color:var(--accent3);}
 .wallet-btn-withdraw{background:rgba(231,76,60,.1);color:var(--accent);}
 .wallet-btn-transfer{background:rgba(52,152,219,.1);color:#3498DB;}
 
 /* Profil */
-.profile-avatar-new{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer;}
-.profile-avatar-new img{width:100%;height:100%;object-fit:cover;}
-.profile-header-new{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
-.profile-stats-new{display:flex;gap:16px;justify-content:center;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:16px;margin-bottom:16px;}
-.stat-number-new{font-size:22px;font-weight:800;color:var(--accent);}
+.profile-header-new{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.profile-avatar-new{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;overflow:hidden;}
+.profile-stats-new{display:flex;gap:16px;justify-content:center;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:14px;margin-bottom:14px;}
+.stat-number-new{font-size:20px;font-weight:800;color:var(--accent);}
 .stat-label-new{font-size:11px;color:#999;}
 
 /* Boutons réseaux sociaux */
-.follow-buttons{display:flex;gap:24px;justify-content:center;margin:20px 0;}
-.follow-btn{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:var(--input-bg);border:2px solid var(--border);transition:transform .2s, border-color .2s;cursor:pointer;}
+.follow-buttons{display:flex;gap:20px;justify-content:center;margin:16px 0;}
+.follow-btn{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--input-bg);border:2px solid var(--border);transition:transform .2s, border-color .2s;cursor:pointer;}
 .follow-btn:hover{transform:scale(1.1);border-color:var(--accent);}
-.follow-btn svg{width:32px;height:32px;fill:var(--text);}
+.follow-btn svg{width:28px;height:28px;fill:var(--text);}
 
 /* Point vert en ligne */
-.online-dot{width:12px;height:12px;background:var(--accent3);border-radius:50%;display:inline-block;margin-left:6px;}
+.online-dot{width:10px;height:10px;background:var(--accent3);border-radius:50%;display:inline-block;margin-left:6px;}
 
 /* Pages */
-.page{display:none;}
+.page{display:none;min-height:calc(100vh - 160px);}
 .page.active{display:block;}
 
 /* Alertes */
-.alert{padding:12px;border-radius:12px;margin-bottom:12px;display:none;align-items:center;gap:8px;font-size:14px;}
+.alert{padding:10px;border-radius:12px;margin-bottom:10px;display:none;align-items:center;gap:8px;font-size:14px;}
 .alert-success{background:#d4edda;color:#155724;}
 .alert-error{background:#f8d7da;color:#721c24;}
 .alert-info{background:#d1ecf1;color:#0c5460;}
@@ -303,15 +301,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <!-- Page Profil -->
   <div class="page" id="pageProfile">
     <div class="profile-header-new">
-      <div class="profile-avatar-new" id="profileAvatarContainer" title="Cliquer pour changer la photo">
+      <div class="profile-avatar-new" id="profileAvatarContainer">
         <span id="profileAvatarLetter">D</span>
-        <img id="profileAvatarImg" style="display:none;" alt="Photo de profil">
       </div>
       <div>
         <h2 id="profileNameNew">Utilisateur <span class="online-dot" id="profileOnlineDot" style="display:none;"></span></h2>
         <p id="profileEmailNew" style="color:#999;font-size:14px;"></p>
         <p id="profilePhoneNew" style="color:#999;font-size:14px;"></p>
-        <button class="btn btn-sm btn-outline" id="btnUploadPhoto" style="margin-top:8px;">Changer photo</button>
       </div>
     </div>
     <div class="wallet-card">
@@ -481,6 +477,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       loadFlames(currentUserId);
       initTabs();
       initUserSearch();
+      loadStats();
     } else {
       errorDiv.style.display = 'block';
       errorDiv.textContent = data.message || 'Erreur';
@@ -498,25 +495,12 @@ function updateProfileUI(user) {
   const emailEl = document.getElementById('profileEmailNew');
   const phoneEl = document.getElementById('profilePhoneNew');
   const letterEl = document.getElementById('profileAvatarLetter');
-  const imgEl = document.getElementById('profileAvatarImg');
   const onlineDotEl = document.getElementById('profileOnlineDot');
 
   if (nameEl) nameEl.textContent = user.name || 'Utilisateur';
   if (emailEl) emailEl.textContent = user.email || '';
   if (phoneEl) phoneEl.textContent = user.phone || '';
   if (letterEl) letterEl.textContent = (user.name || 'U').charAt(0).toUpperCase();
-
-  if (imgEl) {
-    if (user.photo) {
-      imgEl.src = user.photo;
-      imgEl.style.display = 'block';
-      if (letterEl) letterEl.style.display = 'none';
-    } else {
-      imgEl.style.display = 'none';
-      if (letterEl) letterEl.style.display = 'block';
-    }
-  }
-
   if (onlineDotEl) onlineDotEl.style.display = user.online ? 'inline-block' : 'none';
 }
 
@@ -608,7 +592,7 @@ function initUserSearch() {
                 dropdown.classList.remove('active');
                 dropdown.innerHTML = '';
                 input.value = '';
-                showUserProfile(user.id); // Appel avec l'ID pour charger infos complètes
+                showUserProfile(user.id);
               });
               dropdown.appendChild(item);
             });
@@ -629,7 +613,6 @@ function initUserSearch() {
   });
 }
 
-// Nouvelle fonction pour afficher le profil utilisateur
 function showUserProfile(userId) {
   showSpinner(true);
   apiFetch('/api/users/' + userId)
@@ -669,25 +652,20 @@ function showUserProfile(userId) {
     });
 }
 
-// ===================== MESSAGERIE (fonctions nécessaires) =====================
+// ===================== MESSAGERIE (simplifiée) =====================
 function openDiscussion(contactId, contactName) {
-  // Ici on peut ouvrir la page Messages et démarrer une conversation
-  // Pour simplifier, on bascule sur l'onglet Messages et on initialise la conversation
   document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
   const messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
   messagesTab.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('pageMessages').classList.add('active');
-  // On définit la conversation active
   activeConversationId = contactId;
-  // On appelle une fonction pour charger la conversation (à implémenter si nécessaire)
   loadMessagesForContact(contactId, contactName);
 }
 
 function loadMessagesForContact(contactId, contactName) {
-  // Similaire à loadMessages mais pour un contact précis
   const container = document.getElementById('contactsList');
-  if (container) container.innerHTML = ''; // On vide la liste de contacts pour afficher la conversation
+  if (container) container.innerHTML = '';
   const discussionView = document.getElementById('discussionView');
   const emptyMessages = document.getElementById('emptyMessages');
   if (discussionView) {
@@ -723,14 +701,13 @@ function closeDiscussion() {
   document.getElementById('discussionView').style.display = 'none';
   document.getElementById('emptyMessages').style.display = 'block';
   activeConversationId = null;
-  loadMessages(); // recharge la liste des contacts
+  loadMessages();
 }
 function sendMessagePayload(payload) {
   apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(payload) })
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        // Ajouter le message dans la conversation
         const messagesList = document.getElementById('messagesList');
         if (messagesList && payload.text) {
           messagesList.innerHTML += `
@@ -896,75 +873,6 @@ function openTransferForm() {
   });
 }
 
-// ===================== UPLOAD PHOTO PROFIL (avec compression et envoi base64 pur) =====================
-document.getElementById('btnUploadPhoto')?.addEventListener('click', () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    compressImage(file, 800, 0.7).then(compressedDataUrl => {
-      // Extraire la partie base64 pure (sans le préfixe data:image/...;base64,)
-      const base64Pure = compressedDataUrl.split(',')[1].replace(/\s/g, '');
-      showSpinner(true);
-      apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: base64Pure }) })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            return apiFetch('/api/users/' + currentUserId, { method: 'PUT', body: JSON.stringify({ photo: data.url }) })
-              .then(r => r.json())
-              .then(updateData => {
-                showSpinner(false);
-                if (updateData.success) {
-                  currentUser.photo = data.url;
-                  localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                  updateProfileUI(currentUser);
-                  showAlert('Photo mise à jour !');
-                } else showAlert('Erreur mise à jour: ' + updateData.message, 'error');
-              });
-          } else {
-            showSpinner(false);
-            showAlert('Erreur upload: ' + data.message, 'error');
-          }
-        })
-        .catch(e => {
-          showSpinner(false);
-          showAlert('Erreur réseau: ' + e.message, 'error');
-        });
-    });
-  };
-  input.click();
-});
-
-function compressImage(file, maxWidth, quality) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressed);
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 // ===================== FLAMMES =====================
 function loadFlames(userId) {
   if (!userId) return;
@@ -994,7 +902,7 @@ function initTabs() {
     const tabRect = tab.getBoundingClientRect();
     const sliderRect = tab.parentElement.getBoundingClientRect();
     const center = (tabRect.left - sliderRect.left) + tabRect.width/2;
-    bubble.style.transform = 'translateX(' + (center - 26) + 'px)';
+    bubble.style.transform = 'translateX(' + (center - 24) + 'px)';
     bubbleIcon.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
   }
 
@@ -1063,7 +971,6 @@ function loadOrders() {
 
 // ===================== MESSAGERIE (liste des contacts) =====================
 function loadMessages() {
-  // Ici on charge la liste des conversations (simplifiée)
   const container = document.getElementById('contactsList');
   if (container) container.innerHTML = '<p class="empty">Aucune discussion</p>';
 }
