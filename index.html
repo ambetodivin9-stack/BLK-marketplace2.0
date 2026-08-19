@@ -81,6 +81,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .article-card.tap-anim{transform:scale(.93);}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
 
+/* Liste verticale pour le magasin */
+.shop-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+.shop-list-item{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+.shop-list-item .info{flex:1;}
+.shop-list-item .name{font-weight:700;font-size:15px;}
+.shop-list-item .date{font-size:12px;color:#999;}
+
 .shop-stats{padding:10px 0;margin-bottom:10px;}
 .shop-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 .stat-card{background:var(--card-bg);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
@@ -93,18 +100,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-card-content{display:flex;flex-direction:column;flex:1;min-width:0;}
 .stat-card-number{font-size:20px;font-weight:800;}
 .stat-card-label{font-size:11px;color:#999;margin-top:2px;}
-
-/* Filtres Magasin */
-.shop-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
-.shop-filters .btn{flex:1;min-width:60px;padding:6px 8px;font-size:11px;}
-
-/* Courbe d'évaluation */
-.eval-chart{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;}
-.eval-chart h4{margin-bottom:10px;font-size:14px;color:var(--accent);}
-.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding-top:10px;}
-.bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;}
-.bar{width:20px;background:var(--accent2);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
-.bar-label{font-size:10px;color:#999;margin-top:4px;}
 
 .tab-bar{position:fixed;bottom:10px;left:10px;right:10px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
@@ -279,21 +274,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div></div>
 
-    <!-- Courbe d'évaluation -->
-    <div class="eval-chart">
-      <h4>📈 Évolution des ventes (6 derniers mois)</h4>
-      <div class="bar-chart" id="salesChart"></div>
-    </div>
-
-    <!-- Filtres -->
-    <div class="shop-filters" id="shopFilters">
-      <button class="btn btn-sm btn-primary" data-filter="all">Tous</button>
-      <button class="btn btn-sm btn-outline" data-filter="active">En vente</button>
-      <button class="btn btn-sm btn-outline" data-filter="reserved">Réservé</button>
-      <button class="btn btn-sm btn-outline" data-filter="sold">Vendu</button>
-    </div>
-
-    <div id="shopArticles" style="margin-top:12px;"></div>
+    <!-- Liste des articles actifs (historique) -->
+    <div id="shopArticles" class="shop-list"></div>
   </div>
 
   <!-- Page Messages -->
@@ -385,7 +367,6 @@ let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 let allProducts = [];
 let selectedCategory = 'all';
 let activeConversationId = null;
-let shopFilter = 'all'; // Filtre actif pour le magasin
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5CTEs8L3RleHQ+PC9zdmc+';
 
 // ===================== UTILITAIRES =====================
@@ -494,7 +475,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       loadStats();
       loadMessages();
       loadOrders();
-      loadShopArticles(); // Charger les articles du magasin
+      loadShopArticles();
     } else {
       errorDiv.style.display = 'block';
       errorDiv.textContent = data.message || 'Erreur';
@@ -1423,7 +1404,7 @@ function initTabs() {
   window.addEventListener('resize', () => moveBubble(document.querySelector('.tab-item.active')));
 }
 
-// ===================== MAGASIN =====================
+// ===================== MAGASIN (liste simple) =====================
 function loadShopArticles() {
   if (!currentUserId) return;
   apiFetch('/api/articles/seller/' + currentUserId)
@@ -1432,36 +1413,25 @@ function loadShopArticles() {
     const container = document.getElementById('shopArticles');
     if (!container) return;
     let articles = data.success && data.data ? data.data : [];
-    // Filtrage selon le filtre actif
-    if (shopFilter !== 'all') {
-      articles = articles.filter(a => a.status === shopFilter);
-    }
+    // Filtrer uniquement les articles actifs (non vendus/réservés)
+    articles = articles.filter(a => a.status === 'active');
     if (articles.length === 0) {
-      container.innerHTML = '<p class="empty">Aucun article trouvé</p>';
+      container.innerHTML = '<p class="empty">Aucun article en vente</p>';
       return;
     }
     container.innerHTML = '';
     articles.forEach(a => {
-      const div = document.createElement('div');
-      div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;';
-      let statusText = a.status === 'active' ? 'En vente' : (a.status === 'reserved' ? 'Réservé' : (a.status === 'sold' ? 'Vendu' : 'Inactif'));
-      div.innerHTML = `
-        <img src="${a.image || PLACEHOLDER_IMAGE}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
-        <div style="flex:1;">
-          <strong>${a.title}</strong><br>
-          ${a.price} FCFA · Stock: ${a.stock || 0}<br>
-          <span style="font-size:11px;color:#999;">${statusText}</span>
+      const item = document.createElement('div');
+      item.className = 'shop-list-item';
+      const created = parseServerDate(a.createdAt);
+      const dateStr = created ? created.toLocaleDateString() + ' à ' + created.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Date inconnue';
+      item.innerHTML = `
+        <div class="info">
+          <div class="name">${a.title}</div>
+          <div class="date">Publié le ${dateStr}</div>
         </div>
       `;
-      if (a.status === 'active') {
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn btn-danger btn-sm';
-        delBtn.style.cssText = 'width:auto;padding:6px 12px;';
-        delBtn.textContent = 'Supprimer';
-        delBtn.onclick = () => deleteArticle(a.id);
-        div.appendChild(delBtn);
-      }
-      container.appendChild(div);
+      container.appendChild(item);
     });
   }).catch(e => console.error(e));
 }
@@ -1487,42 +1457,9 @@ function loadStats() {
       document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
       document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
-      // Remplir la courbe d'évaluation
-      renderSalesChart(s.history || []);
     }
   }).catch(() => {});
 }
-
-function renderSalesChart(history) {
-  const chart = document.getElementById('salesChart');
-  if (!chart) return;
-  // Prendre les 6 derniers mois
-  const last6 = history.slice(-6);
-  if (last6.length === 0) {
-    chart.innerHTML = '<p class="empty">Aucune donnée</p>';
-    return;
-  }
-  const maxRevenue = Math.max(...last6.map(h => h.revenu), 1);
-  chart.innerHTML = last6.map(h => {
-    const height = Math.round((h.revenu / maxRevenue) * 100);
-    return `
-      <div class="bar-wrapper">
-        <div class="bar" style="height:${height}px;"></div>
-        <div class="bar-label">${h.month}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-// ===================== FILTRES MAGASIN =====================
-document.querySelectorAll('#shopFilters .btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('#shopFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
-    this.className = 'btn btn-sm btn-primary';
-    shopFilter = this.dataset.filter;
-    loadShopArticles();
-  });
-});
 
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
 document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
@@ -1550,7 +1487,7 @@ if (authToken && currentUserId) {
   loadStats();
   loadMessages();
   loadOrders();
-  loadShopArticles(); // Charger les articles du magasin
+  loadShopArticles();
 } else {
   document.getElementById('authPage').style.display = 'flex';
 }
