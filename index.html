@@ -94,6 +94,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-card-number{font-size:20px;font-weight:800;}
 .stat-card-label{font-size:11px;color:#999;margin-top:2px;}
 
+/* Filtres Magasin */
+.shop-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.shop-filters .btn{flex:1;min-width:60px;padding:6px 8px;font-size:11px;}
+
+/* Courbe d'évaluation */
+.eval-chart{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;}
+.eval-chart h4{margin-bottom:10px;font-size:14px;color:var(--accent);}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding-top:10px;}
+.bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;}
+.bar{width:20px;background:var(--accent2);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
+.bar-label{font-size:10px;color:#999;margin-top:4px;}
+
 .tab-bar{position:fixed;bottom:10px;left:10px;right:10px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
 .tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:8px 6px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
@@ -246,6 +258,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="page" id="pageShop">
     <h2 style="color:var(--accent);margin-bottom:8px;">Mon Magasin</h2>
     <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;">Publier un article</button>
+    
+    <!-- Statistiques -->
     <div class="shop-stats"><div class="shop-stats-grid">
       <div class="stat-card stat-sales">
         <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg></div>
@@ -264,6 +278,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="stat-card-content"><span class="stat-card-number" id="statTotalOrders">0</span><span class="stat-card-label">Commandes</span></div>
       </div>
     </div></div>
+
+    <!-- Courbe d'évaluation -->
+    <div class="eval-chart">
+      <h4>📈 Évolution des ventes (6 derniers mois)</h4>
+      <div class="bar-chart" id="salesChart"></div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="shop-filters" id="shopFilters">
+      <button class="btn btn-sm btn-primary" data-filter="all">Tous</button>
+      <button class="btn btn-sm btn-outline" data-filter="active">En vente</button>
+      <button class="btn btn-sm btn-outline" data-filter="reserved">Réservé</button>
+      <button class="btn btn-sm btn-outline" data-filter="sold">Vendu</button>
+    </div>
+
     <div id="shopArticles" style="margin-top:12px;"></div>
   </div>
 
@@ -356,7 +385,7 @@ let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 let allProducts = [];
 let selectedCategory = 'all';
 let activeConversationId = null;
-// Placeholder en base64 pour éviter les guillemets dans l'URL
+let shopFilter = 'all'; // Filtre actif pour le magasin
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5CTEs8L3RleHQ+PC9zdmc+';
 
 // ===================== UTILITAIRES =====================
@@ -465,6 +494,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       loadStats();
       loadMessages();
       loadOrders();
+      loadShopArticles(); // Charger les articles du magasin
     } else {
       errorDiv.style.display = 'block';
       errorDiv.textContent = data.message || 'Erreur';
@@ -582,6 +612,7 @@ function showProductModal(product) {
 
       <div style="display:flex;gap:10px;">
         <button class="btn btn-primary" style="flex:1;" id="btnBuyNow">Acheter maintenant</button>
+        ${product.sellerId === currentUserId && product.status === 'active' ? `<button class="btn btn-danger" style="flex:1;" id="btnDeleteArticle">Supprimer</button>` : ''}
       </div>
     </div>
   `;
@@ -608,6 +639,13 @@ function showProductModal(product) {
     overlay.remove();
     openDiscussion(this.dataset.sellerId, this.dataset.sellerName);
   });
+  const deleteBtn = overlay.querySelector('#btnDeleteArticle');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      overlay.remove();
+      deleteArticle(product.id);
+    });
+  }
 }
 
 // ===================== CHECKOUT =====================
@@ -1393,12 +1431,17 @@ function loadShopArticles() {
   .then(data => {
     const container = document.getElementById('shopArticles');
     if (!container) return;
-    if (!data.success || !data.data || data.data.length === 0) {
-      container.innerHTML = '<p class="empty">Aucun article publié</p>';
+    let articles = data.success && data.data ? data.data : [];
+    // Filtrage selon le filtre actif
+    if (shopFilter !== 'all') {
+      articles = articles.filter(a => a.status === shopFilter);
+    }
+    if (articles.length === 0) {
+      container.innerHTML = '<p class="empty">Aucun article trouvé</p>';
       return;
     }
     container.innerHTML = '';
-    data.data.forEach(a => {
+    articles.forEach(a => {
       const div = document.createElement('div');
       div.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;';
       let statusText = a.status === 'active' ? 'En vente' : (a.status === 'reserved' ? 'Réservé' : (a.status === 'sold' ? 'Vendu' : 'Inactif'));
@@ -1444,9 +1487,42 @@ function loadStats() {
       document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
       document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
+      // Remplir la courbe d'évaluation
+      renderSalesChart(s.history || []);
     }
   }).catch(() => {});
 }
+
+function renderSalesChart(history) {
+  const chart = document.getElementById('salesChart');
+  if (!chart) return;
+  // Prendre les 6 derniers mois
+  const last6 = history.slice(-6);
+  if (last6.length === 0) {
+    chart.innerHTML = '<p class="empty">Aucune donnée</p>';
+    return;
+  }
+  const maxRevenue = Math.max(...last6.map(h => h.revenu), 1);
+  chart.innerHTML = last6.map(h => {
+    const height = Math.round((h.revenu / maxRevenue) * 100);
+    return `
+      <div class="bar-wrapper">
+        <div class="bar" style="height:${height}px;"></div>
+        <div class="bar-label">${h.month}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===================== FILTRES MAGASIN =====================
+document.querySelectorAll('#shopFilters .btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#shopFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
+    this.className = 'btn btn-sm btn-primary';
+    shopFilter = this.dataset.filter;
+    loadShopArticles();
+  });
+});
 
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
 document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
@@ -1474,6 +1550,7 @@ if (authToken && currentUserId) {
   loadStats();
   loadMessages();
   loadOrders();
+  loadShopArticles(); // Charger les articles du magasin
 } else {
   document.getElementById('authPage').style.display = 'flex';
 }
