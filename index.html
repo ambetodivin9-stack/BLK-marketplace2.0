@@ -141,6 +141,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-revenue .stat-card-number{color:var(--accent2);}
 .stat-orders .stat-card-number{color:#3498DB;}
 .stat-card-icon{width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(231,76,60,.1);border-radius:12px;flex-shrink:0;color:var(--accent);}
+.stat-card-icon svg{width:24px;height:24px;}
 .stat-card-content{display:flex;flex-direction:column;flex:1;min-width:0;}
 .stat-card-number{font-size:22px;font-weight:800;}
 .stat-card-label{font-size:12px;color:#999;margin-top:2px;}
@@ -149,8 +150,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-bar{position:fixed;bottom:14px;left:12px;right:12px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
 .tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:10px 8px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
-.tab-bubble{position:absolute;top:-26px;left:0;width:52px;height:52px;border-radius:18px;background:var(--accent);box-shadow:0 10px 20px rgba(231,76,60,.4),0 0 0 4px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:3;pointer-events:none;}
-.tab-bubble-icon{width:22px;height:22px;color:#fff;}
+/* Bulle ronde */
+.tab-bubble{position:absolute;top:-26px;left:0;width:52px;height:52px;border-radius:50%;background:var(--accent);box-shadow:0 10px 20px rgba(231,76,60,.4),0 0 0 4px rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:3;pointer-events:none;}
+.tab-bubble-icon{width:24px;height:24px;color:#fff;}
 .tab-bubble-icon svg{width:100%;height:100%;}
 .tab-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;padding:4px 6px;cursor:pointer;position:relative;z-index:2;flex:1;}
 .tab-icon-svg{width:22px;height:22px;color:#aaa;}
@@ -263,10 +265,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <h2 style="color:var(--accent);margin-bottom:8px;">Mon Magasin</h2>
     <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;">Publier un article</button>
     <div class="shop-stats"><div class="shop-stats-grid">
-      <div class="stat-card stat-sales"><div class="stat-card-icon">📦</div><div class="stat-card-content"><span class="stat-card-number" id="statTotalSales">0</span><span class="stat-card-label">Articles vendus</span></div></div>
-      <div class="stat-card stat-published"><div class="stat-card-icon">📝</div><div class="stat-card-content"><span class="stat-card-number" id="statTotalArticles">0</span><span class="stat-card-label">Articles publiés</span></div></div>
-      <div class="stat-card stat-revenue"><div class="stat-card-icon">💰</div><div class="stat-card-content"><span class="stat-card-number" id="statTotalRevenue">0</span><span class="stat-card-label">Chiffre d'affaires</span></div></div>
-      <div class="stat-card stat-orders"><div class="stat-card-icon">🛒</div><div class="stat-card-content"><span class="stat-card-number" id="statTotalOrders">0</span><span class="stat-card-label">Commandes</span></div></div>
+      <div class="stat-card stat-sales">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l9-4.5L21 8v8l-9 4.5L3 16Z"/><path d="M3 8l9 4.5L21 8"/><path d="M12 12.5V21"/></svg></div>
+        <div class="stat-card-content"><span class="stat-card-number" id="statTotalSales">0</span><span class="stat-card-label">Articles vendus</span></div>
+      </div>
+      <div class="stat-card stat-published">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V6a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v6h6"/></svg></div>
+        <div class="stat-card-content"><span class="stat-card-number" id="statTotalArticles">0</span><span class="stat-card-label">Articles publiés</span></div>
+      </div>
+      <div class="stat-card stat-revenue">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9"/></svg></div>
+        <div class="stat-card-content"><span class="stat-card-number" id="statTotalRevenue">0</span><span class="stat-card-label">Chiffre d'affaires</span></div>
+      </div>
+      <div class="stat-card stat-orders">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2.5 3h2.5l2.3 11.4a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L21 7H6"/></svg></div>
+        <div class="stat-card-content"><span class="stat-card-number" id="statTotalOrders">0</span><span class="stat-card-label">Commandes</span></div>
+      </div>
     </div></div>
     <div id="shopArticles" style="margin-top:12px;"></div>
   </div>
@@ -345,7 +359,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <script>
-// ===================== ICONS =====================
+// ===================== ICONS SVG =====================
 const TAB_ICONS = {
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>',
   shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5h16v4"/><path d="M5 9v11h14V9"/></svg>',
@@ -594,7 +608,7 @@ function initUserSearch() {
                 dropdown.classList.remove('active');
                 dropdown.innerHTML = '';
                 input.value = '';
-                showUserProfile(user);
+                showUserProfile(user.id); // Appel avec l'ID pour charger infos complètes
               });
               dropdown.appendChild(item);
             });
@@ -614,18 +628,123 @@ function initUserSearch() {
     }
   });
 }
-function showUserProfile(user) {
-  const html = `
-    <div style="text-align:center;">
-      <div style="width:80px;height:80px;margin:0 auto;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;overflow:hidden;">
-        ${user.photo ? `<img src="${user.photo}" style="width:100%;height:100%;object-fit:cover;">` : (user.name || '?').charAt(0).toUpperCase()}
+
+// Nouvelle fonction pour afficher le profil utilisateur
+function showUserProfile(userId) {
+  showSpinner(true);
+  apiFetch('/api/users/' + userId)
+    .then(r => r.json())
+    .then(data => {
+      showSpinner(false);
+      if (data.success) {
+        const user = data.data;
+        const html = `
+          <div style="padding:20px;text-align:center;">
+            <div style="width:100px;height:100px;margin:0 auto;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;color:#fff;overflow:hidden;">
+              ${user.photo ? `<img src="${user.photo}" style="width:100%;height:100%;object-fit:cover;">` : (user.name || '?').charAt(0).toUpperCase()}
+            </div>
+            <h2 style="margin:10px 0 4px;">${user.name}</h2>
+            <p style="color:#999;">${user.email || ''}</p>
+            <p style="color:#999;">${user.phone || ''}</p>
+            <div style="display:flex;justify-content:center;gap:20px;margin:20px 0;">
+              <div><span style="font-weight:800;">${user.flames || 0}</span><br><span style="font-size:12px;">Flammes</span></div>
+              <div><span style="font-weight:800;">${user.online ? 'En ligne' : 'Hors ligne'}</span><br><span style="font-size:12px;">Statut</span></div>
+            </div>
+            <button class="btn btn-primary" id="btnMessageUser" data-user-id="${userId}" data-user-name="${user.name}">Écrire un message</button>
+            <button class="btn btn-outline" style="margin-top:8px;" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
+          </div>
+        `;
+        const overlay = openModal(html);
+        overlay.querySelector('#btnMessageUser').addEventListener('click', function() {
+          overlay.remove();
+          openDiscussion(this.dataset.userId, this.dataset.userName);
+        });
+      } else {
+        showAlert('Utilisateur introuvable', 'error');
+      }
+    })
+    .catch(err => {
+      showSpinner(false);
+      showAlert('Erreur réseau: ' + err.message, 'error');
+    });
+}
+
+// ===================== MESSAGERIE (fonctions nécessaires) =====================
+function openDiscussion(contactId, contactName) {
+  // Ici on peut ouvrir la page Messages et démarrer une conversation
+  // Pour simplifier, on bascule sur l'onglet Messages et on initialise la conversation
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  const messagesTab = document.querySelector('.tab-item[data-tab="pageMessages"]');
+  messagesTab.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('pageMessages').classList.add('active');
+  // On définit la conversation active
+  activeConversationId = contactId;
+  // On appelle une fonction pour charger la conversation (à implémenter si nécessaire)
+  loadMessagesForContact(contactId, contactName);
+}
+
+function loadMessagesForContact(contactId, contactName) {
+  // Similaire à loadMessages mais pour un contact précis
+  const container = document.getElementById('contactsList');
+  if (container) container.innerHTML = ''; // On vide la liste de contacts pour afficher la conversation
+  const discussionView = document.getElementById('discussionView');
+  const emptyMessages = document.getElementById('emptyMessages');
+  if (discussionView) {
+    discussionView.style.display = 'block';
+    emptyMessages.style.display = 'none';
+    discussionView.innerHTML = `
+      <div class="chat-header">
+        <button class="chat-back-btn" onclick="closeDiscussion()">‹</button>
+        <div class="chat-contact-info">
+          <div class="chat-contact-avatar">${contactName.charAt(0)}</div>
+          <div class="chat-contact-name">${contactName}</div>
+        </div>
       </div>
-      <h3 style="margin:10px 0 4px;">${user.name}</h3>
-      <p style="color:#999;">🔥 ${user.flames} flammes</p>
-      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
-    </div>
-  `;
-  openModal(html);
+      <div class="chat-messages" id="messagesList">
+        <p class="empty">Démarrez la conversation</p>
+      </div>
+      <div class="chat-input-bar">
+        <input type="text" id="messageInput" placeholder="Écris ton message...">
+        <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
+      </div>
+    `;
+    document.getElementById('btnSendMessage').addEventListener('click', () => {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (text && activeConversationId) {
+        sendMessagePayload({ receiverId: activeConversationId, text });
+        input.value = '';
+      }
+    });
+  }
+}
+function closeDiscussion() {
+  document.getElementById('discussionView').style.display = 'none';
+  document.getElementById('emptyMessages').style.display = 'block';
+  activeConversationId = null;
+  loadMessages(); // recharge la liste des contacts
+}
+function sendMessagePayload(payload) {
+  apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Ajouter le message dans la conversation
+        const messagesList = document.getElementById('messagesList');
+        if (messagesList && payload.text) {
+          messagesList.innerHTML += `
+            <div class="message-row mine">
+              <div class="message-bubble">${payload.text}</div>
+            </div>
+          `;
+          messagesList.scrollTop = messagesList.scrollHeight;
+        }
+      } else {
+        showAlert(data.message, 'error');
+      }
+    })
+    .catch(e => showAlert('Erreur réseau: ' + e.message, 'error'));
 }
 
 // ===================== WALLET =====================
@@ -777,7 +896,7 @@ function openTransferForm() {
   });
 }
 
-// ===================== UPLOAD PHOTO PROFIL (avec compression) =====================
+// ===================== UPLOAD PHOTO PROFIL (avec compression et envoi base64 pur) =====================
 document.getElementById('btnUploadPhoto')?.addEventListener('click', () => {
   const input = document.createElement('input');
   input.type = 'file';
@@ -785,10 +904,11 @@ document.getElementById('btnUploadPhoto')?.addEventListener('click', () => {
   input.onchange = function(e) {
     const file = e.target.files[0];
     if (!file) return;
-    // Compression de l'image avant envoi
-    compressImage(file, 800, 0.7).then(compressedBase64 => {
+    compressImage(file, 800, 0.7).then(compressedDataUrl => {
+      // Extraire la partie base64 pure (sans le préfixe data:image/...;base64,)
+      const base64Pure = compressedDataUrl.split(',')[1].replace(/\s/g, '');
       showSpinner(true);
-      apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: compressedBase64 }) })
+      apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: base64Pure }) })
         .then(r => r.json())
         .then(data => {
           if (data.success) {
@@ -859,13 +979,12 @@ function loadFlames(userId) {
   }).catch(() => {});
 }
 
-// ===================== ONGLETS (avec bulle animée) =====================
+// ===================== ONGLETS (avec bulle animée ronde) =====================
 function initTabs() {
   const tabs = document.querySelectorAll('.tab-item');
   const bubble = document.getElementById('tabBubble');
   const bubbleIcon = document.getElementById('tabBubbleIcon');
 
-  // Icônes SVG pour les onglets
   tabs.forEach(tab => {
     const icon = TAB_ICONS[tab.dataset.icon] || '';
     tab.querySelector('.tab-icon-svg').innerHTML = icon;
@@ -942,8 +1061,9 @@ function loadOrders() {
   if (container) container.innerHTML = '<p class="empty">Aucune commande</p>';
 }
 
-// ===================== MESSAGERIE =====================
+// ===================== MESSAGERIE (liste des contacts) =====================
 function loadMessages() {
+  // Ici on charge la liste des conversations (simplifiée)
   const container = document.getElementById('contactsList');
   if (container) container.innerHTML = '<p class="empty">Aucune discussion</p>';
 }
