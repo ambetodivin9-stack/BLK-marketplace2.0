@@ -49,8 +49,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .app.active{display:block;}
 .home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
 .brand-logo-text{font-size:28px;font-weight:800;color:var(--text);}
-.search-bar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);}
+.search-bar{display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);position:relative;}
 .search-bar input{flex:1;border:none;background:transparent;font-size:16px;outline:none;color:var(--text);}
+.search-icon{width:20px;height:20px;color:var(--accent);}
+.user-search-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--card-bg);border:1px solid var(--border);border-radius:0 0 12px 12px;max-height:250px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px var(--shadow);display:none;margin-top:5px;}
+.user-search-dropdown.active{display:block;}
+.user-search-item{display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-bottom:1px solid var(--border);}
+.user-search-item:last-child{border-bottom:none;}
+.user-search-item:hover{background:var(--input-bg);}
+.user-search-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden;}
+.user-search-avatar img{width:100%;height:100%;object-fit:cover;}
+.user-search-info{flex:1;}
+.user-search-name{font-weight:600;}
+.user-search-flames{font-size:12px;color:var(--accent2);}
+@keyframes flamePulse{0%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}50%{transform:scale(1.2);text-shadow:0 0 15px rgba(255,100,0,0.9);}100%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}}
+.flame-animated{display:inline-block;animation:flamePulse 1.2s infinite;color:var(--accent2);font-weight:800;}
 .articles-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px;}
 .article-card{background:var(--card-bg);border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:transform .15s ease, box-shadow .2s ease;}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
@@ -60,12 +73,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:10px 8px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
 .tab-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;padding:4px 6px;cursor:pointer;position:relative;z-index:2;flex:1;}
 .tab-label{font-size:10px;font-weight:600;color:#aaa;}
+.tab-item.active .tab-label{color:var(--accent);font-weight:800;}
+.profile-avatar-new{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer;}
+.profile-avatar-new img{width:100%;height:100%;object-fit:cover;}
+.profile-header-new{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+.follow-buttons{display:flex;gap:24px;justify-content:center;margin:20px 0;}
+.follow-btn{display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:var(--input-bg);border:2px solid var(--border);transition:transform .2s, border-color .2s;cursor:pointer;}
+.follow-btn:hover{transform:scale(1.1);border-color:var(--accent);}
+.follow-btn svg{width:32px;height:32px;fill:var(--text);}
+.online-dot{width:12px;height:12px;background:var(--accent3);border-radius:50%;display:inline-block;margin-left:6px;}
+.page{display:none;}
+.page.active{display:block;}
+.alert{padding:12px;border-radius:12px;margin-bottom:12px;display:none;align-items:center;gap:8px;font-size:14px;}
+.alert-success{background:#d4edda;color:#155724;}
+.alert-error{background:#f8d7da;color:#721c24;}
+.alert-info{background:#d1ecf1;color:#0c5460;}
+.wallet-card{background:var(--card-bg);border:1px solid var(--border);border-radius:24px;padding:24px 20px 20px;margin-bottom:24px;box-shadow:0 8px 20px var(--shadow);}
+.wallet-balance-new{font-size:32px;font-weight:900;color:var(--accent);}
+.wallet-actions{display:flex;gap:10px;justify-content:center;}
+.wallet-btn{flex:1;padding:12px 8px;border:none;border-radius:14px;font-weight:600;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--input-bg);color:var(--accent);position:relative;overflow:hidden;}
+.wallet-btn-deposit{background:rgba(46,204,113,.1);color:var(--accent3);}
+.wallet-btn-withdraw{background:rgba(231,76,60,.1);color:var(--accent);}
+.wallet-btn-transfer{background:rgba(52,152,219,.1);color:#3498DB;}
+.profile-stats-new{display:flex;gap:16px;justify-content:center;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:16px;margin-bottom:16px;}
+.stat-number-new{font-size:22px;font-weight:800;color:var(--accent);}
+.stat-label-new{font-size:11px;color:#999;}
+.chat-header{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card-bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.chat-back-btn{background:none;border:none;font-size:22px;cursor:pointer;color:var(--accent);}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;background:var(--bg);min-height:300px;max-height:calc(100vh - 250px);}
+.message-row{display:flex;margin-bottom:10px;}
+.message-row.mine{justify-content:flex-end;}
+.message-bubble{max-width:75%;padding:10px 14px;border-radius:18px;background:var(--card-bg);box-shadow:0 1px 2px var(--shadow);font-size:14px;position:relative;border:1px solid var(--border);}
+.message-row.mine .message-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px;border:none;}
+.chat-input-bar{display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border-top:1px solid var(--border);position:sticky;bottom:0;}
+.chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;font-size:15px;background:var(--input-bg);color:var(--text);}
+.chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 </style>
 </head>
 <body>
 <div class="kente"></div>
 
-<!-- Page d'authentification (visible immédiatement) -->
+<!-- Page d'authentification -->
 <div class="auth-page" id="authPage">
   <div class="auth-card">
     <div class="auth-title">Bienvenue sur <br><span>BLK Marketplace</span></div>
@@ -85,14 +133,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<!-- Application principale (cachée tant que non connecté) -->
+<!-- Application principale -->
 <div class="app" id="appContainer">
   <div id="alertBox" class="alert"></div>
+
+  <!-- Page Accueil -->
   <div class="page active" id="pageHome">
     <div class="home-header">
       <div class="brand-logo-text">BLK</div>
-      <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Rechercher un article...">
+      <div class="search-bar" id="searchBarContainer">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Rechercher un article ou un vendeur...">
+        <div class="user-search-dropdown" id="userSearchDropdown"></div>
       </div>
     </div>
     <div id="categoryFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -108,6 +160,68 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div id="productsGrid" class="articles-grid"></div>
     <div id="emptyHome" class="empty" style="display:none;">Aucun article</div>
   </div>
+
+  <!-- Page Magasin -->
+  <div class="page" id="pageShop">
+    <h2 style="color:var(--accent);margin-bottom:8px;">Mon Magasin</h2>
+    <button class="btn btn-primary" id="btnPublish" style="margin-bottom:16px;">Publier un article</button>
+    <div id="shopArticles"></div>
+  </div>
+
+  <!-- Page Messages -->
+  <div class="page" id="pageMessages">
+    <h2 style="color:var(--accent);">Messagerie</h2>
+    <div id="contactsList"></div>
+    <div id="discussionView" style="display:none;"></div>
+    <div id="emptyMessages" class="empty">Aucune discussion</div>
+  </div>
+
+  <!-- Page Commandes -->
+  <div class="page" id="pageOrders">
+    <h2 style="color:var(--accent);">Mes Commandes</h2>
+    <div id="ordersList"></div>
+    <div id="emptyOrders" class="empty" style="display:none;">Aucune commande</div>
+  </div>
+
+  <!-- Page Profil -->
+  <div class="page" id="pageProfile">
+    <div class="profile-header-new">
+      <div class="profile-avatar-new" id="profileAvatarContainer" title="Cliquer pour changer la photo">
+        <span id="profileAvatarLetter">D</span>
+        <img id="profileAvatarImg" style="display:none;" alt="Photo de profil">
+      </div>
+      <div>
+        <h2 id="profileNameNew">Utilisateur <span class="online-dot" id="profileOnlineDot" style="display:none;"></span></h2>
+        <p id="profileEmailNew" style="color:#999;font-size:14px;"></p>
+        <p id="profilePhoneNew" style="color:#999;font-size:14px;"></p>
+        <button class="btn btn-sm btn-outline" id="btnUploadPhoto" style="margin-top:8px;">Changer photo</button>
+      </div>
+    </div>
+    <div class="wallet-card">
+      <div style="text-align:center;">
+        <span style="font-size:12px;color:rgba(0,0,0,.4);">WALLET BLK</span>
+        <div><span class="wallet-balance-new" id="walletBalanceNew">0</span><span style="color:rgba(0,0,0,.3);"> FCFA</span></div>
+      </div>
+      <div class="wallet-actions" style="margin-top:16px;">
+        <button class="wallet-btn wallet-btn-deposit" id="btnDepositNew">Déposer</button>
+        <button class="wallet-btn wallet-btn-withdraw" id="btnWithdrawNew">Retirer</button>
+        <button class="wallet-btn wallet-btn-transfer" id="btnTransferNew">Transférer</button>
+      </div>
+    </div>
+    <div class="profile-stats-new">
+      <div><span class="stat-number-new flame-animated" id="profileFlamesNew">0</span><span class="stat-label-new">Flammes</span></div>
+    </div>
+    <div class="follow-buttons" style="margin-bottom:10px;">
+      <a class="follow-btn" href="https://www.instagram.com/blkmarketplace" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.3 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.3-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.3-1.1-.4-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.3 2.3-.4C8.4 2.2 8.8 2.2 12 2.2m0 1.8c-3.1 0-3.5 0-4.7.1-1.1.1-1.5.2-1.9.3-.5.2-.8.4-1.1.7-.3.3-.5.6-.7 1.1-.1.4-.2.8-.3 1.9-.1 1.2-.1 1.6-.1 4.7s0 3.5.1 4.7c.1 1.1.2 1.5.3 1.9.2.5.4.8.7 1.1.3.3.6.5 1.1.7.4.1.8.2 1.9.3 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.5-.2 1.9-.3.5-.2.8-.4 1.1-.7.3-.3.5-.6.7-1.1.1-.4.2-.8.3-1.9.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.5-.3-1.9-.2-.5-.4-.8-.7-1.1-.3-.3-.6-.5-1.1-.7-.4-.1-.8-.2-1.9-.3-1.2-.1-1.6-.1-4.7-.1zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8zm0 1.8a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2zm5.1-2.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
+      </a>
+      <a class="follow-btn" href="https://www.threads.net/@blkmarketplace" target="_blank" title="Threads">
+        <svg viewBox="0 0 24 24"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.028-3.576 1.158-6.416 3.357-8.442C7.028 1.525 9.76.343 12.205.341h.006c2.457.002 5.19 1.184 7.38 3.198 1.816 1.672 3.028 3.803 3.492 6.146l-1.833.347c-.408-2.059-1.462-3.913-2.901-5.206-1.77-1.61-4.021-2.582-6.132-2.583h-.004c-2.11.002-4.362.974-6.132 2.583-1.788 1.63-2.77 3.969-2.795 6.663v.017c.025 2.694 1.007 4.956 2.795 6.587 1.77 1.612 4.022 2.585 6.132 2.585h.004c1.65-.001 3.26-.492 4.644-1.419 1.308-.876 2.346-2.098 3.026-3.562l1.728.624c-.805 1.82-2.105 3.376-3.776 4.495-1.66 1.115-3.65 1.731-5.61 1.732h-.004zm-1.461-6.276c-1.25 0-2.362-.309-3.232-.92-1.058-.742-1.684-1.826-1.756-3.045l1.99-.2c.05.823.401 1.525 1.015 1.956.616.432 1.389.652 2.18.652.97 0 1.76-.302 2.345-.897.522-.53.8-1.26.834-2.146l.003-.18c.037-1.307-.753-2.206-2.099-2.39l-1.253-.17c-1.95-.26-3.508-1.004-4.511-2.153-1.07-1.241-1.54-2.836-1.356-4.61.166-1.624.935-3.082 2.164-4.123C8.06 1.975 9.64 1.588 11.525 1.6l.007.001c1.327-.01 2.604.245 3.669.73 1.073.489 1.903 1.232 2.347 2.1l-1.638.737c-.413-.918-1.265-1.53-2.346-1.681-1.099-.153-2.08.277-2.83 1.24-.586.753-.73 1.59-.415 2.4.28.72.922 1.286 1.856 1.638l1.25.47c1.734.653 2.784 1.91 2.958 3.552.11 1.047-.201 2.075-.884 2.956-.663.854-1.614 1.388-2.683 1.507-.36.04-.73.06-1.101.06z"/></svg>
+      </a>
+    </div>
+    <button class="btn btn-outline" id="btnToggleTheme" style="margin-bottom:10px;">Changer de thème</button>
+    <button class="btn btn-danger" id="btnLogout" style="margin-top:10px;">Déconnexion</button>
+  </div>
 </div>
 
 <!-- Barre d'onglets -->
@@ -122,15 +236,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <script>
-// ===================== VARIABLES =====================
-var BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
-var authToken = localStorage.getItem('authToken') || null;
-var currentUserId = localStorage.getItem('currentUserId') || null;
-var currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-var allProducts = [];
-var selectedCategory = 'all';
+// ===================== VARIABLES GLOBALES =====================
+const BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
+let authToken = localStorage.getItem('authToken') || null;
+let currentUserId = localStorage.getItem('currentUserId') || null;
+let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+let allProducts = [];
+let selectedCategory = 'all';
+let activeConversationId = null;
+const PLACEHOLDER_IMAGE = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#eee"/><text x="50%" y="50%" font-size="20" text-anchor="middle" fill="#999">BLK</text></svg>';
 
-// ===================== FONCTIONS DE BASE =====================
+// ===================== UTILITAIRES =====================
 function apiFetch(url, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -139,47 +255,81 @@ function apiFetch(url, options = {}) {
   };
   return fetch(BACKEND_URL + url, { ...options, headers });
 }
-
-function showAlert(message, type) {
-  var box = document.getElementById('alertBox');
+function showAlert(message, type = 'success') {
+  const box = document.getElementById('alertBox');
+  if (!box) return;
   box.textContent = message;
-  box.style.display = 'block';
-  box.className = 'alert';
-  if (type === 'error') box.style.background = '#f8d7da';
-  else box.style.background = '#d4edda';
-  setTimeout(() => { box.style.display = 'none'; }, 3000);
+  box.className = 'alert alert-' + (type === 'error' ? 'error' : type === 'info' ? 'info' : 'success');
+  box.style.display = 'flex';
+  clearTimeout(box._t);
+  box._t = setTimeout(() => { box.style.display = 'none'; }, 4000);
+}
+function openModal(html) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.innerHTML = `<div class="modal-content">${html}</div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+function formatNumber(num) {
+  if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num/1000).toFixed(1) + 'k';
+  return String(num);
+}
+function parseServerDate(val) {
+  if (!val) return null;
+  if (val._seconds) return new Date(val._seconds * 1000);
+  if (val.seconds) return new Date(val.seconds * 1000);
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+function showSpinner(show) {
+  const spinner = document.getElementById('spinnerOverlay');
+  if (spinner) spinner.classList.toggle('active', show);
 }
 
-// ===================== AUTH =====================
-var isLoginMode = true;
+// ===================== THÈME =====================
+function applyTheme(theme) {
+  if (theme === 'dark') document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
+  localStorage.setItem('theme', theme);
+}
+const savedTheme = localStorage.getItem('theme') || 'light';
+applyTheme(savedTheme);
+
+// ===================== AUTHENTIFICATION =====================
+let isLoginMode = true;
 function toggleAuthMode() {
   isLoginMode = !isLoginMode;
-  document.getElementById('nameGroup').style.display = isLoginMode ? 'none' : 'block';
-  document.getElementById('phoneGroup').style.display = isLoginMode ? 'none' : 'block';
+  const nameGroup = document.getElementById('nameGroup');
+  const phoneGroup = document.getElementById('phoneGroup');
+  if (nameGroup) nameGroup.style.display = isLoginMode ? 'none' : 'block';
+  if (phoneGroup) phoneGroup.style.display = isLoginMode ? 'none' : 'block';
   document.getElementById('btnLogin').textContent = isLoginMode ? 'Se connecter' : "S'inscrire";
   document.getElementById('showLogin').className = isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   document.getElementById('showRegister').className = !isLoginMode ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
   document.getElementById('authError').style.display = 'none';
 }
-document.getElementById('showLogin').addEventListener('click', () => { if (!isLoginMode) toggleAuthMode(); });
-document.getElementById('showRegister').addEventListener('click', () => { if (isLoginMode) toggleAuthMode(); });
+document.getElementById('showLogin')?.addEventListener('click', () => { if (!isLoginMode) toggleAuthMode(); });
+document.getElementById('showRegister')?.addEventListener('click', () => { if (isLoginMode) toggleAuthMode(); });
 toggleAuthMode();
 
-document.getElementById('authForm').addEventListener('submit', function(e){
+document.getElementById('authForm')?.addEventListener('submit', function(e) {
   e.preventDefault();
-  var name = document.getElementById('loginName').value.trim();
-  var email = document.getElementById('loginEmail').value.trim();
-  var password = document.getElementById('loginPassword').value;
-  var phone = document.getElementById('loginPhone').value.trim();
-  var errorDiv = document.getElementById('authError');
+  const name = document.getElementById('loginName').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const phone = document.getElementById('loginPhone').value.trim();
+  const errorDiv = document.getElementById('authError');
   if (!email || !password || (!isLoginMode && (!name || !phone))) {
     errorDiv.style.display = 'block';
     errorDiv.textContent = 'Remplis tous les champs.';
     return;
   }
   errorDiv.style.display = 'none';
-  var url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
-  var body = isLoginMode ? { email, password } : { name, email, password, phone };
+  const url = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+  const body = isLoginMode ? { email, password } : { name, email, password, phone };
   apiFetch(url, { method: 'POST', body: JSON.stringify(body) })
   .then(r => r.json())
   .then(data => {
@@ -193,7 +343,12 @@ document.getElementById('authForm').addEventListener('submit', function(e){
       document.getElementById('authPage').style.display = 'none';
       document.getElementById('appContainer').classList.add('active');
       document.getElementById('tabs').classList.add('show');
+      updateProfileUI(currentUser);
       loadProducts();
+      loadWallet();
+      loadFlames(currentUserId);
+      initTabs();
+      initUserSearch();
     } else {
       errorDiv.style.display = 'block';
       errorDiv.textContent = data.message || 'Erreur';
@@ -205,7 +360,35 @@ document.getElementById('authForm').addEventListener('submit', function(e){
   });
 });
 
-// ===================== ARTICLES =====================
+// ===================== MISE À JOUR PROFIL =====================
+function updateProfileUI(user) {
+  const nameEl = document.getElementById('profileNameNew');
+  const emailEl = document.getElementById('profileEmailNew');
+  const phoneEl = document.getElementById('profilePhoneNew');
+  const letterEl = document.getElementById('profileAvatarLetter');
+  const imgEl = document.getElementById('profileAvatarImg');
+  const onlineDotEl = document.getElementById('profileOnlineDot');
+
+  if (nameEl) nameEl.textContent = user.name || 'Utilisateur';
+  if (emailEl) emailEl.textContent = user.email || '';
+  if (phoneEl) phoneEl.textContent = user.phone || '';
+  if (letterEl) letterEl.textContent = (user.name || 'U').charAt(0).toUpperCase();
+
+  if (imgEl) {
+    if (user.photo) {
+      imgEl.src = user.photo;
+      imgEl.style.display = 'block';
+      if (letterEl) letterEl.style.display = 'none';
+    } else {
+      imgEl.style.display = 'none';
+      if (letterEl) letterEl.style.display = 'block';
+    }
+  }
+
+  if (onlineDotEl) onlineDotEl.style.display = user.online ? 'inline-block' : 'none';
+}
+
+// ===================== CHARGEMENT PRODUITS =====================
 function loadProducts() {
   apiFetch('/api/articles')
   .then(r => r.json())
@@ -215,27 +398,28 @@ function loadProducts() {
   }).catch(() => { allProducts = []; renderProducts(); });
 }
 function renderProducts() {
-  var grid = document.getElementById('productsGrid');
-  var empty = document.getElementById('emptyHome');
-  var filtered = allProducts || [];
+  const grid = document.getElementById('productsGrid');
+  const empty = document.getElementById('emptyHome');
+  if (!grid) return;
+  let filtered = allProducts || [];
   if (selectedCategory !== 'all') filtered = filtered.filter(p => p.category === selectedCategory);
-  var q = document.getElementById('searchInput').value.toLowerCase();
+  const q = document.getElementById('searchInput')?.value.toLowerCase() || '';
   if (q) filtered = filtered.filter(p => p.title && p.title.toLowerCase().includes(q));
   grid.innerHTML = '';
   if (filtered.length === 0) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   filtered.forEach(p => {
-    var card = document.createElement('div');
+    const card = document.createElement('div');
     card.className = 'article-card';
-    var imgSrc = p.image || (p.images && p.images[0]) || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#eee"/><text x="50%" y="50%" font-size="20" text-anchor="middle" fill="#999">BLK</text></svg>';
-    card.innerHTML = '<img src="' + imgSrc + '">';
-    card.addEventListener('click', () => { showAlert('Article: ' + p.title, 'info'); });
+    const imgSrc = p.image || (p.images && p.images[0]) || PLACEHOLDER_IMAGE;
+    card.innerHTML = `<img src="${imgSrc}" alt="${p.title}">`;
+    card.addEventListener('click', () => showProductModal(p));
     grid.appendChild(card);
   });
 }
-document.getElementById('searchInput').addEventListener('input', renderProducts);
+document.getElementById('searchInput')?.addEventListener('input', renderProducts);
 document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
-  btn.addEventListener('click', function(){
+  btn.addEventListener('click', function() {
     document.querySelectorAll('#categoryFilters .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
     this.className = 'btn btn-sm btn-primary';
     selectedCategory = this.dataset.cat;
@@ -243,16 +427,226 @@ document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
   });
 });
 
+// ===================== FICHE PRODUIT SIMPLE =====================
+function showProductModal(product) {
+  const html = `
+    <div style="padding:20px;text-align:center;">
+      <img src="${product.image || (product.images && product.images[0]) || PLACEHOLDER_IMAGE}" style="width:100%;max-height:300px;object-fit:cover;border-radius:12px;">
+      <h3 style="margin:10px 0;">${product.title}</h3>
+      <p style="color:var(--accent);font-weight:800;">${product.price} FCFA</p>
+      <p style="color:#666;">${product.description || ''}</p>
+      <p style="margin-top:10px;">Vendeur: ${product.sellerName || 'Anonyme'}</p>
+      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
+    </div>
+  `;
+  openModal(html);
+}
+
+// ===================== RECHERCHE UTILISATEURS =====================
+let userSearchTimeout;
+function initUserSearch() {
+  const input = document.getElementById('searchInput');
+  const dropdown = document.getElementById('userSearchDropdown');
+  if (!input || !dropdown) return;
+  input.addEventListener('input', function() {
+    clearTimeout(userSearchTimeout);
+    const query = this.value.trim();
+    if (query.length < 2) {
+      dropdown.classList.remove('active');
+      dropdown.innerHTML = '';
+      return;
+    }
+    userSearchTimeout = setTimeout(() => {
+      apiFetch('/api/users/search?query=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.data.length > 0) {
+            dropdown.innerHTML = '';
+            data.data.forEach(user => {
+              const item = document.createElement('div');
+              item.className = 'user-search-item';
+              item.innerHTML = `
+                <div class="user-search-avatar">${user.photo ? `<img src="${user.photo}">` : (user.name || '?').charAt(0).toUpperCase()}</div>
+                <div class="user-search-info">
+                  <div class="user-search-name">${user.name}</div>
+                  <div class="user-search-flames">🔥 ${user.flames} flammes</div>
+                </div>
+              `;
+              item.addEventListener('click', () => {
+                dropdown.classList.remove('active');
+                dropdown.innerHTML = '';
+                input.value = '';
+                showUserProfile(user);
+              });
+              dropdown.appendChild(item);
+            });
+            dropdown.classList.add('active');
+          } else {
+            dropdown.classList.remove('active');
+            dropdown.innerHTML = '';
+          }
+        })
+        .catch(err => { console.error(err); dropdown.classList.remove('active'); });
+    }, 300);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+      dropdown.classList.remove('active');
+      dropdown.innerHTML = '';
+    }
+  });
+}
+function showUserProfile(user) {
+  const html = `
+    <div style="text-align:center;">
+      <div style="width:80px;height:80px;margin:0 auto;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;overflow:hidden;">
+        ${user.photo ? `<img src="${user.photo}" style="width:100%;height:100%;object-fit:cover;">` : (user.name || '?').charAt(0).toUpperCase()}
+      </div>
+      <h3 style="margin:10px 0 4px;">${user.name}</h3>
+      <p style="color:#999;">🔥 ${user.flames} flammes</p>
+      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
+    </div>
+  `;
+  openModal(html);
+}
+
+// ===================== WALLET & FLAMMES =====================
+function loadWallet() {
+  if (!currentUserId) return;
+  apiFetch('/api/wallet/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    const bal = document.getElementById('walletBalanceNew');
+    if (bal) bal.textContent = data.balance || 0;
+  }).catch(() => {});
+}
+function loadFlames(userId) {
+  if (!userId) return;
+  apiFetch('/api/flames/' + userId)
+  .then(r => r.json())
+  .then(data => {
+    const flamesEl = document.getElementById('profileFlamesNew');
+    if (flamesEl) {
+      flamesEl.textContent = data.flames || 0;
+      flamesEl.classList.add('flame-animated');
+    }
+  }).catch(() => {});
+}
+
+// ===================== UPLOAD PHOTO PROFIL =====================
+document.getElementById('btnUploadPhoto')?.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      showSpinner(true);
+      apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: ev.target.result }) })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            return apiFetch('/api/users/' + currentUserId, { method: 'PUT', body: JSON.stringify({ photo: data.url }) })
+              .then(r => r.json())
+              .then(updateData => {
+                showSpinner(false);
+                if (updateData.success) {
+                  currentUser.photo = data.url;
+                  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                  updateProfileUI(currentUser);
+                  showAlert('Photo mise à jour !');
+                } else showAlert('Erreur mise à jour', 'error');
+              });
+          } else showAlert('Erreur upload', 'error');
+        })
+        .catch(e => { showSpinner(false); showAlert('Erreur réseau', 'error'); });
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+});
+
+// ===================== ONGLETS =====================
+function initTabs() {
+  const tabs = document.querySelectorAll('.tab-item');
+  const pages = document.querySelectorAll('.page');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      pages.forEach(p => p.classList.remove('active'));
+      const target = document.getElementById(tab.dataset.tab);
+      if (target) target.classList.add('active');
+      // Rechargement des données spécifiques
+      if (tab.dataset.tab === 'pageProfile') { loadWallet(); loadFlames(currentUserId); }
+      if (tab.dataset.tab === 'pageShop') { loadShopArticles(); }
+      if (tab.dataset.tab === 'pageOrders') { loadOrders(); }
+      if (tab.dataset.tab === 'pageMessages') { loadMessages(); }
+    });
+  });
+}
+
+// ===================== MAGASIN (ARTICLES DU VENDEUR) =====================
+function loadShopArticles() {
+  if (!currentUserId) return;
+  apiFetch('/api/articles/seller/' + currentUserId)
+  .then(r => r.json())
+  .then(data => {
+    const container = document.getElementById('shopArticles');
+    if (!container) return;
+    if (!data.success || !data.data || data.data.length === 0) {
+      container.innerHTML = '<p class="empty">Aucun article publié</p>';
+      return;
+    }
+    container.innerHTML = data.data.map(a => `
+      <div style="display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;">
+        <img src="${a.image || PLACEHOLDER_IMAGE}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
+        <div style="flex:1;">
+          <strong>${a.title}</strong><br>${a.price} FCFA · Stock: ${a.stock || 0}
+        </div>
+      </div>
+    `).join('');
+  }).catch(e => console.error(e));
+}
+
+// ===================== COMMANDES (vide pour l'instant) =====================
+function loadOrders() {
+  const container = document.getElementById('ordersList');
+  if (container) container.innerHTML = '<p class="empty">Aucune commande</p>';
+}
+
+// ===================== MESSAGERIE (vide pour l'instant) =====================
+function loadMessages() {
+  const container = document.getElementById('contactsList');
+  if (container) container.innerHTML = '<p class="empty">Aucune discussion</p>';
+}
+
+// ===================== BOUTONS THÈME & DÉCONNEXION =====================
+document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
+  applyTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark');
+});
+document.getElementById('btnLogout')?.addEventListener('click', () => {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUserId');
+  localStorage.removeItem('currentUser');
+  location.reload();
+});
+
 // ===================== DÉMARRAGE =====================
-// Si déjà connecté, afficher l'app directement
 if (authToken && currentUserId) {
   currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
   document.getElementById('authPage').style.display = 'none';
   document.getElementById('appContainer').classList.add('active');
   document.getElementById('tabs').classList.add('show');
+  updateProfileUI(currentUser);
   loadProducts();
+  loadWallet();
+  loadFlames(currentUserId);
+  initTabs();
+  initUserSearch();
 } else {
-  // Sinon, la page d'authentification est déjà visible
   document.getElementById('authPage').style.display = 'flex';
 }
 </script>
