@@ -46,6 +46,7 @@ const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
 
+// ==================== ADMIN ====================
 const ADMIN_PHONE = '242065918166';
 const ADMIN_USER_ID = 'admin';
 const AUTO_WITHDRAW_INTERVAL_MS = 60 * 60 * 1000;
@@ -99,6 +100,7 @@ async function ensureAdminDocument() {
   }
 }
 
+// ==================== ROUTES DE BASE ====================
 app.get('/', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
@@ -150,13 +152,17 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==================== ARTICLES ====================
+// Modification : tri par sellerFlames (décroissant) puis date
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
+    // Tri : d'abord par sellerFlames (décroissant), ensuite par date (décroissant)
     articles.sort((a, b) => {
+      const flamesDiff = (b.sellerFlames || 0) - (a.sellerFlames || 0);
+      if (flamesDiff !== 0) return flamesDiff;
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
@@ -207,11 +213,16 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (imageList.length === 0 && image) imageList = [image];
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
+    // Récupérer les flammes du vendeur pour les intégrer à l'article
+    const sellerDoc = await db.collection('users').doc(sellerId).get();
+    const sellerFlames = sellerDoc.exists ? (sellerDoc.data().flames || 0) : 0;
+
     const article = {
       title, description, price: articlePrice, category, condition,
       size: size || '', hashtags: Array.isArray(hashtags) ? hashtags : [],
       image: imageList[0], images: imageList,
       sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
+      sellerFlames,  // Champ ajouté pour le tri
       status: 'active', views: 0, favorites: 0, stock: quantity, createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
@@ -279,6 +290,36 @@ app.post('/api/upload', authenticate, async (req, res) => {
 });
 
 // ==================== UTILISATEURS ====================
+// Nouvelle route de recherche d'utilisateurs
+app.get('/api/users/search', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const query = (req.query.query || '').toLowerCase().trim();
+    if (!query) return res.json({ success: true, data: [] });
+
+    // Récupère tous les utilisateurs (limite 200) et filtre en mémoire
+    const snapshot = await db.collection('users').limit(200).get();
+    let users = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const name = (data.name || '').toLowerCase();
+      if (name.includes(query)) {
+        users.push({
+          id: doc.id,
+          name: data.name,
+          photo: data.photo || '',
+          flames: data.flames || 0,
+          online: data.online || false
+        });
+      }
+    });
+    users = users.slice(0, 10);
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.get('/api/users/:userId', async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false } });
@@ -1010,7 +1051,7 @@ async function autoWithdrawAdmin() {
 
     console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA`);
     const formattedPhone = formatPhoneForYabetoo(ADMIN_PHONE);
-    const operatorName = 'mtn'; // à adapter selon l'opérateur réel
+    const operatorName = 'mtn';
 
     const disbursementResponse = await axios.post(
       `${YABETOO_API_BASE}/disbursements`,
