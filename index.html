@@ -81,7 +81,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .article-card.tap-anim{transform:scale(.93);}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
 
-/* Liste verticale pour le magasin */
 .shop-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
 .shop-list-item{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
 .shop-list-item .info{flex:1;}
@@ -196,6 +195,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .spinner-overlay.active{display:flex;}
 .spinner{width:50px;height:50px;border:5px solid rgba(231,76,60,.3);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* Graphique d'évolution */
+.eval-chart{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;}
+.eval-chart h4{margin-bottom:10px;font-size:14px;color:var(--accent);}
+.period-selector{display:flex;gap:6px;margin-bottom:12px;}
+.period-selector .btn{flex:1;padding:6px 8px;font-size:11px;}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding-top:10px;}
+.bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;}
+.bar{width:20px;background:var(--accent2);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
+.bar-label{font-size:10px;color:#999;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -274,7 +283,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div></div>
 
-    <!-- Liste des articles actifs (historique) -->
+    <!-- Graphique d'évolution -->
+    <div class="eval-chart">
+      <h4>📈 Évolution du magasin</h4>
+      <div class="period-selector" id="periodSelector">
+        <button class="btn btn-sm btn-primary" data-period="week">Semaine</button>
+        <button class="btn btn-sm btn-outline" data-period="month">Mois</button>
+        <button class="btn btn-sm btn-outline" data-period="year">Année</button>
+      </div>
+      <div class="bar-chart" id="salesChart"></div>
+    </div>
+
+    <!-- Liste des articles actifs -->
     <div id="shopArticles" class="shop-list"></div>
   </div>
 
@@ -367,6 +387,7 @@ let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 let allProducts = [];
 let selectedCategory = 'all';
 let activeConversationId = null;
+let statsData = null;
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5CTEs8L3RleHQ+PC9zdmc+';
 
 // ===================== UTILITAIRES =====================
@@ -1446,6 +1467,7 @@ function deleteArticle(articleId) {
   }).catch(e => showAlert('Erreur: '+e.message, 'error'));
 }
 
+// ===================== STATISTIQUES & GRAPHIQUE =====================
 function loadStats() {
   if (!currentUserId) return;
   apiFetch('/api/stats/' + currentUserId)
@@ -1453,13 +1475,68 @@ function loadStats() {
   .then(data => {
     if (data.success) {
       const s = data.data;
+      statsData = s;
       document.getElementById('statTotalSales').textContent = s.totalSales || 0;
       document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
       document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
+      renderSalesChart('week');
     }
   }).catch(() => {});
 }
+
+function renderSalesChart(period) {
+  const chart = document.getElementById('salesChart');
+  if (!chart) return;
+  if (!statsData) {
+    chart.innerHTML = '<p class="empty">Chargement...</p>';
+    return;
+  }
+
+  let bars = [];
+  let labels = [];
+
+  if (period === 'year') {
+    const history = statsData.history || [];
+    bars = history.slice(-12).map(h => h.revenu);
+    labels = history.slice(-12).map(h => h.month);
+  } else if (period === 'month') {
+    const total = statsData.totalRevenue || 0;
+    const daily = Math.round(total / 30);
+    bars = Array(30).fill(daily);
+    labels = Array.from({length:30}, (_,i) => i+1);
+  } else if (period === 'week') {
+    const total = statsData.totalRevenue || 0;
+    const daily = Math.round(total / 7);
+    bars = Array(7).fill(daily);
+    labels = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  }
+
+  if (bars.length === 0) {
+    chart.innerHTML = '<p class="empty">Aucune donnée disponible</p>';
+    return;
+  }
+
+  const maxVal = Math.max(...bars, 1);
+  chart.innerHTML = bars.map((value, index) => {
+    const height = Math.round((value / maxVal) * 100);
+    return `
+      <div class="bar-wrapper">
+        <div class="bar" style="height:${height}px;"></div>
+        <div class="bar-label">${labels[index] || ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Gestion des clics sur les boutons de période
+document.querySelectorAll('#periodSelector .btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#periodSelector .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
+    this.className = 'btn btn-sm btn-primary';
+    renderSalesChart(this.dataset.period);
+  });
+});
 
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
 document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
