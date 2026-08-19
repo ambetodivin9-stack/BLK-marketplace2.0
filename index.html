@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <style>
-/* ===== VARIABLES & BASE ===== */
 :root {
   --bg: #ffffff;
   --text: #1a1a1a;
@@ -31,8 +30,6 @@ body.dark {
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px;-webkit-font-smoothing:antialiased;transition:background 0.3s, color 0.3s;}
 .kente{height:6px;background:linear-gradient(90deg,#E74C3C 20%,#FF8C00 40%,#2ECC71 60%,#E74C3C 80%);position:fixed;top:0;left:0;right:0;z-index:9999;}
-
-/* Boutons génériques */
 .btn{padding:12px;border:none;border-radius:14px;font-weight:700;cursor:pointer;width:100%;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;transition:transform .15s ease, background .2s ease;position:relative;overflow:hidden;}
 .btn:active{transform:scale(.96);}
 .btn-primary{background:var(--accent);color:#fff;}
@@ -43,10 +40,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn-sm{padding:6px 12px;font-size:12px;width:auto;}
 .glass{background:var(--card-bg);border-radius:20px;padding:15px;margin-bottom:10px;border:1px solid var(--border);backdrop-filter:blur(10px);}
 .empty{text-align:center;color:#999;padding:20px;}
-.icon-inline{display:inline-flex;width:14px;height:14px;vertical-align:-2px;}
-.icon-inline svg{width:100%;height:100%;}
-
-/* Authentification */
 .auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);padding:20px;}
 .auth-card{max-width:400px;width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:32px;padding:36px 28px 28px;text-align:center;box-shadow:0 10px 30px var(--shadow);}
 .auth-title{font-size:26px;font-weight:300;color:var(--text);margin-bottom:4px;}
@@ -57,8 +50,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .auth-input-group input:focus{border-color:var(--accent);}
 .auth-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:30px;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;}
 #authError{color:var(--accent);font-size:14px;margin-top:8px;display:none;}
-
-/* Application principale */
 .app{display:none;max-width:600px;margin:0 auto;padding:70px 16px 20px;}
 .app.active{display:block;}
 .home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
@@ -67,72 +58,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .search-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);position:relative;}
 .search-bar input{flex:1;border:none;background:transparent;font-size:16px;outline:none;color:var(--text);}
 .search-icon{width:20px;height:20px;color:var(--accent);}
-
-/* Dropdown recherche utilisateurs */
-.user-search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 0 0 12px 12px;
-  max-height: 250px;
-  overflow-y: auto;
-  z-index: 100;
-  box-shadow: 0 4px 12px var(--shadow);
-  display: none;
-  margin-top: 5px;
-}
-.user-search-dropdown.active { display: block; }
-.user-search-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 15px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-}
-.user-search-item:last-child { border-bottom: none; }
-.user-search-item:hover { background: var(--input-bg); }
-.user-search-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-.user-search-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.user-search-info { flex: 1; }
-.user-search-name { font-weight: 600; }
-.user-search-flames { font-size: 12px; color: var(--accent2); }
-
-/* Animation flammes */
-@keyframes flamePulse {
-  0% { transform: scale(1); text-shadow: 0 0 5px rgba(255,140,0,0.5); }
-  50% { transform: scale(1.1); text-shadow: 0 0 15px rgba(255,100,0,0.9); }
-  100% { transform: scale(1); text-shadow: 0 0 5px rgba(255,140,0,0.5); }
-}
-.flame-animated {
-  display: inline-block;
-  animation: flamePulse 1.2s infinite;
-  color: var(--accent2);
-  font-weight: 800;
-}
-
-/* Grille articles */
+.user-search-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--card-bg);border:1px solid var(--border);border-radius:0 0 12px 12px;max-height:250px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px var(--shadow);display:none;margin-top:5px;}
+.user-search-dropdown.active{display:block;}
+.user-search-item{display:flex;align-items:center;gap:10px;padding:10px 15px;cursor:pointer;border-bottom:1px solid var(--border);}
+.user-search-item:last-child{border-bottom:none;}
+.user-search-item:hover{background:var(--input-bg);}
+.user-search-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden;}
+.user-search-avatar img{width:100%;height:100%;object-fit:cover;}
+.user-search-info{flex:1;}
+.user-search-name{font-weight:600;}
+.user-search-flames{font-size:12px;color:var(--accent2);}
+@keyframes flamePulse{0%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}50%{transform:scale(1.1);text-shadow:0 0 15px rgba(255,100,0,0.9);}100%{transform:scale(1);text-shadow:0 0 5px rgba(255,140,0,0.5);}}
+.flame-animated{display:inline-block;animation:flamePulse 1.2s infinite;color:var(--accent2);font-weight:800;}
 .articles-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}
 .article-card{background:var(--card-bg);border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:transform .15s ease, box-shadow .2s ease;}
 .article-card.tap-anim{transform:scale(.93);}
 .article-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}
-
-/* Stats magasin */
 .shop-stats{padding:10px 0;margin-bottom:10px;}
 .shop-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 .stat-card{background:var(--card-bg);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
@@ -145,8 +86,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .stat-card-content{display:flex;flex-direction:column;flex:1;min-width:0;}
 .stat-card-number{font-size:20px;font-weight:800;}
 .stat-card-label{font-size:11px;color:#999;margin-top:2px;}
-
-/* Tab bar */
 .tab-bar{position:fixed;bottom:10px;left:10px;right:10px;z-index:1000;display:none;}
 .tab-bar.show{display:flex;}
 .tab-slider{display:flex;justify-content:space-around;align-items:center;max-width:600px;margin:0 auto;position:relative;padding:8px 6px;width:100%;border-radius:32px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 14px 34px var(--shadow);}
@@ -159,8 +98,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tab-label{font-size:10px;font-weight:600;color:#aaa;}
 .tab-item.active .tab-icon-svg{opacity:0;}
 .tab-item.active .tab-label{color:var(--accent);font-weight:800;}
-
-/* Wallet */
 .wallet-card{background:var(--card-bg);border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px;box-shadow:0 8px 20px var(--shadow);}
 .wallet-balance-new{font-size:32px;font-weight:900;color:var(--accent);}
 .wallet-actions{display:flex;gap:10px;justify-content:center;}
@@ -168,34 +105,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .wallet-btn-deposit{background:rgba(46,204,113,.1);color:var(--accent3);}
 .wallet-btn-withdraw{background:rgba(231,76,60,.1);color:var(--accent);}
 .wallet-btn-transfer{background:rgba(52,152,219,.1);color:#3498DB;}
-
-/* Profil */
 .profile-header-new{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
 .profile-avatar-new{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;overflow:hidden;}
 .profile-stats-new{display:flex;gap:16px;justify-content:center;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:14px;margin-bottom:14px;}
 .stat-number-new{font-size:20px;font-weight:800;color:var(--accent);}
 .stat-label-new{font-size:11px;color:#999;}
-
-/* Boutons réseaux sociaux */
 .follow-buttons{display:flex;gap:20px;justify-content:center;margin:16px 0;}
 .follow-btn{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--input-bg);border:2px solid var(--border);transition:transform .2s, border-color .2s;cursor:pointer;}
 .follow-btn:hover{transform:scale(1.1);border-color:var(--accent);}
 .follow-btn svg{width:28px;height:28px;fill:var(--text);}
-
-/* Point vert en ligne */
 .online-dot{width:10px;height:10px;background:var(--accent3);border-radius:50%;display:inline-block;margin-left:6px;}
-
-/* Pages */
 .page{display:none;min-height:calc(100vh - 160px);}
 .page.active{display:block;}
-
-/* Alertes */
 .alert{padding:10px;border-radius:12px;margin-bottom:10px;display:none;align-items:center;gap:8px;font-size:14px;}
 .alert-success{background:#d4edda;color:#155724;}
 .alert-error{background:#f8d7da;color:#721c24;}
 .alert-info{background:#d1ecf1;color:#0c5460;}
-
-/* Messagerie */
 .contact-row{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--border);cursor:pointer;}
 .contact-row.active{background:rgba(231,76,60,.1);}
 .contact-row-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;font-weight:800;flex-shrink:0;}
@@ -219,14 +144,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .message-time{display:block;font-size:10px;opacity:.6;margin-top:2px;text-align:right;}
 .chat-input-bar{display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border-top:1px solid var(--border);position:sticky;bottom:0;}
 .chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;font-size:15px;background:var(--input-bg);color:var(--text);}
-.chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;}
-
-/* Modales */
+.chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
 .modal-overlay.active{display:flex;}
 .modal-content{max-width:400px;width:100%;background:var(--card-bg);border-radius:24px;overflow:hidden;position:relative;max-height:90vh;overflow-y:auto;}
-
-/* Spinner */
 .spinner-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:5000;}
 .spinner-overlay.active{display:flex;}
 .spinner{width:50px;height:50px;border:5px solid rgba(231,76,60,.3);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
@@ -504,6 +425,8 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       initTabs();
       initUserSearch();
       loadStats();
+      loadMessages();
+      loadOrders();
     } else {
       errorDiv.style.display = 'block';
       errorDiv.textContent = data.message || 'Erreur';
@@ -569,7 +492,7 @@ document.querySelectorAll('#categoryFilters .btn').forEach(btn => {
   });
 });
 
-// ===================== FICHE PRODUIT SIMPLE =====================
+// ===================== FICHE PRODUIT =====================
 function showProductModal(product) {
   const html = `
     <div style="padding:20px;text-align:center;">
@@ -578,10 +501,103 @@ function showProductModal(product) {
       <p style="color:var(--accent);font-weight:800;">${product.price} FCFA</p>
       <p style="color:#666;">${product.description || ''}</p>
       <p style="margin-top:10px;">Vendeur: ${product.sellerName || 'Anonyme'}</p>
-      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
+      <button class="btn btn-primary" id="btnBuyNow" data-article-id="${product.id}">Acheter maintenant</button>
+      <button class="btn btn-outline" style="margin-top:8px;" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
     </div>
   `;
-  openModal(html);
+  const overlay = openModal(html);
+  overlay.querySelector('#btnBuyNow').addEventListener('click', () => {
+    overlay.remove();
+    showCheckoutModal(product);
+  });
+}
+
+// ===================== CHECKOUT =====================
+function showCheckoutModal(product) {
+  const buyerCommission = Math.round(product.price * 0.03);
+  const total = product.price + buyerCommission;
+  const html = `
+    <div style="padding:20px;">
+      <h3 style="text-align:center;margin-bottom:16px;">Passer commande</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:var(--input-bg);border-radius:12px;">
+        <img src="${product.image || (product.images && product.images[0]) || PLACEHOLDER_IMAGE}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;">
+        <div>
+          <div style="font-weight:700;">${product.title}</div>
+          <div style="font-size:13px;color:#999;">Par ${product.sellerName || 'Vendeur'}</div>
+          <div style="font-weight:800;color:var(--accent);">${product.price} FCFA</div>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">MODE DE PAIEMENT</label>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-sm payment-method-btn active" data-method="mtn" style="flex:1;">MTN Mobile Money</button>
+          <button class="btn btn-sm payment-method-btn" data-method="airtel" style="flex:1;">Airtel Money</button>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:600;font-size:14px;">TON NUMÉRO MOBILE MONEY</label>
+        <input type="tel" id="checkoutPhone" placeholder="Ex: 065918166" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-top:6px;font-size:15px;background:var(--input-bg);color:var(--text);">
+      </div>
+      <div style="background:var(--input-bg);border-radius:12px;padding:12px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Article</span><span>${product.price} FCFA</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Commission BLK (3%)</span><span>${buyerCommission} FCFA</span></div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;font-weight:800;"><span>Total à payer</span><span style="color:var(--accent);">${total} FCFA</span></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--accent3);">Protection BLK incluse - remboursé si non reçu</div>
+      </div>
+      <button class="btn btn-primary" id="confirmPaymentBtn">Confirmer le paiement</button>
+      <button class="btn btn-outline" id="cancelCheckoutBtn" style="margin-top:8px;">Annuler</button>
+      <div id="checkoutStatus" style="margin-top:10px;font-size:13px;text-align:center;"></div>
+    </div>
+  `;
+  const overlay = openModal(html);
+  let selectedMethod = 'mtn';
+  overlay.querySelectorAll('.payment-method-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      overlay.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      selectedMethod = this.dataset.method;
+    });
+  });
+  overlay.querySelector('#cancelCheckoutBtn').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#confirmPaymentBtn').addEventListener('click', function() {
+    const phone = overlay.querySelector('#checkoutPhone').value.trim();
+    const statusEl = overlay.querySelector('#checkoutStatus');
+    if (!phone) { statusEl.style.color = '#E74C3C'; statusEl.textContent = 'Renseigne ton numéro mobile money.'; return; }
+    if (!/^[0-9+ ]+$/.test(phone)) { statusEl.style.color = '#E74C3C'; statusEl.textContent = 'Numéro invalide.'; return; }
+    showSpinner(true);
+    this.disabled = true;
+    apiFetch('/api/orders/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        articleId: product.id,
+        sellerId: product.sellerId,
+        amount: product.price,
+        buyerPhone: phone
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      showSpinner(false);
+      this.disabled = false;
+      if (data.success) {
+        overlay.remove();
+        showAlert('Commande créée !', 'success');
+        loadWallet();
+        loadOrders();
+        loadProducts();
+      } else {
+        statusEl.style.color = '#E74C3C';
+        statusEl.textContent = data.message || 'Erreur lors du paiement.';
+      }
+    })
+    .catch(e => {
+      showSpinner(false);
+      this.disabled = false;
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = 'Erreur réseau: ' + e.message;
+    });
+  });
 }
 
 // ===================== RECHERCHE UTILISATEURS =====================
@@ -781,7 +797,6 @@ function openDiscussion(contactId, contactName) {
   empty.style.display = 'none';
   activeConversationId = contactId;
 
-  // Obtenir les infos du contact pour l'avatar
   let contactAvatar = '';
   apiFetch('/api/users/' + contactId)
     .then(r => r.json())
@@ -880,6 +895,248 @@ function sendMessagePayload(payload) {
     .catch(e => showAlert('Erreur réseau: ' + e.message, 'error'));
 }
 
+// ===================== COMMANDES =====================
+function loadOrders() {
+  if (!currentUserId) return;
+  apiFetch('/api/orders/' + currentUserId)
+    .then(r => r.json())
+    .then(orders => {
+      const container = document.getElementById('ordersList');
+      const empty = document.getElementById('emptyOrders');
+      if (!container) return;
+      if (!Array.isArray(orders) || orders.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      container.innerHTML = '';
+      orders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'glass';
+        card.style.marginBottom = '10px';
+        const articleTitle = (order.article && order.article.title) || 'Article';
+        const amount = order.totalAmount || order.amount || 0;
+        card.innerHTML = `
+          <div><strong>${articleTitle}</strong><br>${amount} FCFA<br>
+          <span style="font-size:12px;color:#999;">Statut: ${order.status || 'En attente'}</span></div>
+        `;
+        container.appendChild(card);
+      });
+    })
+    .catch(e => {
+      console.error(e);
+      document.getElementById('ordersList').innerHTML = '<p class="empty">Erreur chargement</p>';
+    });
+}
+
+// ===================== PUBLICATION D'ARTICLE =====================
+document.getElementById('btnPublish')?.addEventListener('click', () => {
+  const html = `
+    <h3 style="margin-bottom:16px;text-align:center;">Vendre un article</h3>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Photos (max 10)</label>
+      <div class="publish-photos" id="publishPhotos" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      <input type="file" id="pubImageInput" accept="image/*" multiple style="display:none;">
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Nom de l'article *</label>
+      <input type="text" id="pubTitle" placeholder="Ex: Robe Wax Élégante">
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Prix (FCFA) *</label>
+      <input type="number" id="pubPrice" placeholder="Ex: 12500">
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Quantité disponible *</label>
+      <input type="number" id="pubStock" value="1" min="1">
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Catégorie *</label>
+      <select id="pubCategory">
+        <option value="robes">Robes</option><option value="hauts">Hauts</option><option value="bas">Bas</option><option value="chaussures">Chaussures</option><option value="sacs">Sacs</option><option value="bijoux">Bijoux</option><option value="accessoires">Accessoires</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">État *</label>
+      <select id="pubCondition">
+        <option value="neuf">Neuf</option><option value="bon_etat">Bon état</option><option value="correct">Correct</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Taille</label>
+      <select id="pubSize">
+        <option value="">Sélectionner</option><option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+      </select>
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Description *</label>
+      <textarea id="pubDescription" rows="4" placeholder="Décris ton article..."></textarea>
+    </div>
+    <div class="publish-field">
+      <label style="display:block;margin-bottom:6px;">Hashtags (séparés par des virgules)</label>
+      <input type="text" id="pubHashtags" placeholder="Ex: wax, robe, madeincongo">
+    </div>
+    <button class="btn btn-primary" id="pubSubmit">Publier l'article</button>
+    <button class="btn btn-outline" id="pubCancel" style="margin-top:8px;">Annuler</button>
+    <div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>
+  `;
+  const overlay = openModal(html);
+  let photos = [];
+  const MAX_PHOTOS = 10;
+
+  function renderPhotos() {
+    const container = overlay.querySelector('#publishPhotos');
+    container.innerHTML = '';
+    photos.forEach((photo, index) => {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--border);';
+      thumb.innerHTML = `<img src="${photo.dataUrl}" style="width:100%;height:100%;object-fit:cover;"><button data-index="${index}" style="position:absolute;top:2px;right:2px;background:var(--accent);border:none;border-radius:50%;width:20px;height:20px;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;">✕</button>`;
+      thumb.querySelector('button').addEventListener('click', () => {
+        photos.splice(index, 1);
+        renderPhotos();
+      });
+      container.appendChild(thumb);
+    });
+    if (photos.length < MAX_PHOTOS) {
+      const addBtn = document.createElement('div');
+      addBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;width:64px;height:64px;border:2px dashed var(--accent);border-radius:10px;background:var(--input-bg);cursor:pointer;color:var(--accent);font-size:24px;';
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', () => overlay.querySelector('#pubImageInput').click());
+      container.appendChild(addBtn);
+    }
+  }
+  renderPhotos();
+
+  overlay.querySelector('#pubImageInput').addEventListener('change', e => {
+    const files = e.target.files;
+    for (let i = 0; i < files.length; i++) {
+      if (photos.length >= MAX_PHOTOS) break;
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        compressImage(file, 800, 0.7).then(compressedDataUrl => {
+          photos.push({ dataUrl: compressedDataUrl });
+          renderPhotos();
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  });
+
+  overlay.querySelector('#pubCancel').addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#pubSubmit').addEventListener('click', function() {
+    const title = overlay.querySelector('#pubTitle').value.trim();
+    const price = overlay.querySelector('#pubPrice').value.trim();
+    const category = overlay.querySelector('#pubCategory').value;
+    const condition = overlay.querySelector('#pubCondition').value;
+    const size = overlay.querySelector('#pubSize').value;
+    const description = overlay.querySelector('#pubDescription').value.trim();
+    const hashtagsInput = overlay.querySelector('#pubHashtags').value.trim();
+    const stock = overlay.querySelector('#pubStock').value.trim();
+    const statusEl = overlay.querySelector('#pubStatus');
+
+    if (!title || !price || !description || !stock) {
+      showAlert('Remplis tous les champs obligatoires (nom, prix, description, stock).', 'error');
+      return;
+    }
+    if (photos.length === 0) {
+      photos.push({ dataUrl: PLACEHOLDER_IMAGE });
+    }
+
+    const hashtags = hashtagsInput ? hashtagsInput.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const submitBtn = this;
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Upload des photos...';
+
+    const urls = [];
+    let i = 0;
+    function uploadNext() {
+      if (i >= photos.length) {
+        urls.forEach((url, idx) => { if (!url) urls[idx] = PLACEHOLDER_IMAGE; });
+        apiFetch('/api/articles', {
+          method: 'POST',
+          body: JSON.stringify({
+            title, price: parseInt(price), category, condition, size, description, hashtags,
+            images: urls,
+            sellerName: currentUser.name || 'Utilisateur',
+            stock: parseInt(stock)
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          submitBtn.disabled = false;
+          if (data.success) {
+            showAlert('Article publié !', 'success');
+            overlay.remove();
+            loadShopArticles(); loadProducts(); loadStats();
+          } else {
+            statusEl.style.color = '#E74C3C';
+            statusEl.textContent = data.message || 'Erreur';
+          }
+        })
+        .catch(e => {
+          submitBtn.disabled = false;
+          statusEl.style.color = '#E74C3C';
+          statusEl.textContent = 'Erreur réseau: ' + e.message;
+        });
+        return;
+      }
+      statusEl.textContent = `Upload photo ${i+1}/${photos.length}...`;
+      const base64Pure = photos[i].dataUrl.split(',')[1].replace(/\s/g, '');
+      apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: base64Pure }) })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          urls.push(data.url);
+        } else {
+          urls.push(null);
+        }
+        i++;
+        uploadNext();
+      })
+      .catch(e => {
+        urls.push(null);
+        i++;
+        uploadNext();
+      });
+    }
+    uploadNext();
+  });
+});
+
+// ===================== COMPRESSION IMAGE =====================
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ===================== WALLET =====================
 function loadWallet() {
   if (!currentUserId) return;
@@ -898,16 +1155,12 @@ document.getElementById('btnTransferNew')?.addEventListener('click', openTransfe
 function openMoneyForm(kind) {
   const isDeposit = kind === 'deposit';
   let html = `<h3 style="text-align:center;margin-bottom:14px;">${isDeposit ? 'Déposer sur ton wallet' : 'Retirer de ton wallet'}</h3>`;
-  html += `<div style="display:flex;gap:10px;margin-bottom:10px;">
-    <button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button>
-    <button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button>
-  </div>`;
+  html += `<div style="display:flex;gap:10px;margin-bottom:10px;"><button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button><button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button></div>`;
   html += `<input type="tel" id="moneyPhone" placeholder="Numéro Mobile Money" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">`;
   html += `<input type="number" id="moneyAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">`;
   html += `<button class="btn btn-primary" id="moneySubmit">${isDeposit ? 'Confirmer le dépôt' : 'Confirmer le retrait'}</button>`;
   html += `<button class="btn btn-outline" id="moneyCancel" style="margin-top:8px;">Annuler</button>`;
   html += `<div id="moneyStatus" style="margin-top:12px;font-size:13px;text-align:center;"></div>`;
-
   const overlay = openModal(html);
   let selectedOp = 'mtn';
   overlay.querySelectorAll('.money-op-btn').forEach(btn => {
@@ -930,12 +1183,8 @@ function openMoneyForm(kind) {
     this.disabled = true;
     statusEl.style.color = '#999';
     statusEl.textContent = 'Traitement en cours...';
-
     if (isDeposit) {
-      apiFetch('/api/payment/initiate', {
-        method: 'POST',
-        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
-      })
+      apiFetch('/api/payment/initiate', { method:'POST', body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp }) })
       .then(r => r.json())
       .then(data => {
         this.disabled = false;
@@ -943,44 +1192,19 @@ function openMoneyForm(kind) {
           statusEl.style.color = 'var(--accent3)';
           statusEl.textContent = data.status === 'succeeded' ? 'Dépôt confirmé !' : 'Confirme le code reçu par SMS/USSD.';
           loadWallet();
-          if (data.status === 'succeeded') {
-            showAlert('Dépôt réussi !', 'success');
-            setTimeout(() => overlay.remove(), 1500);
-          }
-        } else {
-          statusEl.style.color = '#E74C3C';
-          statusEl.textContent = data.message || 'Le dépôt a échoué.';
-        }
+          if (data.status === 'succeeded') { showAlert('Dépôt réussi !', 'success'); setTimeout(() => overlay.remove(), 1500); }
+        } else { statusEl.style.color = '#E74C3C'; statusEl.textContent = data.message || 'Le dépôt a échoué.'; }
       })
-      .catch(e => {
-        this.disabled = false;
-        statusEl.style.color = '#E74C3C';
-        statusEl.textContent = 'Erreur réseau: ' + e.message;
-      });
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur réseau: '+e.message; });
     } else {
-      apiFetch('/api/wallet/withdraw', {
-        method: 'POST',
-        body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp })
-      })
+      apiFetch('/api/wallet/withdraw', { method:'POST', body: JSON.stringify({ amount: parseInt(amount), phone, operator: selectedOp }) })
       .then(r => r.json())
       .then(data => {
         this.disabled = false;
-        if (data.success) {
-          statusEl.style.color = 'var(--accent3)';
-          statusEl.textContent = data.message;
-          loadWallet();
-          showAlert('Retrait initié !', 'success');
-          setTimeout(() => overlay.remove(), 1500);
-        } else {
-          statusEl.style.color = '#E74C3C';
-          statusEl.textContent = data.message || 'Le retrait a échoué.';
-        }
+        if (data.success) { statusEl.style.color = 'var(--accent3)'; statusEl.textContent = data.message; loadWallet(); showAlert('Retrait initié !', 'success'); setTimeout(() => overlay.remove(), 1500); }
+        else { statusEl.style.color = '#E74C3C'; statusEl.textContent = data.message || 'Le retrait a échoué.'; }
       })
-      .catch(e => {
-        this.disabled = false;
-        statusEl.style.color = '#E74C3C';
-        statusEl.textContent = 'Erreur réseau: ' + e.message;
-      });
+      .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur réseau: '+e.message; });
     }
   });
 }
@@ -998,34 +1222,16 @@ function openTransferForm() {
     const toPhone = overlay.querySelector('#transferPhone').value.trim();
     const amount = overlay.querySelector('#transferAmount').value;
     const statusEl = overlay.querySelector('#transferStatus');
-    if (!toPhone || !amount || parseInt(amount) <= 0) {
-      statusEl.style.color = '#E74C3C';
-      statusEl.textContent = 'Renseigne un numéro et un montant valides.';
-      return;
-    }
+    if (!toPhone || !amount || parseInt(amount) <= 0) { statusEl.style.color='#E74C3C'; statusEl.textContent='Renseigne un numéro et un montant valides.'; return; }
     this.disabled = true;
-    apiFetch('/api/wallet/transfer', {
-      method: 'POST',
-      body: JSON.stringify({ toPhone, amount: parseInt(amount) })
-    })
+    apiFetch('/api/wallet/transfer', { method:'POST', body: JSON.stringify({ toPhone, amount: parseInt(amount) }) })
     .then(r => r.json())
     .then(data => {
       this.disabled = false;
-      if (data.success) {
-        statusEl.style.color = 'var(--accent3)';
-        statusEl.textContent = data.message;
-        loadWallet();
-        setTimeout(() => overlay.remove(), 1500);
-      } else {
-        statusEl.style.color = '#E74C3C';
-        statusEl.textContent = data.message || 'Transfert échoué.';
-      }
+      if (data.success) { statusEl.style.color='var(--accent3)'; statusEl.textContent=data.message; loadWallet(); setTimeout(() => overlay.remove(), 1500); }
+      else { statusEl.style.color='#E74C3C'; statusEl.textContent=data.message||'Transfert échoué.'; }
     })
-    .catch(e => {
-      this.disabled = false;
-      statusEl.style.color = '#E74C3C';
-      statusEl.textContent = 'Erreur réseau: ' + e.message;
-    });
+    .catch(e => { this.disabled=false; statusEl.style.color='#E74C3C'; statusEl.textContent='Erreur réseau: '+e.message; });
   });
 }
 
@@ -1043,17 +1249,12 @@ function loadFlames(userId) {
   }).catch(() => {});
 }
 
-// ===================== ONGLETS (avec bulle animée ronde) =====================
+// ===================== ONGLETS =====================
 function initTabs() {
   const tabs = document.querySelectorAll('.tab-item');
   const bubble = document.getElementById('tabBubble');
   const bubbleIcon = document.getElementById('tabBubbleIcon');
-
-  tabs.forEach(tab => {
-    const icon = TAB_ICONS[tab.dataset.icon] || '';
-    tab.querySelector('.tab-icon-svg').innerHTML = icon;
-  });
-
+  tabs.forEach(tab => { tab.querySelector('.tab-icon-svg').innerHTML = TAB_ICONS[tab.dataset.icon] || ''; });
   function moveBubble(tab) {
     const tabRect = tab.getBoundingClientRect();
     const sliderRect = tab.parentElement.getBoundingClientRect();
@@ -1061,7 +1262,6 @@ function initTabs() {
     bubble.style.transform = 'translateX(' + (center - 24) + 'px)';
     bubbleIcon.innerHTML = TAB_ICONS[tab.dataset.icon] || '';
   }
-
   function setActive(tab) {
     tabs.forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
@@ -1075,7 +1275,6 @@ function initTabs() {
     if (pageId === 'pageOrders') { loadOrders(); }
     if (pageId === 'pageMessages') { loadMessages(); }
   }
-
   tabs.forEach(tab => tab.addEventListener('click', () => setActive(tab)));
   const active = document.querySelector('.tab-item.active') || tabs[0];
   requestAnimationFrame(() => moveBubble(active));
@@ -1097,9 +1296,7 @@ function loadShopArticles() {
     container.innerHTML = data.data.map(a => `
       <div style="display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;">
         <img src="${a.image || PLACEHOLDER_IMAGE}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
-        <div style="flex:1;">
-          <strong>${a.title}</strong><br>${a.price} FCFA · Stock: ${a.stock || 0}
-        </div>
+        <div style="flex:1;"><strong>${a.title}</strong><br>${a.price} FCFA · Stock: ${a.stock || 0}</div>
       </div>
     `).join('');
   }).catch(e => console.error(e));
@@ -1117,12 +1314,6 @@ function loadStats() {
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
     }
   }).catch(() => {});
-}
-
-// ===================== COMMANDES =====================
-function loadOrders() {
-  const container = document.getElementById('ordersList');
-  if (container) container.innerHTML = '<p class="empty">Aucune commande</p>';
 }
 
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
@@ -1149,7 +1340,8 @@ if (authToken && currentUserId) {
   initTabs();
   initUserSearch();
   loadStats();
-  loadMessages(); // Charger la messagerie au démarrage
+  loadMessages();
+  loadOrders();
 } else {
   document.getElementById('authPage').style.display = 'flex';
 }
