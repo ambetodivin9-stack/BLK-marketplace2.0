@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E74C3C">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BLK">
 <style>
 :root {
   --bg: #ffffff;
@@ -222,9 +228,7 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
 /* Graphique d'évolution */
 .eval-chart{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;}
 .eval-chart h4{margin-bottom:10px;font-size:14px;color:var(--accent);}
-.period-selector{display:flex;gap:6px;margin-bottom:12px;}
-.period-selector .btn{flex:1;padding:6px 8px;font-size:11px;}
-.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding-top:10px;}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding-top:10px;overflow-x:auto;}
 .bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;}
 .bar{width:20px;background:var(--accent2);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
 .bar-label{font-size:10px;color:#999;margin-top:4px;}
@@ -333,11 +337,6 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
     <!-- Graphique d'évolution -->
     <div class="eval-chart">
       <h4>📈 Évolution du magasin</h4>
-      <div class="period-selector" id="periodSelector">
-        <button class="btn btn-sm btn-primary" data-period="week">Semaine</button>
-        <button class="btn btn-sm btn-outline" data-period="month">Mois</button>
-        <button class="btn btn-sm btn-outline" data-period="year">Année</button>
-      </div>
       <div class="bar-chart" id="salesChart"></div>
     </div>
 
@@ -1642,12 +1641,12 @@ function loadStats() {
       document.getElementById('statTotalArticles').textContent = s.totalArticles || 0;
       document.getElementById('statTotalRevenue').textContent = formatNumber(s.totalRevenue || 0);
       document.getElementById('statTotalOrders').textContent = s.totalPurchases || 0;
-      renderSalesChart('week');
+      renderSalesChart();
     }
   }).catch(() => {});
 }
 
-function renderSalesChart(period) {
+function renderSalesChart() {
   const chart = document.getElementById('salesChart');
   if (!chart) return;
   if (!statsData) {
@@ -1655,27 +1654,15 @@ function renderSalesChart(period) {
     return;
   }
 
-  let bars = [];
-  let labels = [];
-
-  if (period === 'year') {
-    const history = statsData.history || [];
-    bars = history.slice(-12).map(h => h.revenu);
-    labels = history.slice(-12).map(h => h.month);
-  } else if (period === 'month') {
-    const total = statsData.totalRevenue || 0;
-    const daily = Math.round(total / 30);
-    bars = Array(30).fill(daily);
-    labels = Array.from({length:30}, (_,i) => i+1);
-  } else if (period === 'week') {
-    const total = statsData.totalRevenue || 0;
-    const daily = Math.round(total / 7);
-    bars = Array(7).fill(daily);
-    labels = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-  }
+  // On affiche uniquement la vraie évolution renvoyée par le backend (statsData.history),
+  // au lieu de répartir artificiellement le total sur des jours fictifs (ce qui faussait les
+  // statistiques affichées). S'il n'y a pas d'historique, on l'indique clairement.
+  const history = Array.isArray(statsData.history) ? statsData.history : [];
+  const bars = history.map(h => h.revenu || 0);
+  const labels = history.map(h => h.month || '');
 
   if (bars.length === 0) {
-    chart.innerHTML = '<p class="empty">Aucune donnée disponible</p>';
+    chart.innerHTML = '<p class="empty">Pas encore assez de données pour afficher une évolution</p>';
     return;
   }
 
@@ -1691,15 +1678,6 @@ function renderSalesChart(period) {
   }).join('');
 }
 
-// Gestion des clics sur les boutons de période
-document.querySelectorAll('#periodSelector .btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('#periodSelector .btn').forEach(b => b.className = 'btn btn-sm btn-outline');
-    this.className = 'btn btn-sm btn-primary';
-    renderSalesChart(this.dataset.period);
-  });
-});
-
 // ===================== BOUTONS THÈME & DÉCONNEXION =====================
 document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
   applyTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark');
@@ -1710,6 +1688,13 @@ document.getElementById('btnLogout')?.addEventListener('click', () => {
   localStorage.removeItem('currentUser');
   location.reload();
 });
+
+// ===================== SERVICE WORKER (installation en app / PWA) =====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW non enregistré:', err));
+  });
+}
 
 // ===================== DÉMARRAGE (avec écran d'accueil animé) =====================
 function initApp() {
