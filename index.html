@@ -195,6 +195,44 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
 .chat-input-bar{display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border-top:1px solid var(--border);position:sticky;bottom:0;}
 .chat-input-bar input[type="text"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;font-size:15px;background:var(--input-bg);color:var(--text);}
 .chat-send-btn{background:var(--accent);border:none;border-radius:50%;width:40px;height:40px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+/* Messagerie en plein écran : s'ouvre par-dessus toute l'app (peu importe l'onglet actif),
+   ce qui corrige le bug où cliquer sur "Message" depuis un article ne montrait rien. */
+.chat-fullscreen{position:fixed;inset:0;background:var(--bg);z-index:1500;display:none;flex-direction:column;}
+.chat-fullscreen.active{display:flex;}
+.chat-fullscreen .chat-messages{flex:1;min-height:0;max-height:none;}
+.chat-header .btn{width:auto;margin-left:auto;}
+
+/* Avertissement centré plein écran (modération / bannissement) */
+@keyframes warningPop{0%{opacity:0;transform:scale(.85);}100%{opacity:1;transform:scale(1);}}
+.warning-fullscreen{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:6000;display:none;align-items:center;justify-content:center;padding:24px;}
+.warning-fullscreen.active{display:flex;}
+.warning-box{background:var(--card-bg);border-radius:24px;padding:28px 24px;max-width:360px;width:100%;text-align:center;animation:warningPop .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 20px 50px rgba(0,0,0,.4);}
+.warning-box .warning-icon{font-size:44px;margin-bottom:10px;}
+.warning-box h3{color:var(--accent);margin-bottom:8px;}
+.warning-box p{color:#888;font-size:14px;margin-bottom:18px;line-height:1.5;}
+
+/* Photo de profil éditable */
+.avatar-edit-badge{position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--card-bg);pointer-events:none;}
+.profile-avatar-new{position:relative;cursor:pointer;}
+.profile-avatar-new img{width:100%;height:100%;object-fit:cover;}
+
+/* Avertissement Wallet */
+.wallet-warning{display:flex;gap:8px;align-items:flex-start;background:rgba(231,76,60,.08);border-radius:12px;padding:10px 12px;margin-top:14px;font-size:11.5px;color:#a0453b;line-height:1.5;}
+body.dark .wallet-warning{color:#ffb4a8;}
+.wallet-warning span.ico{flex-shrink:0;}
+
+/* Animation de paiement (décompte acheteur / recompte vendeur) */
+.payment-anim-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:6500;display:none;align-items:center;justify-content:center;padding:24px;}
+.payment-anim-overlay.active{display:flex;}
+.payment-anim-box{background:var(--card-bg);border-radius:24px;padding:30px 24px;max-width:360px;width:100%;text-align:center;}
+.payment-anim-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0;}
+.payment-anim-side{flex:1;}
+.payment-anim-side .label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;}
+.payment-anim-side .amount{font-size:22px;font-weight:900;margin-top:4px;}
+.payment-anim-side.buyer .amount{color:var(--accent);}
+.payment-anim-side.seller .amount{color:var(--accent3);}
+@keyframes flyRight{0%{transform:translateX(0);opacity:1;}100%{transform:translateX(60px);opacity:0;}}
+.payment-anim-arrow{font-size:26px;animation:flyRight 1s ease-in-out infinite;}
 
 .carousel-container{position:relative;overflow:hidden;border-radius:16px;margin-bottom:12px;}
 .carousel-track{display:flex;transition:transform .3s ease;}
@@ -348,7 +386,6 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
   <div class="page" id="pageMessages">
     <h2 style="color:var(--accent);">Messagerie</h2>
     <div id="contactsList" style="display:flex;flex-direction:column;margin-bottom:12px;"></div>
-    <div id="discussionView" style="display:none;"></div>
     <div id="emptyMessages" class="empty" style="display:block;">Aucune discussion</div>
   </div>
 
@@ -364,7 +401,9 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
     <div class="profile-header-new">
       <div class="profile-avatar-new" id="profileAvatarContainer">
         <span id="profileAvatarLetter">D</span>
+        <div class="avatar-edit-badge">📷</div>
       </div>
+      <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;">
       <div>
         <h2 id="profileNameNew">Utilisateur <span class="online-dot" id="profileOnlineDot" style="display:none;"></span></h2>
         <p id="profileEmailNew" style="color:#999;font-size:14px;"></p>
@@ -384,12 +423,17 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
           <button class="wallet-btn wallet-btn-withdraw" id="btnWithdrawNew">Retirer</button>
           <button class="wallet-btn wallet-btn-transfer" id="btnTransferNew">Transférer</button>
         </div>
+        <div class="wallet-warning">
+          <span class="ico">⚠️</span>
+          <span>Il est déconseillé de garder ton argent dans le Wallet BLK. Il sert uniquement à garantir et sécuriser tes paiements le temps d'une transaction — pense à retirer le solde restant vers ton Mobile Money.</span>
+        </div>
       </div>
     </div>
 
     <div class="profile-stats-new">
       <div><span class="stat-number-new flame-animated" id="profileFlamesNew">0</span><span class="stat-label-new">Flammes</span></div>
     </div>
+    <p style="text-align:center;color:#999;font-size:12.5px;margin:0 0 10px;">Un souci avec une commande ou un article ? Clique sur ces boutons pour nous contacter et nous suivre pour les dernières infos.</p>
     <div class="follow-buttons" style="margin-bottom:10px;">
       <a class="follow-btn" href="https://www.instagram.com/blk.marketplace" target="_blank" title="Instagram">
         <svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.3 1.1.4 2.3.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.3-2.3.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.9-.2-2.3-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.3-1.1-.4-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.3 2.3-.4C8.4 2.2 8.8 2.2 12 2.2m0 1.8c-3.1 0-3.5 0-4.7.1-1.1.1-1.5.2-1.9.3-.5.2-.8.4-1.1.7-.3.3-.5.6-.7 1.1-.1.4-.2.8-.3 1.9-.1 1.2-.1 1.6-.1 4.7s0 3.5.1 4.7c.1 1.1.2 1.5.3 1.9.2.5.4.8.7 1.1.3.3.6.5 1.1.7.4.1.8.2 1.9.3 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.5-.2 1.9-.3.5-.2.8-.4 1.1-.7.3-.3.5-.6.7-1.1.1-.4.2-.8.3-1.9.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.5-.3-1.9-.2-.5-.4-.8-.7-1.1-.3-.3-.6-.5-1.1-.7-.4-.1-.8-.2-1.9-.3-1.2-.1-1.6-.1-4.7-.1zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8zm0 1.8a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2zm5.1-2.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
@@ -419,6 +463,12 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
 <div class="spinner-overlay" id="spinnerOverlay">
   <div class="spinner"></div>
 </div>
+
+<!-- Messagerie plein écran (s'ouvre par-dessus toute l'app, depuis n'importe où) -->
+<div class="chat-fullscreen" id="chatFullscreen"></div>
+
+<!-- Avertissement plein écran (banissement / modération) -->
+<div class="warning-fullscreen" id="warningFullscreen"></div>
 
 <script>
 // ===================== ICONS SVG =====================
@@ -623,6 +673,12 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
   const password = document.getElementById('loginPassword').value;
   const phone = document.getElementById('loginPhone').value.trim();
   const errorDiv = document.getElementById('authError');
+  const bannedEmails = JSON.parse(localStorage.getItem('blk_banned_emails') || '[]');
+  if (bannedEmails.includes(email)) {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = "Ce compte a été banni de BLK Marketplace suite à 3 avertissements pour non-respect des règles de vente.";
+    return;
+  }
   if (!email || !password || (!isLoginMode && (!name || !phone))) {
     errorDiv.style.display = 'block';
     errorDiv.textContent = 'Remplis tous les champs.';
@@ -677,15 +733,45 @@ function updateProfileUI(user) {
   const nameEl = document.getElementById('profileNameNew');
   const emailEl = document.getElementById('profileEmailNew');
   const phoneEl = document.getElementById('profilePhoneNew');
-  const letterEl = document.getElementById('profileAvatarLetter');
   const onlineDotEl = document.getElementById('profileOnlineDot');
+  const avatarContainer = document.getElementById('profileAvatarContainer');
 
   if (nameEl) nameEl.textContent = user.name || 'Utilisateur';
   if (emailEl) emailEl.textContent = user.email || '';
   if (phoneEl) phoneEl.textContent = user.phone || '';
-  if (letterEl) letterEl.textContent = (user.name || 'U').charAt(0).toUpperCase();
   if (onlineDotEl) onlineDotEl.style.display = user.online ? 'inline-block' : 'none';
+  if (avatarContainer) {
+    const inner = user.photo
+      ? safeImgTag(user.photo, user.name)
+      : `<span id="profileAvatarLetter">${escapeHtml((user.name || 'U').charAt(0).toUpperCase())}</span>`;
+    avatarContainer.innerHTML = inner + '<div class="avatar-edit-badge">📷</div>';
+  }
 }
+
+// Photo de profil : on tape sur l'avatar pour choisir une image, elle est compressée puis
+// envoyée sur imgbb, et l'URL obtenue est sauvegardée sur le profil.
+document.getElementById('profileAvatarContainer')?.addEventListener('click', () => {
+  document.getElementById('profilePhotoInput')?.click();
+});
+document.getElementById('profilePhotoInput')?.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+  showSpinner(true);
+  compressImage(file, 500, 0.75)
+    .then(dataUrl => uploadToImgbb(dataUrl.split(',')[1].replace(/\s/g, '')))
+    .then(url => {
+      showSpinner(false);
+      if (!url) { showAlert("Échec de l'envoi de la photo.", 'error'); return; }
+      currentUser.photo = url;
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      updateProfileUI(currentUser);
+      showAlert('Photo de profil mise à jour !', 'success');
+      // Sauvegarde côté backend : adapte la route si ton API utilise un chemin différent.
+      apiFetch('/api/users/' + currentUserId, { method: 'PATCH', body: JSON.stringify({ photo: url }) }).catch(() => {});
+    })
+    .catch(() => { showSpinner(false); showAlert('Erreur lors du traitement de la photo.', 'error'); });
+});
 
 // ===================== CHARGEMENT PRODUITS =====================
 function loadProducts() {
@@ -809,7 +895,7 @@ function showProductModal(product) {
   });
   overlay.querySelector('#btnMessageSeller').addEventListener('click', function() {
     overlay.remove();
-    openDiscussion(this.dataset.sellerId, this.dataset.sellerName);
+    openDiscussion(this.dataset.sellerId, this.dataset.sellerName, product);
   });
   const deleteBtn = overlay.querySelector('#btnDeleteArticle');
   if (deleteBtn) {
@@ -818,6 +904,52 @@ function showProductModal(product) {
       deleteArticle(product.id);
     });
   }
+}
+
+// Animation de paiement : montre visuellement l'argent quitter le compte de l'acheteur
+// (décompte) et arriver chez le vendeur (recompte), au moment où le paiement est validé.
+function showPaymentAnimation(buyerPaid, sellerReceives) {
+  const overlay = document.createElement('div');
+  overlay.className = 'payment-anim-overlay active';
+  overlay.innerHTML = `
+    <div class="payment-anim-box">
+      <div style="font-size:34px;">💸</div>
+      <h3 style="margin:8px 0 4px;color:var(--accent);">Paiement validé !</h3>
+      <div class="payment-anim-row">
+        <div class="payment-anim-side buyer">
+          <div class="label">Toi</div>
+          <div class="amount" id="paymentAnimBuyer">${buyerPaid}</div>
+          <div style="font-size:11px;color:#999;">FCFA débités</div>
+        </div>
+        <div class="payment-anim-arrow">➜</div>
+        <div class="payment-anim-side seller">
+          <div class="label">Vendeur</div>
+          <div class="amount" id="paymentAnimSeller">0</div>
+          <div style="font-size:11px;color:#999;">FCFA reçus</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;">Sécurisé par le Wallet BLK</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const steps = 24;
+  const stepTime = 40;
+  let i = 0;
+  const buyerEl = overlay.querySelector('#paymentAnimBuyer');
+  const sellerEl = overlay.querySelector('#paymentAnimSeller');
+  const timer = setInterval(() => {
+    i++;
+    const progress = i / steps;
+    buyerEl.textContent = Math.max(0, Math.round(buyerPaid * (1 - progress)));
+    sellerEl.textContent = Math.round(sellerReceives * progress);
+    if (i >= steps) {
+      clearInterval(timer);
+      buyerEl.textContent = 0;
+      sellerEl.textContent = sellerReceives;
+      setTimeout(() => overlay.remove(), 900);
+    }
+  }, stepTime);
 }
 
 // ===================== CHECKOUT =====================
@@ -897,6 +1029,7 @@ function showCheckoutModal(product) {
       if (data.success) {
         overlay.remove();
         showAlert('Commande créée !', 'success');
+        showPaymentAnimation(total, product.price);
         loadWallet();
         loadOrders();
         loadProducts();
@@ -1023,6 +1156,17 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
       showAlert('Remplis tous les champs obligatoires (nom, prix, description, stock).', 'error');
       return;
     }
+
+    // Modération : un article dont le contenu ne respecte pas ce que BLK autorise à la vente
+    // est directement supprimé (jamais publié) et le vendeur reçoit un avertissement.
+    const hashtagsForCheck = hashtagsInput || '';
+    const matched = containsForbiddenContent(title + ' ' + description + ' ' + hashtagsForCheck);
+    if (matched) {
+      overlay.remove();
+      reportForbiddenArticle(matched);
+      return;
+    }
+
     if (photos.length === 0) {
       photos.push({ dataUrl: PLACEHOLDER_IMAGE });
     }
@@ -1207,7 +1351,21 @@ function showUserProfile(userId) {
     });
 }
 
-// ===================== MESSAGERIE =====================
+// ===================== MESSAGERIE (plein écran) =====================
+// Contacts enregistrés localement dès qu'une conversation est ouverte, même sans message envoyé,
+// pour qu'ils apparaissent dans l'onglet Messagerie en sortant du chat.
+let localContacts = JSON.parse(localStorage.getItem('blk_local_contacts') || '{}');
+function registerLocalContact(id, name, photo) {
+  if (!id) return;
+  const prev = localContacts[id] || {};
+  localContacts[id] = {
+    name: name || prev.name || 'Utilisateur',
+    photo: photo || prev.photo || null,
+    addedAt: prev.addedAt || new Date().toISOString()
+  };
+  localStorage.setItem('blk_local_contacts', JSON.stringify(localContacts));
+}
+
 function loadMessages() {
   if (!currentUserId) return;
   apiFetch('/api/messages/' + currentUserId)
@@ -1215,61 +1373,67 @@ function loadMessages() {
     .then(data => {
       const container = document.getElementById('contactsList');
       const empty = document.getElementById('emptyMessages');
-      const view = document.getElementById('discussionView');
-
-      if (!activeConversationId) {
-        view.style.display = 'none';
-        container.style.display = 'flex';
-      }
-
-      if (!data.success || !data.data || data.data.length === 0) {
-        container.innerHTML = '';
-        if (!activeConversationId) {
-          empty.style.display = 'block';
-        } else {
-          empty.style.display = 'none';
-        }
-        return;
-      }
-
-      empty.style.display = 'none';
 
       let contacts = {};
-      data.data.forEach(msg => {
-        const otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
-        const otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
-        const preview = msg.text || '';
-        if (!contacts[otherId]) {
-          contacts[otherId] = {
-            name: otherName || 'Utilisateur',
-            lastMessage: preview,
-            time: msg.createdAt,
-            unread: (msg.receiverId === currentUserId && !msg.read) ? 1 : 0,
-            photo: msg.senderId === currentUserId ? msg.receiverPhoto : msg.senderPhoto
-          };
-        } else {
-          if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread++;
-          const existingTime = parseServerDate(contacts[otherId].time);
-          const msgTime = parseServerDate(msg.createdAt);
-          if (msgTime && (!existingTime || msgTime > existingTime)) {
-            contacts[otherId].lastMessage = preview;
-            contacts[otherId].time = msg.createdAt;
+      if (data.success && data.data && data.data.length > 0) {
+        data.data.forEach(msg => {
+          const otherId = msg.senderId === currentUserId ? msg.receiverId : msg.senderId;
+          const otherName = msg.senderId === currentUserId ? msg.receiverName : msg.senderName;
+          const preview = msg.text || '';
+          if (!contacts[otherId]) {
+            contacts[otherId] = {
+              name: otherName || 'Utilisateur',
+              lastMessage: preview,
+              time: msg.createdAt,
+              unread: (msg.receiverId === currentUserId && !msg.read) ? 1 : 0,
+              photo: msg.senderId === currentUserId ? msg.receiverPhoto : msg.senderPhoto
+            };
+          } else {
+            if (msg.receiverId === currentUserId && !msg.read) contacts[otherId].unread++;
+            const existingTime = parseServerDate(contacts[otherId].time);
+            const msgTime = parseServerDate(msg.createdAt);
+            if (msgTime && (!existingTime || msgTime > existingTime)) {
+              contacts[otherId].lastMessage = preview;
+              contacts[otherId].time = msg.createdAt;
+            }
           }
+        });
+      }
+
+      // Fusionne les contacts ouverts localement (conversation démarrée mais aucun message
+      // encore échangé) pour qu'ils s'affichent bien dans l'onglet Messagerie.
+      Object.keys(localContacts).forEach(id => {
+        if (id === currentUserId) return;
+        if (!contacts[id]) {
+          contacts[id] = {
+            name: localContacts[id].name || 'Utilisateur',
+            lastMessage: 'Nouvelle conversation',
+            time: localContacts[id].addedAt,
+            unread: 0,
+            photo: localContacts[id].photo || null
+          };
+        } else if (localContacts[id].photo && !contacts[id].photo) {
+          contacts[id].photo = localContacts[id].photo;
         }
       });
 
       let keys = Object.keys(contacts);
+      if (keys.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
       keys.sort((a, b) => (parseServerDate(contacts[b].time) || 0) - (parseServerDate(contacts[a].time) || 0));
 
       container.innerHTML = keys.map(id => {
         const c = contacts[id];
-        const isActive = (activeConversationId === id) ? 'active' : '';
         const unreadBadge = c.unread > 0 ? `<span class="contact-row-badge">${c.unread}</span>` : '';
         const avatarHtml = c.photo ? safeImgTag(c.photo, c.name) : `<span>${escapeHtml((c.name || 'U').charAt(0).toUpperCase())}</span>`;
         const d = parseServerDate(c.time);
         const timeStr = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         return `
-          <div class="contact-row ${isActive}" data-id="${escapeHtml(id)}">
+          <div class="contact-row" data-id="${escapeHtml(id)}">
             <div class="contact-row-avatar">${avatarHtml}</div>
             <div class="contact-row-info">
               <div class="contact-row-name">${escapeHtml(c.name)}</div>
@@ -1287,9 +1451,6 @@ function loadMessages() {
         el.addEventListener('click', function() {
           const contactId = this.dataset.id;
           const contactName = contacts[contactId]?.name || 'Contact';
-          activeConversationId = contactId;
-          document.querySelectorAll('.contact-row').forEach(c => c.classList.remove('active'));
-          this.classList.add('active');
           openDiscussion(contactId, contactName);
         });
       });
@@ -1300,57 +1461,56 @@ function loadMessages() {
     });
 }
 
-function openDiscussion(contactId, contactName) {
-  const view = document.getElementById('discussionView');
-  const container = document.getElementById('contactsList');
-  const empty = document.getElementById('emptyMessages');
-
-  view.style.display = 'block';
-  container.style.display = 'none';
-  empty.style.display = 'none';
+// Ouvre la messagerie en plein écran, par-dessus toute l'app, quel que soit l'onglet actif
+// (corrige le bug où "Message" depuis un article ne montrait rien car la page Messagerie
+// n'était pas active). `product` est optionnel : s'il est fourni, un bouton "Acheter" apparaît
+// dans le chat pour lancer directement la commande une fois la discussion terminée.
+let currentChatProduct = null;
+function openDiscussion(contactId, contactName, product) {
+  currentChatProduct = product || null;
   activeConversationId = contactId;
+  registerLocalContact(contactId, contactName);
 
-  apiFetch('/api/users/' + contactId)
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        const contactAvatar = data.data.photo ? safeImgTag(data.data.photo, data.data.name) : escapeHtml((data.data.name || '?').charAt(0).toUpperCase());
-        updateDiscussionHeader(contactName, contactAvatar);
-      } else {
-        updateDiscussionHeader(contactName, escapeHtml(contactName.charAt(0).toUpperCase()));
-      }
-    })
-    .catch(() => {
-      updateDiscussionHeader(contactName, escapeHtml(contactName.charAt(0).toUpperCase()));
-    });
+  const screen = document.getElementById('chatFullscreen');
+  screen.classList.add('active');
+  screen.innerHTML = `<div class="chat-header"><span style="color:#999;font-size:14px;">Chargement...</span></div>`;
 
-  function updateDiscussionHeader(name, avatar) {
-    view.innerHTML = `
-      <div class="glass" style="padding:0;margin:0;border-radius:0;">
-        <div class="chat-header">
-          <button class="chat-back-btn" id="btnCloseDiscussion">‹</button>
-          <div class="chat-contact-info">
-            <div class="chat-contact-avatar">${avatar}</div>
-            <div>
-              <div class="chat-contact-name">${escapeHtml(name)}</div>
-            </div>
-          </div>
+  function closeChat() {
+    screen.classList.remove('active');
+    screen.innerHTML = '';
+    activeConversationId = null;
+    currentChatProduct = null;
+    loadMessages();
+  }
+
+  function renderChatScreen(name, avatar) {
+    const buyBtnHtml = currentChatProduct ? `<button class="btn btn-sm btn-primary" id="btnBuyFromChat">Acheter</button>` : '';
+    screen.innerHTML = `
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnCloseDiscussion">‹</button>
+        <div class="chat-contact-info">
+          <div class="chat-contact-avatar">${avatar}</div>
+          <div><div class="chat-contact-name">${escapeHtml(name)}</div></div>
         </div>
-        <div class="chat-messages" id="messagesList"></div>
-        <div class="chat-input-bar">
-          <input type="text" id="messageInput" placeholder="Écris ton message...">
-          <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
-        </div>
+        ${buyBtnHtml}
+      </div>
+      <div class="chat-messages" id="messagesList"></div>
+      <div class="chat-input-bar">
+        <input type="text" id="messageInput" placeholder="Écris ton message...">
+        <button class="chat-send-btn" id="btnSendMessage">Envoyer</button>
       </div>
     `;
 
-    document.getElementById('btnCloseDiscussion').addEventListener('click', () => {
-      view.style.display = 'none';
-      container.style.display = 'flex';
-      empty.style.display = 'none';
-      activeConversationId = null;
-      loadMessages();
-    });
+    document.getElementById('btnCloseDiscussion').addEventListener('click', closeChat);
+
+    const buyBtn = document.getElementById('btnBuyFromChat');
+    if (buyBtn) {
+      buyBtn.addEventListener('click', () => {
+        const p = currentChatProduct;
+        closeChat();
+        if (p) showCheckoutModal(p);
+      });
+    }
 
     function sendMessage() {
       const input = document.getElementById('messageInput');
@@ -1370,6 +1530,22 @@ function openDiscussion(contactId, contactName) {
 
     loadConversation(contactId);
   }
+
+  apiFetch('/api/users/' + contactId)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const photo = data.data.photo || null;
+        registerLocalContact(contactId, data.data.name || contactName, photo);
+        const contactAvatar = photo ? safeImgTag(photo, data.data.name) : escapeHtml((data.data.name || '?').charAt(0).toUpperCase());
+        renderChatScreen(contactName, contactAvatar);
+      } else {
+        renderChatScreen(contactName, escapeHtml(contactName.charAt(0).toUpperCase()));
+      }
+    })
+    .catch(() => {
+      renderChatScreen(contactName, escapeHtml(contactName.charAt(0).toUpperCase()));
+    });
 }
 
 function loadConversation(contactId) {
@@ -1408,6 +1584,17 @@ function sendMessagePayload(payload) {
 }
 
 // ===================== COMMANDES =====================
+// Délai de la "protection BLK" annoncé au paiement (voir showCheckoutModal) : c'est le timer
+// qui démarre dès qu'un achat est validé (y compris depuis le bouton "Acheter" du chat).
+const PROTECTION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
+function formatCountdown(ms) {
+  if (ms <= 0) return 'Délai de protection écoulé';
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${String(m).padStart(2, '0')}min restantes`;
+}
+let ordersTimerInterval = null;
 function loadOrders() {
   if (!currentUserId) return;
   apiFetch('/api/orders/' + currentUserId)
@@ -1416,6 +1603,7 @@ function loadOrders() {
       const container = document.getElementById('ordersList');
       const empty = document.getElementById('emptyOrders');
       if (!container) return;
+      if (ordersTimerInterval) { clearInterval(ordersTimerInterval); ordersTimerInterval = null; }
       if (!Array.isArray(orders) || orders.length === 0) {
         container.innerHTML = '';
         empty.style.display = 'block';
@@ -1423,18 +1611,37 @@ function loadOrders() {
       }
       empty.style.display = 'none';
       container.innerHTML = '';
-      orders.forEach(order => {
+      const timerTargets = [];
+      orders.forEach((order, idx) => {
         const card = document.createElement('div');
         card.className = 'glass';
         card.style.marginBottom = '10px';
         const articleTitle = (order.article && order.article.title) || 'Article';
         const amount = order.totalAmount || order.amount || 0;
+        const statusLower = String(order.status || '').toLowerCase();
+        const isActive = !['completed', 'cancelled', 'refunded', 'livré', 'livree', 'terminé', 'termine'].includes(statusLower);
+        const createdAt = parseServerDate(order.createdAt);
+        const timerId = 'orderTimer_' + idx;
         card.innerHTML = `
           <div><strong>${escapeHtml(articleTitle)}</strong><br>${amount} FCFA<br>
-          <span style="font-size:12px;color:#999;">Statut: ${escapeHtml(order.status || 'En attente')}</span></div>
+          <span style="font-size:12px;color:#999;">Statut: ${escapeHtml(order.status || 'En attente')}</span>
+          ${createdAt && isActive ? `<br><span style="font-size:12px;color:var(--accent);font-weight:700;" id="${timerId}">⏱ ...</span>` : ''}</div>
         `;
         container.appendChild(card);
+        if (createdAt && isActive) {
+          timerTargets.push({ id: timerId, deadline: createdAt.getTime() + PROTECTION_WINDOW_MS });
+        }
       });
+      if (timerTargets.length > 0) {
+        const tick = () => {
+          timerTargets.forEach(t => {
+            const el = document.getElementById(t.id);
+            if (el) el.textContent = '⏱ ' + formatCountdown(t.deadline - Date.now());
+          });
+        };
+        tick();
+        ordersTimerInterval = setInterval(tick, 1000);
+      }
     })
     .catch(e => {
       console.error(e);
@@ -1688,6 +1895,71 @@ document.getElementById('btnLogout')?.addEventListener('click', () => {
   localStorage.removeItem('currentUser');
   location.reload();
 });
+
+// ===================== MODÉRATION & BANNISSEMENT =====================
+// ⚠️ Vérification appliquée ici côté navigateur (localStorage) : elle empêche la publication
+// d'articles interdits et compte les avertissements sur CET appareil. Pour un bannissement
+// valable sur tous les appareils/navigateurs, la même règle (mots interdits + compteur +
+// blocage au login) doit être répliquée côté backend.
+const FORBIDDEN_KEYWORDS = [
+  'arme', 'armes', 'pistolet', 'fusil', 'munition', 'grenade', 'couteau de combat',
+  'drogue', 'cannabis', 'cocaïne', 'cocaine', 'héroïne', 'heroine', 'shit', 'beuh',
+  'contrefaçon', 'contrefacon', 'faux billets', 'faux document', 'faux papiers',
+  'arnaque', 'escroquerie', 'ivoire', 'corne de rhinocéros', 'animal sauvage',
+  'médicament sans ordonnance', 'medicament sans ordonnance',
+  'contenu pour adultes', 'pornographique', 'pornographie'
+];
+function containsForbiddenContent(text) {
+  const t = (text || '').toLowerCase();
+  return FORBIDDEN_KEYWORDS.find(k => t.includes(k)) || null;
+}
+function getWarningsKey() { return 'blk_warnings_' + (currentUserId || 'anon'); }
+function getWarningsCount() { return parseInt(localStorage.getItem(getWarningsKey()) || '0', 10); }
+function showCenterWarning(title, message, isBan) {
+  const box = document.getElementById('warningFullscreen');
+  if (!box) return;
+  box.innerHTML = `
+    <div class="warning-box">
+      <div class="warning-icon">${isBan ? '🚫' : '⚠️'}</div>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+      <button class="btn btn-primary" id="warningCloseBtn">${isBan ? 'Compris' : "J'ai compris"}</button>
+    </div>
+  `;
+  box.classList.add('active');
+  box.querySelector('#warningCloseBtn').addEventListener('click', () => {
+    box.classList.remove('active');
+    box.innerHTML = '';
+    if (isBan) {
+      const banned = JSON.parse(localStorage.getItem('blk_banned_emails') || '[]');
+      if (currentUser && currentUser.email && !banned.includes(currentUser.email)) {
+        banned.push(currentUser.email);
+        localStorage.setItem('blk_banned_emails', JSON.stringify(banned));
+      }
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUserId');
+      localStorage.removeItem('currentUser');
+      location.reload();
+    }
+  });
+}
+function reportForbiddenArticle(matchedKeyword) {
+  const count = getWarningsCount() + 1;
+  localStorage.setItem(getWarningsKey(), String(count));
+  if (count >= 3) {
+    showCenterWarning(
+      'Compte banni',
+      `Ton compte est banni de BLK Marketplace suite à 3 avertissements pour la publication d'articles non autorisés (dernier motif détecté : "${matchedKeyword}").`,
+      true
+    );
+  } else {
+    showCenterWarning(
+      `Avertissement ${count}/3`,
+      `Ton article a été supprimé car il ne correspond pas à ce que BLK autorise à la vente (motif détecté : "${matchedKeyword}"). Après 3 avertissements, ton compte sera banni.`,
+      false
+    );
+  }
+}
 
 // ===================== SERVICE WORKER (installation en app / PWA) =====================
 if ('serviceWorker' in navigator) {
