@@ -219,6 +219,7 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
 .order-timer-pill .timer-text{position:relative;z-index:1;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:baseline;gap:5px;}
 .order-timer-pill .timer-text small{font-weight:500;color:#999;font-size:11px;}
 .order-timer-pill.expired .timer-text{color:var(--accent);}
+.order-timer-pill.small{padding:8px 18px;min-width:130px;min-height:34px;transform:scale(.85);transform-origin:left center;}
 
 /* Avertissement centré plein écran (modération / bannissement) */
 @keyframes warningPop{0%{opacity:0;transform:scale(.85);}100%{opacity:1;transform:scale(1);}}
@@ -396,6 +397,13 @@ body.dark .wallet-warning{color:#ffb4a8;}
       <div class="bar-chart" id="salesChart"></div>
     </div>
 
+    <!-- Ventes en attente de confirmation par l'acheteur : le vendeur ne voit que le temps
+         restant, aucune action possible de son côté (seul l'acheteur confirme la réception). -->
+    <div id="pendingSalesSection" style="display:none;">
+      <h4 style="color:var(--accent);margin-bottom:8px;font-size:14px;">⏳ Ventes en attente de confirmation</h4>
+      <div id="pendingSalesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    </div>
+
     <!-- Liste des articles actifs -->
     <div id="shopArticles" class="shop-list"></div>
   </div>
@@ -449,7 +457,7 @@ body.dark .wallet-warning{color:#ffb4a8;}
     </div>
 
     <div class="profile-stats-new" id="btnFlameInfo" style="cursor:pointer;">
-      <div><span class="stat-number-new flame-animated" id="profileFlamesNew" style="display:inline-flex;align-items:center;gap:6px;"><img id="profileFlameIcon" style="width:20px;height:20px;object-fit:contain;"><span id="profileFlamesCount">0</span></span><span class="stat-label-new">Flammes ⓘ</span></div>
+      <div><span class="stat-number-new flame-animated" id="profileFlamesNew" style="display:inline-flex;align-items:center;gap:6px;"><span id="profileFlamesCount">0</span></span><span class="stat-label-new">Flammes ⓘ</span></div>
     </div>
     <p style="text-align:center;color:#999;font-size:12.5px;margin:0 0 10px;">Un souci avec une commande ou un article ? Clique sur ces boutons pour nous contacter et nous suivre pour les dernières infos.</p>
     <div class="follow-buttons" style="margin-bottom:10px;">
@@ -501,6 +509,16 @@ const TAB_ICONS = {
   profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4.5-6 7-6s6 2 7 6"/></svg>'
 };
 
+// ===================== FILET DE SÉCURITÉ GLOBAL =====================
+// Empêche une erreur imprévue (ex: champ manquant dans une réponse backend) de figer l'app
+// sur un écran blanc : on logue et on continue plutôt que de laisser planter silencieusement.
+window.addEventListener('error', (e) => {
+  console.error('Erreur JS non interceptée:', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Promesse rejetée non interceptée:', e.reason);
+});
+
 // ===================== LOGO (image 1 fournie par l'utilisateur) =====================
 const IMGBB_API_KEY = "2b3e869d8b6f382027e70cd216f65580";
 // Upload direct vers imgbb (contourne le backend pour l'hébergement des photos, cause probable
@@ -527,7 +545,6 @@ function uploadToImgbb(base64Image) {
 const LOGO_DATA_URL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAGQAZADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7LooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAM7xDqsOj6W97MjPghVQcFmPQVxJ+IV7u40632+m9s1vfE9N3hjd/dnQ/zH9a8tr4XiTN8ZhcUqVGfKrJ9D6bJ8vw9eg51I3dz1vwj4li13zYjAYJ4gGZd2QR6g10FecfCaMnVL2XssIX82/8ArV6PX0eRYuri8FGrW1bv+DPIzOhToYmUKe2gUUUV65wBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAZniDW7LRbTzrlsu3+riX7zn/PeuQsfiBOb8fbLOJbVjj92SXQevv8ApWX8R4LqPxJJLPuMUqr5LdsAcj88/nXNV+d5vxDjaeMdOn7qi9u/r6n1mX5Th54dSn7zkvu9D3e3miuIUmhdZI3G5WU8EVJXl/gTxKdMmFhev/och+Vj/wAsmP8AQ16epDKCCCD0Ir7HKszp5jQVSOjW67P/AC7HgY7BTwlTklt0fcWiiivTOIKKKKACiiigDm/iQM+FJz6SIf8Ax4V5RXr/AI7iM3hS+CjJVA/5MDXkFfm/F8WsbF94r82fYcPyvh5Lz/RHffCNf+Qi3f8Adj/0Ku9rg/hH9zUfrH/7NXeV9Zw3/wAi2n8/zZ4Wcf75P5fkgooor3DzAooooAKKKKACuY1vxnp2m6j9jEUtwyHErRkYQ+nuaqeO/FH2JG03T5AbphiWQf8ALIeg/wBr+VebEknJOSa+Oz3iN4afscK/eW73t5f5n0GWZOq0faVtnsv1PctNvrXUbNLu0lEkTjgjt7H0NWa4j4U297HaXU0gK2kpBiB/iYdS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AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHlf7Svhe71/wNHeWELTXOlzGcxqMs0RGHwO+OD+Br5T61+gFeeeK/g54H8QXb3j2MthcyEs72Unlhj6lSCufwrzcZgnWlzwep9zwzxVTy2j9WxMW43umul+lj5Cor6nsvgF4GhOZ5NWuvZ7kKP/HVFXX+Bnw8ZcDT7xfcXkn+Ncay2t5H08uOssTslJ/Jf5nyXRX1PcfADwNJ/q5dXh/3bkH+amoF/Z88GDOdQ1pv+26f/EUv7NreRa44yv8Avfd/wT5for6fH7Pfg3dn+0dax6edH/8AEVftfgP4AiwZINSn/wCul2Rn/vkChZbW8hS45ytLTmfy/wCCfKNFfYNv8G/hzCB/xTyye8lxK3/s1Wh8KPh2P+ZVsvxLn+tWsrqdWjmlx9gU9Kcvw/zPjSivsiT4SfDpxz4XtR/uySD+TVC3wb+HBP8AyLiD6XMv/wAVR/ZdXugXH2A605/h/mfHtFfZFt8JPh3A25fDFs5/6aSSP+harM3wx8ASgB/CmmDH92Pb/Kn/AGXU7ol8f4K+lKX4f5nzx+zbpV5f/FCzvYI3+z6fHJLcSAcKChVRn1JPT2NfWwqhoei6TodmLPR9PtrG3Bz5cEYUE+px1Puav16WFw/sIct7nwef5x/a2L9uo8qSsl5ef3hRRRXSeIFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/9k=";
 const FLAME_ICON_DATA_URL = "data:image/jpeg;base64,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";
 document.querySelectorAll('#authLogoImg, #brandLogoImg, #splashLogoImg').forEach(el => { if (el) el.src = LOGO_DATA_URL; });
-document.querySelectorAll('#profileFlameIcon').forEach(el => { if (el) el.src = FLAME_ICON_DATA_URL; });
 
 // Explique l'importance des flammes : réputation de confiance, un vendeur avec plus de
 // flammes est mieux perçu par les acheteurs (mise en avant à prévoir côté tri du backend).
@@ -549,7 +566,7 @@ document.getElementById('btnFlameInfo')?.addEventListener('click', () => {
 
 // ===================== GLOBAL VARS =====================
 const BACKEND_URL = 'https://blk-marketplace2-0-1.onrender.com';
-let authToken = localStorage.getItem('authToken') || null;
+let authToken = (localStorage.getItem('authToken') || '').trim() || null;
 let currentUserId = localStorage.getItem('currentUserId') || null;
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 let allProducts = [];
@@ -567,7 +584,24 @@ function apiFetch(url, options = {}) {
     ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
     ...options.headers
   };
-  return fetch(BACKEND_URL + url, { ...options, headers });
+  try {
+    return fetch(BACKEND_URL + url, { ...options, headers });
+  } catch (err) {
+    // Filet de sécurité : si l'URL construite est invalide (ex: un identifiant manquant/mal
+    // formé transformé en "[object Object]" ou en espace non encodé), on le signale clairement
+    // au lieu de laisser un message cryptique remonter jusqu'à l'utilisateur.
+    console.error('apiFetch: URL invalide ->', BACKEND_URL + url, err);
+    return Promise.reject(new Error('Requête invalide (URL malformée) : ' + url));
+  }
+}
+// Récupère un identifiant de commande de façon robuste, quel que soit le nom du champ utilisé
+// par le backend (id, orderId, _id...). Renvoie null si rien d'exploitable n'est trouvé, plutôt
+// que de laisser un "[object Object]" ou "undefined" se glisser dans une URL.
+function getOrderId(order) {
+  const candidate = order && (order.id || order.orderId || order._id);
+  if (typeof candidate === 'string' && candidate.length > 0) return candidate;
+  if (typeof candidate === 'number') return String(candidate);
+  return null;
 }
 function showAlert(message, type = 'success') {
   const box = document.getElementById('alertBox');
@@ -748,7 +782,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('currentUserId', data.userId);
       localStorage.setItem('currentUser', JSON.stringify(data.user));
-      authToken = data.token;
+      authToken = (data.token || '').trim();
       currentUserId = data.userId;
       currentUser = data.user;
       document.getElementById('authPage').style.display = 'none';
@@ -764,6 +798,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       loadMessages();
       loadOrders();
       loadShopArticles();
+      loadPendingSales();
       startMessagePolling();
       if (wasRegistering) showWelcomeModal(currentUser);
     } else {
@@ -1403,7 +1438,7 @@ function initUserSearch() {
                 <div class="user-search-avatar">${user.photo ? safeImgTag(user.photo, user.name) : escapeHtml((user.name || '?').charAt(0).toUpperCase())}</div>
                 <div class="user-search-info">
                   <div class="user-search-name">${escapeHtml(user.name)}</div>
-                  <div class="user-search-flames"><img src="${FLAME_ICON_DATA_URL}" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px;margin-right:3px;">${user.flames} flammes</div>
+                  <div class="user-search-flames">${user.flames} flammes</div>
                 </div>
               `;
               item.addEventListener('click', () => {
@@ -1446,7 +1481,7 @@ function showUserProfile(userId) {
             </div>
             <h2 style="margin:10px 0 4px;">${escapeHtml(user.name)}</h2>
             <div style="display:flex;justify-content:center;gap:20px;margin:20px 0;">
-              <div><span style="font-weight:800;display:flex;align-items:center;gap:4px;justify-content:center;"><img src="${FLAME_ICON_DATA_URL}" style="width:18px;height:18px;object-fit:contain;">${user.flames || 0}</span><br><span style="font-size:12px;">Flammes</span></div>
+              <div><span style="font-weight:800;">${user.flames || 0}</span><br><span style="font-size:12px;">Flammes</span></div>
               <div><span style="font-weight:800;" id="userProfileStatus">${user.online ? 'En ligne <span class="online-dot"></span>' : 'Hors ligne'}</span><br><span style="font-size:12px;">Statut</span></div>
             </div>
             <button class="btn btn-primary" id="btnMessageUser" data-user-id="${escapeHtml(userId)}" data-user-name="${escapeHtml(user.name)}">Écrire un message</button>
@@ -1638,11 +1673,16 @@ function pollForNewMessages() {
     .then(data => {
       if (!data.success || !data.data) return;
       data.data.forEach(msg => {
-        const msgId = msg.id || (msg.senderId + '_' + msg.createdAt);
-        if (seenMessageIds.has(msgId)) return;
-        seenMessageIds.add(msgId);
-        if (msg.senderId !== currentUserId && msg.receiverId === currentUserId && activeConversationId !== msg.senderId) {
-          showMessageNotification(msg.senderName || 'Nouveau message', msg.text || '', msg.senderPhoto, msg.senderId);
+        try {
+          const msgId = msg.id || ((msg.senderId || '?') + '_' + (msg.createdAt || Math.random()));
+          if (seenMessageIds.has(msgId)) return;
+          seenMessageIds.add(msgId);
+          if (msg.senderId && msg.senderId !== currentUserId && msg.receiverId === currentUserId && activeConversationId !== msg.senderId) {
+            showMessageNotification(msg.senderName || 'Nouveau message', msg.text || '', msg.senderPhoto, msg.senderId);
+          }
+        } catch (err) {
+          // Un message malformé ne doit jamais interrompre le traitement des autres.
+          console.error('pollForNewMessages: message ignoré (format inattendu)', err, msg);
         }
       });
       const pageMessages = document.getElementById('pageMessages');
@@ -1847,7 +1887,9 @@ function handleOrderExpired(order) {
   if (order._expiredHandled) return;
   order._expiredHandled = true;
   // Adapte cette route si ton backend utilise un autre chemin pour marquer un échec.
-  apiFetch('/api/orders/' + order.id + '/expire', { method: 'POST' }).catch(() => {});
+  const orderId = getOrderId(order);
+  if (!orderId) { console.warn('handleOrderExpired: identifiant de commande introuvable', order); return; }
+  apiFetch('/api/orders/' + encodeURIComponent(orderId) + '/expire', { method: 'POST' }).catch(() => {});
   showAlert('Une commande a expiré sans confirmation et est marquée comme échouée.', 'error');
   loadOrders();
 }
@@ -1960,10 +2002,18 @@ function openOrderConfirmModal(order) {
   confirmBtn.addEventListener('click', function() {
     this.disabled = true;
     const statusEl = overlay.querySelector('#confirmReceiptStatus');
+    const orderId = getOrderId(order);
+    if (!orderId) {
+      statusEl.style.color = '#E74C3C';
+      statusEl.textContent = "Impossible de confirmer : identifiant de commande introuvable. Réessaie depuis l'onglet Commandes ou contacte le support.";
+      console.error('openOrderConfirmModal: order sans identifiant exploitable', order);
+      this.disabled = false;
+      return;
+    }
     statusEl.textContent = 'Confirmation en cours...';
     // Libère les fonds séquestrés vers le vendeur. Adapte cette route si ton backend en
     // utilise une autre (ex. PATCH /api/orders/{id} avec { status: 'completed' }).
-    apiFetch('/api/orders/' + order.id + '/confirm-receipt', { method: 'POST' })
+    apiFetch('/api/orders/' + encodeURIComponent(orderId) + '/confirm-receipt', { method: 'POST' })
       .then(r => r.json())
       .then(data => {
         if (data.success !== false) {
@@ -2007,7 +2057,7 @@ function offerFlameToSeller(order) {
   overlay.querySelector('#btnGiveFlame').addEventListener('click', function() {
     this.disabled = true;
     // Adapte cette route si ton backend en utilise une autre.
-    apiFetch('/api/flames/give', { method: 'POST', body: JSON.stringify({ toUserId: sellerId, orderId: order.id }) })
+    apiFetch('/api/flames/give', { method: 'POST', body: JSON.stringify({ toUserId: sellerId, orderId: getOrderId(order) }) })
       .then(r => r.json())
       .then(() => { showAlert('Flamme envoyée au vendeur !', 'success'); overlay.remove(); })
       .catch(() => { showAlert('Erreur réseau lors de l\'envoi de la flamme.', 'error'); overlay.remove(); });
@@ -2147,7 +2197,7 @@ function initTabs() {
     const target = document.getElementById(pageId);
     if (target) target.classList.add('active');
     if (pageId === 'pageProfile') { loadWallet(); loadFlames(currentUserId); }
-    if (pageId === 'pageShop') { loadShopArticles(); loadStats(); }
+    if (pageId === 'pageShop') { loadShopArticles(); loadStats(); loadPendingSales(); }
     if (pageId === 'pageOrders') { loadOrders(); }
     if (pageId === 'pageMessages') { loadMessages(); }
   }
@@ -2197,6 +2247,53 @@ function deleteArticle(articleId) {
     if (data.success) { showAlert('Article supprimé !', 'success'); loadShopArticles(); loadProducts(); loadStats(); }
     else showAlert(data.message, 'error');
   }).catch(e => showAlert('Erreur: '+e.message, 'error'));
+}
+
+// Ventes en cours côté vendeur : uniquement le temps restant avant expiration de la
+// "protection BLK" (3h). Le vendeur ne peut rien confirmer lui-même — seul l'acheteur, en
+// confirmant la réception, déclenche le virement des fonds. Adapte la route si besoin.
+let pendingSalesTimerInterval = null;
+function loadPendingSales() {
+  if (!currentUserId) return;
+  apiFetch('/api/orders/seller/' + currentUserId)
+    .then(r => r.json())
+    .then(data => {
+      const section = document.getElementById('pendingSalesSection');
+      const list = document.getElementById('pendingSalesList');
+      if (!section || !list) return;
+      if (pendingSalesTimerInterval) { clearInterval(pendingSalesTimerInterval); pendingSalesTimerInterval = null; }
+      const orders = (data && data.success && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+      const pending = orders.filter(o => {
+        const s = String(o.status || '').toLowerCase();
+        return !['completed', 'cancelled', 'refunded', 'failed', 'expired', 'livré', 'livree', 'terminé', 'termine', 'échoué', 'echoue'].includes(s);
+      });
+      if (pending.length === 0) {
+        section.style.display = 'none';
+        list.innerHTML = '';
+        return;
+      }
+      section.style.display = 'block';
+      list.innerHTML = '';
+      const timerTargets = [];
+      pending.forEach(order => {
+        const articleTitle = (order.article && order.article.title) || 'Article';
+        const createdAt = parseServerDate(order.createdAt);
+        const row = document.createElement('div');
+        row.className = 'shop-list-item';
+        row.innerHTML = `<div class="info"><div class="name">${escapeHtml(articleTitle)}</div></div>`;
+        if (createdAt) {
+          const pill = createOrderTimerPill(createdAt.getTime() + PROTECTION_WINDOW_MS);
+          pill.el.classList.add('small');
+          row.appendChild(pill.el);
+          timerTargets.push(pill.update);
+        }
+        list.appendChild(row);
+      });
+      if (timerTargets.length > 0) {
+        pendingSalesTimerInterval = setInterval(() => { timerTargets.forEach(u => u()); }, 1000);
+      }
+    })
+    .catch(e => console.error('Erreur chargement ventes en attente:', e));
 }
 
 // ===================== STATISTIQUES & GRAPHIQUE =====================
@@ -2349,6 +2446,7 @@ function initApp() {
     loadMessages();
     loadOrders();
     loadShopArticles();
+    loadPendingSales();
     startMessagePolling();
   } else {
     document.getElementById('authPage').style.display = 'flex';
