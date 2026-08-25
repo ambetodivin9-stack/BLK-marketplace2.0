@@ -6,12 +6,38 @@ const FormData = require('form-data');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+// ==================== CORS ====================
+// Restreint aux origines autorisées via la variable d'env ALLOWED_ORIGINS
+// (séparées par des virgules). Si non définie, autorise tout (pratique en dev,
+// mais à définir en production pour limiter l'abus depuis d'autres sites).
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+}));
 app.use(express.json({ limit: '10mb' }));
+
+// ==================== RATE LIMITING ====================
+// Empêche le brute force sur la connexion/inscription et limite l'abus général de l'API.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 20, // 20 tentatives / 15 min / IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de tentatives, réessaie dans quelques minutes.' }
+});
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 min
+  max: 120, // 120 requêtes / min / IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de requêtes, ralentis un peu.' }
+});
+app.use(globalLimiter);
 
 let db = null;
 let firebaseReady = false;
@@ -39,12 +65,23 @@ try {
 const IMG_BB_KEY = process.env.IMG_BB_KEY;
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
-const JWT_SECRET = process.env.JWT_SECRET || 'chaine-secrete-tres-longue-a-changer-en-production';
+
+// ==================== JWT_SECRET : plus de repli non sécurisé ====================
+// Un secret par défaut codé en dur permettrait à quiconque le connaît de forger des
+// tokens valides pour n'importe quel compte. On préfère planter au démarrage (erreur
+// claire dans les logs) plutôt que de tourner avec un secret compromis.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('ERREUR FATALE: la variable d\'environnement JWT_SECRET n\'est pas définie. Configure-la dans Render (Environment) avec une longue chaîne aléatoire, puis redéploie.');
+  process.exit(1);
+}
 
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
+const MAX_TITLE_LEN = 100;
+const MAX_DESCRIPTION_LEN = 2000;
 
 // ==================== ADMIN ====================
 const ADMIN_PHONE = '242065918166';
@@ -64,6 +101,13 @@ function formatPhoneForYabetoo(phone) {
   return '+' + formatted;
 }
 
+// Renvoie un message générique au client tout en loguant le détail technique côté
+// serveur uniquement (le client ne doit jamais voir de stack trace ou de détail interne).
+function sendServerError(res, context, error) {
+  console.error(`[${context}]`, error.message, error.response?.data || '');
+  return res.status(500).json({ success: false, message: "Une erreur est survenue. Réessaie dans un instant." });
+}
+
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -78,6 +122,22 @@ function authenticate(req, res, next) {
   } catch (err) {
     return res.status(401).json({ success: false, message: 'Token invalide ou expiré' });
   }
+}
+
+// Authentification "douce" : si un token valide est fourni, on identifie l'utilisateur ;
+// sinon on continue quand même (utile pour les routes publiques qui affichent plus
+// d'informations si c'est le propriétaire du profil qui consulte).
+function optionalAuthenticate(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.userId = decoded.userId;
+      req.userEmail = decoded.email;
+    } catch (err) { /* token invalide -> on continue sans identité */ }
+  }
+  next();
 }
 
 async function ensureAdminDocument() {
@@ -111,11 +171,12 @@ app.get('/ping', (req, res) => res.send('pong'));
 app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED_CATEGORIES }));
 
 // ==================== AUTH ====================
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { email, password, name, phone } = req.body;
     if (!email || !password || !name || !phone) return res.status(400).json({ success: false, message: 'Champs requis' });
+    if (String(password).length < 8) return res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères' });
     const usersRef = db.collection('users');
     const existing = await usersRef.where('email', '==', email).get();
     if (!existing.empty) return res.status(409).json({ success: false, message: 'Email déjà utilisé' });
@@ -129,11 +190,11 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'auth/register', error);
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { email, password } = req.body;
@@ -147,19 +208,17 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ userId: userDoc.id, email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '' } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'auth/login', error);
   }
 });
 
 // ==================== ARTICLES ====================
-// Modification : tri par sellerFlames (décroissant) puis date
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
-    // Tri : d'abord par sellerFlames (décroissant), ensuite par date (décroissant)
     articles.sort((a, b) => {
       const flamesDiff = (b.sellerFlames || 0) - (a.sellerFlames || 0);
       if (flamesDiff !== 0) return flamesDiff;
@@ -170,7 +229,7 @@ app.get('/api/articles', async (req, res) => {
     articles = articles.slice(0, 200);
     res.json({ success: true, data: articles });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'articles/list', error);
   }
 });
 
@@ -189,7 +248,7 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
     articles = articles.slice(0, 200);
     res.json({ success: true, data: articles });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'articles/seller', error);
   }
 });
 
@@ -200,6 +259,12 @@ app.post('/api/articles', authenticate, async (req, res) => {
     const sellerId = req.userId;
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
+    }
+    if (String(title).length > MAX_TITLE_LEN) {
+      return res.status(400).json({ success: false, message: `Titre trop long (max ${MAX_TITLE_LEN} caractères)` });
+    }
+    if (String(description).length > MAX_DESCRIPTION_LEN) {
+      return res.status(400).json({ success: false, message: `Description trop longue (max ${MAX_DESCRIPTION_LEN} caractères)` });
     }
     if (!ALLOWED_CATEGORIES.includes(category)) {
       return res.status(400).json({ success: false, message: `Categorie non autorisee. Autorise: ${ALLOWED_CATEGORIES.join(', ')}` });
@@ -213,23 +278,22 @@ app.post('/api/articles', authenticate, async (req, res) => {
     if (imageList.length === 0 && image) imageList = [image];
     if (imageList.length === 0) return res.status(400).json({ success: false, message: 'Au moins une image est requise' });
 
-    // Récupérer les flammes du vendeur pour les intégrer à l'article
     const sellerDoc = await db.collection('users').doc(sellerId).get();
     const sellerFlames = sellerDoc.exists ? (sellerDoc.data().flames || 0) : 0;
 
     const article = {
       title, description, price: articlePrice, category, condition,
-      size: size || '', hashtags: Array.isArray(hashtags) ? hashtags : [],
+      size: size || '', hashtags: Array.isArray(hashtags) ? hashtags.slice(0, 15) : [],
       image: imageList[0], images: imageList,
       sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      sellerFlames,  // Champ ajouté pour le tri
+      sellerFlames,
       status: 'active', views: 0, favorites: 0, stock: quantity, createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
     res.json({ success: true, id: docRef.id });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Prix invalide' });
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'articles/create', error);
   }
 });
 
@@ -246,7 +310,7 @@ app.delete('/api/articles/:id', authenticate, async (req, res) => {
     await articleRef.update({ status: 'inactive' });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'articles/delete', error);
   }
 });
 
@@ -259,7 +323,7 @@ app.post('/api/articles/view/:id', async (req, res) => {
     await doc.ref.update({ views });
     res.json({ success: true, views });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'articles/view', error);
   }
 });
 
@@ -283,21 +347,19 @@ app.post('/api/upload', authenticate, async (req, res) => {
     formData.append('image', cleanBase64);
     const response = await axios.post('https://api.imgbb.com/1/upload', formData, { headers: formData.getHeaders(), timeout: 15000 });
     if (response.data.success) res.json({ success: true, url: response.data.data.url });
-    else res.status(400).json({ success: false, message: 'Erreur ImgBB: ' + (response.data.error?.message || 'inconnue') });
+    else res.status(400).json({ success: false, message: "Erreur lors de l'envoi de l'image, réessaie." });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+    sendServerError(res, 'upload', error);
   }
 });
 
 // ==================== UTILISATEURS ====================
-// Nouvelle route de recherche d'utilisateurs
 app.get('/api/users/search', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const query = (req.query.query || '').toLowerCase().trim();
-    if (!query) return res.json({ success: true, data: [] });
+    if (!query || query.length < 2) return res.json({ success: true, data: [] });
 
-    // Récupère tous les utilisateurs (limite 200) et filtre en mémoire
     const snapshot = await db.collection('users').limit(200).get();
     let users = [];
     snapshot.forEach(doc => {
@@ -316,29 +378,38 @@ app.get('/api/users/search', authenticate, async (req, res) => {
     users = users.slice(0, 10);
     res.json({ success: true, data: users });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'users/search', error);
   }
 });
 
-app.get('/api/users/:userId', async (req, res) => {
+// SÉCURITÉ : cette route est publique (elle sert à afficher un profil vendeur/contact
+// sans forcer une connexion), mais elle ne renvoie plus jamais l'email, le téléphone ou
+// le solde du wallet, SAUF si la personne qui appelle est authentifiée ET consulte SON
+// PROPRE profil. Avant, ces champs étaient renvoyés à absolument n'importe qui.
+app.get('/api/users/:userId', optionalAuthenticate, async (req, res) => {
   if (!firebaseReady) {
-    return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, walletBalance: 5000, phone: '+242 06 123 4567', email: 'test@example.com', isSeller: false, blockedUsers: [], online: false } });
+    return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, online: false } });
   }
   try {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
     if (!doc.exists) return res.status(404).json({ success: false, message: 'Utilisateur non trouve' });
     const data = doc.data();
-    res.json({
-      success: true,
-      data: {
-        name: data.name, photo: data.photo || '', flames: data.flames || 0,
-        walletBalance: data.walletBalance || 0, phone: data.phone || '', email: data.email || '',
-        isSeller: data.isSeller || false, blockedUsers: data.blockedUsers || [], online: data.online || false
-      }
-    });
+    const isOwnProfile = req.userId && req.userId === userId;
+
+    const publicData = {
+      name: data.name, photo: data.photo || '', flames: data.flames || 0, online: data.online || false
+    };
+    if (isOwnProfile) {
+      publicData.email = data.email || '';
+      publicData.phone = data.phone || '';
+      publicData.walletBalance = data.walletBalance || 0;
+      publicData.blockedUsers = data.blockedUsers || [];
+      publicData.isSeller = data.isSeller || false;
+    }
+    res.json({ success: true, data: publicData });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'users/get', error);
   }
 });
 
@@ -357,7 +428,7 @@ app.put('/api/users/:userId', authenticate, async (req, res) => {
     await db.collection('users').doc(userId).set(updateData, { merge: true });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'users/update', error);
   }
 });
 
@@ -368,7 +439,7 @@ app.post('/api/users/online', authenticate, async (req, res) => {
     await db.collection('users').doc(req.userId).set({ online: online || false }, { merge: true });
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'users/online', error);
   }
 });
 
@@ -389,7 +460,7 @@ app.post('/api/users/block', authenticate, async (req, res) => {
       return res.json({ success: true, message: 'Bloque', blocked: true });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'users/block', error);
   }
 });
 
@@ -402,7 +473,7 @@ app.get('/api/wallet/:userId', authenticate, async (req, res) => {
     const doc = await db.collection('users').doc(userId).get();
     res.json({ balance: doc.data()?.walletBalance || 0 });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'wallet/get', error);
   }
 });
 
@@ -433,7 +504,8 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     const intent = createResponse.data;
     const clientSecret = intent.client_secret || intent.clientSecret || intent.data?.client_secret || intent.data?.clientSecret || intent.intent?.client_secret || intent.intent?.clientSecret;
     if (!clientSecret) {
-      return res.status(502).json({ success: false, message: "La creation de l'intention Yabetoo n'a pas renvoye de client_secret exploitable.", yabetoo_create_response: intent });
+      console.error('[payment/initiate] Pas de client_secret exploitable:', intent);
+      return res.status(502).json({ success: false, message: "Le paiement n'a pas pu être initialisé. Réessaie dans un instant." });
     }
 
     const confirmPayload = {
@@ -468,13 +540,8 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     res.json({ success: true, message: 'Demande envoyee a Yabetoo. En attente de ta confirmation par SMS/USSD, puis du webhook.', status: confirmData.status || 'pending' });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
-    return res.status(502).json({
-      success: false,
-      message: 'Le paiement Yabetoo a echoue (aucun credit fictif applique).',
-      yabetoo_http_status: error.response?.status || null,
-      yabetoo_error: error.response?.data || null,
-      raw_message: error.message
-    });
+    console.error('[payment/initiate]', error.message, error.response?.data || '');
+    return res.status(502).json({ success: false, message: 'Le paiement a échoué (aucun crédit appliqué). Réessaie dans un instant.' });
   }
 });
 
@@ -564,7 +631,7 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
   } catch (error) {
     if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ success: false, message: 'Solde insuffisant' });
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'wallet/transfer', error);
   }
 });
 
@@ -599,11 +666,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       disbursement = disbursementResponse.data;
     } catch (yabetooError) {
       console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
-      return res.status(502).json({
-        success: false,
-        message: "Le retrait Yabetoo a echoue (aucun montant debite).",
-        yabetoo_error: yabetooError.response?.data || null
-      });
+      return res.status(502).json({ success: false, message: "Le retrait a échoué (aucun montant débité). Réessaie dans un instant." });
     }
 
     const newBalance = currentBalance - withdrawAmount;
@@ -617,7 +680,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     res.json({ success: true, message: "Retrait initie. Yabetoo l'executera automatiquement sous 24h vers ton Mobile Money.", newBalance });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'wallet/withdraw', error);
   }
 });
 
@@ -686,8 +749,7 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
     if (error.message === 'ARTICLE_OUT_OF_STOCK') return res.status(409).json({ success: false, message: 'Article épuisé' });
     if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ success: false, message: 'Solde insuffisant' });
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Montant invalide' });
-    console.error('Order Error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'orders/create', error);
   }
 });
 
@@ -725,13 +787,11 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
 
-      // Créditer le vendeur
       const sellerRef = db.collection('users').doc(order.sellerId);
       const sellerDoc = await t.get(sellerRef);
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
       t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
 
-      // Créditer l'admin avec les commissions
       const adminRef = db.collection('users').doc(ADMIN_USER_ID);
       const adminDoc = await t.get(adminRef);
       let adminBalance = 0;
@@ -752,17 +812,14 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       }
       t.update(adminRef, { walletBalance: adminBalance + adminTotal });
 
-      // Mettre à jour l'article
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
 
-      // Gestion des flammes
       if (!flameGiven) {
         const currentFlames = sellerDoc.data()?.flames || 0;
         t.update(sellerRef, { flames: currentFlames + 1 });
         flameGiven = true;
       }
 
-      // Mise à jour de la commande
       t.update(orderRef, {
         status: 'livré',
         buyerConfirmed: true,
@@ -785,8 +842,7 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal, flameGiven });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
-    console.error('Confirm Error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'orders/confirm', error);
   }
 });
 
@@ -797,27 +853,39 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     if (userId !== req.userId && userId !== ADMIN_USER_ID) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const orders = [];
 
-    const buyerSnapshot = await db.collection('orders').where('buyerId', '==', userId).get();
-    for (const doc of buyerSnapshot.docs) {
-      const order = doc.data();
-      const articleDoc = await db.collection('products').doc(order.articleId).get();
-      const article = articleDoc.data();
-      const sellerDoc = await db.collection('users').doc(order.sellerId).get();
-      const seller = sellerDoc.data();
-      orders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, seller: seller ? { name: seller.name, photo: seller.photo || '' } : null });
-    }
+    // Récupère les commandes en tant qu'acheteur ET vendeur en parallèle plutôt qu'en
+    // série, et regroupe les lectures d'articles/utilisateurs pour limiter le nombre
+    // d'appels Firestore (N+1) qui participaient à l'épuisement du quota.
+    const [buyerSnapshot, sellerSnapshot] = await Promise.all([
+      db.collection('orders').where('buyerId', '==', userId).get(),
+      db.collection('orders').where('sellerId', '==', userId).get()
+    ]);
 
-    const sellerSnapshot = await db.collection('orders').where('sellerId', '==', userId).get();
-    for (const doc of sellerSnapshot.docs) {
-      if (!orders.find(o => o.id === doc.id)) {
-        const order = doc.data();
-        const articleDoc = await db.collection('products').doc(order.articleId).get();
-        const article = articleDoc.data();
-        const buyerDoc = await db.collection('users').doc(order.buyerId).get();
-        const buyer = buyerDoc.data();
-        orders.push({ id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null, buyer: buyer ? { name: buyer.name, photo: buyer.photo || '' } : null });
-      }
-    }
+    const allDocs = [...buyerSnapshot.docs];
+    sellerSnapshot.docs.forEach(d => { if (!allDocs.find(x => x.id === d.id)) allDocs.push(d); });
+
+    const articleIds = [...new Set(allDocs.map(d => d.data().articleId).filter(Boolean))];
+    const otherUserIds = [...new Set(allDocs.map(d => d.data().buyerId === userId ? d.data().sellerId : d.data().buyerId).filter(Boolean))];
+
+    const [articleDocs, userDocs] = await Promise.all([
+      Promise.all(articleIds.map(id => db.collection('products').doc(id).get())),
+      Promise.all(otherUserIds.map(id => db.collection('users').doc(id).get()))
+    ]);
+    const articlesById = {};
+    articleDocs.forEach(d => { if (d.exists) articlesById[d.id] = d.data(); });
+    const usersById = {};
+    userDocs.forEach(d => { if (d.exists) usersById[d.id] = d.data(); });
+
+    allDocs.forEach(doc => {
+      const order = doc.data();
+      const article = articlesById[order.articleId];
+      const otherId = order.buyerId === userId ? order.sellerId : order.buyerId;
+      const otherUser = usersById[otherId];
+      const entry = { id: doc.id, ...order, article: article ? { title: article.title, image: article.image, price: article.price } : null };
+      if (order.buyerId === userId) entry.seller = otherUser ? { name: otherUser.name, photo: otherUser.photo || '' } : null;
+      else entry.buyer = otherUser ? { name: otherUser.name, photo: otherUser.photo || '' } : null;
+      orders.push(entry);
+    });
 
     orders.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
@@ -827,8 +895,7 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
 
     res.json(orders.slice(0, 200));
   } catch (error) {
-    console.error('Orders Error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'orders/list', error);
   }
 });
 
@@ -861,8 +928,7 @@ app.post('/api/orders/cancel/:orderId', authenticate, async (req, res) => {
     res.json({ success: true, message: 'Commande annulee et remboursee', refunded: order.totalAmount });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
-    console.error('Cancel Error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    sendServerError(res, 'orders/cancel', error);
   }
 });
 
@@ -890,7 +956,7 @@ async function autoExpireOrders() {
     }
   } catch (error) { console.error('Erreur autoExpireOrders:', error.message); }
 }
-setInterval(autoExpireOrders, 5 * 60 * 1000);
+setInterval(() => { autoExpireOrders().catch(err => console.error('autoExpireOrders (non gérée):', err.message)); }, 5 * 60 * 1000);
 
 // ==================== FLAMMES ====================
 app.post('/api/flames', authenticate, async (req, res) => {
@@ -908,7 +974,7 @@ app.post('/api/flames', authenticate, async (req, res) => {
     const currentFlames = userDoc.data()?.flames || 0;
     await userRef.update({ flames: currentFlames + 1 });
     res.json({ success: true, flames: currentFlames + 1 });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'flames/give', error); }
 });
 
 app.get('/api/flames/:userId', async (req, res) => {
@@ -917,7 +983,7 @@ app.get('/api/flames/:userId', async (req, res) => {
     const { userId } = req.params;
     const doc = await db.collection('users').doc(userId).get();
     res.json({ flames: doc.data()?.flames || 0 });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'flames/get', error); }
 });
 
 // ==================== STATISTIQUES ====================
@@ -952,7 +1018,7 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
     });
     const historyArray = Object.keys(history).sort().map(month => ({ month, ventes: history[month].ventes, revenu: Math.round(history[month].revenu) }));
     res.json({ success: true, data: { totalArticles: articlesSnapshot.size, totalSales, totalRevenue: Math.round(totalRevenue), totalPurchases, totalSpent, history: historyArray } });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'stats', error); }
 });
 
 // ==================== MESSAGES ====================
@@ -964,12 +1030,17 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     const snapshot = await db.collection('messages').where('participants', 'array-contains', userId).get();
     let messages = [];
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
-    for (const msg of messages) {
-      if (msg.receiverId === userId && !msg.read) {
-        await db.collection('messages').doc(msg.id).update({ read: true });
-        msg.read = true;
-      }
+
+    // Regroupe les mises à jour "lu" en un seul batch au lieu d'un .update() par message
+    // à chaque appel (c'était un facteur majeur de consommation du quota d'écriture,
+    // vu que le frontend sonde cette route régulièrement).
+    const unread = messages.filter(m => m.receiverId === userId && !m.read);
+    if (unread.length > 0) {
+      const batch = db.batch();
+      unread.forEach(m => { batch.update(db.collection('messages').doc(m.id), { read: true }); m.read = true; });
+      await batch.commit();
     }
+
     messages.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
@@ -977,7 +1048,7 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     });
     messages = messages.slice(0, 200);
     res.json({ success: true, data: messages });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'messages/list', error); }
 });
 
 app.post('/api/messages', authenticate, async (req, res) => {
@@ -986,6 +1057,7 @@ app.post('/api/messages', authenticate, async (req, res) => {
     const { receiverId, text, audioUrl, audioDuration } = req.body;
     const senderId = req.userId;
     if (!receiverId || (!text && !audioUrl)) return res.status(400).json({ success: false, message: 'Message ou audio requis' });
+    if (text && String(text).length > 2000) return res.status(400).json({ success: false, message: 'Message trop long' });
 
     const senderDoc = await db.collection('users').doc(senderId).get();
     const senderName = senderDoc.data()?.name || 'Anonyme';
@@ -1005,7 +1077,7 @@ app.post('/api/messages', authenticate, async (req, res) => {
     const docRef = await db.collection('messages').add(message);
     await db.collection('notifications').add({ userId: receiverId, message: `Nouveau message de ${senderName}`, type: 'new_message', read: false, messageId: docRef.id, createdAt: new Date() });
     res.json({ success: true, id: docRef.id });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'messages/send', error); }
 });
 
 // ==================== NOTIFICATIONS ====================
@@ -1024,7 +1096,7 @@ app.get('/api/notifications/:userId', authenticate, async (req, res) => {
     });
     notifications = notifications.slice(0, 50);
     res.json({ success: true, data: notifications });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'notifications/list', error); }
 });
 
 app.post('/api/notifications/read/:id', authenticate, async (req, res) => {
@@ -1033,7 +1105,7 @@ app.post('/api/notifications/read/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     await db.collection('notifications').doc(id).update({ read: true });
     res.json({ success: true });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { sendServerError(res, 'notifications/read', error); }
 });
 
 // ==================== ADMIN: RETRAIT AUTOMATIQUE ====================
@@ -1092,12 +1164,26 @@ async function autoWithdrawAdmin() {
   }
 }
 
-setTimeout(() => { autoWithdrawAdmin(); }, 10000);
-setInterval(autoWithdrawAdmin, AUTO_WITHDRAW_INTERVAL_MS);
+// FIX CRITIQUE : chaque appel async au démarrage est maintenant protégé par un .catch().
+// Avant, une erreur ici (ex: quota Firestore dépassé) devenait une "unhandled promise
+// rejection" qui fait planter tout le process Node (Exited with status 1), en boucle.
+setTimeout(() => {
+  autoWithdrawAdmin().catch(err => console.error('autoWithdrawAdmin (non gérée):', err.message));
+}, 10000);
+setInterval(() => {
+  autoWithdrawAdmin().catch(err => console.error('autoWithdrawAdmin (non gérée):', err.message));
+}, AUTO_WITHDRAW_INTERVAL_MS);
 
 if (firebaseReady) {
-  ensureAdminDocument().then(() => console.log('Admin document prêt'));
+  ensureAdminDocument()
+    .then(() => console.log('Admin document prêt'))
+    .catch(err => console.error('ensureAdminDocument a échoué (le serveur continue de tourner):', err.message));
 }
+
+// Filet de sécurité global : logue sans jamais planter le process.
+process.on('unhandledRejection', (reason) => {
+  console.error('Promesse rejetée non gérée (ignorée, le serveur continue de tourner):', reason);
+});
 
 app.listen(PORT, () => {
   console.log(`Serveur BLK démarré sur le port ${PORT}`);
