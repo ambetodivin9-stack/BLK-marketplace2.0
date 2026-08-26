@@ -77,7 +77,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .app.active{display:block;}
 .home-header{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
 .brand-row{display:flex;align-items:center;gap:8px;padding-left:4px;}
-.brand-logo-img{width:38px;height:38px;object-fit:contain;flex-shrink:0;}
+.brand-logo-img{width:60px;height:60px;object-fit:contain;flex-shrink:0;}
 .brand-logo-text{font-size:28px;font-weight:800;color:var(--text);}
 .search-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:30px;background:var(--card-bg);border:2px solid var(--accent);box-shadow:0 4px 12px var(--shadow);position:relative;}
 .search-bar input{flex:1;border:none;background:transparent;font-size:16px;outline:none;color:var(--text);}
@@ -232,6 +232,7 @@ body.dark .wallet-card-dashes span{background:rgba(255,255,255,.2);}
 
 /* Photo de profil éditable */
 .avatar-edit-badge{position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--card-bg);pointer-events:none;}
+.online-status-dot{position:absolute;top:0;right:0;width:16px;height:16px;border-radius:50%;background:var(--accent3);border:2.5px solid var(--card-bg);pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,.05);}
 .profile-avatar-new{position:relative;cursor:pointer;}
 .profile-avatar-new img{width:100%;height:100%;object-fit:cover;}
 
@@ -431,7 +432,7 @@ body.dark .wallet-warning{color:#ffb4a8;}
       </div>
       <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;">
       <div>
-        <h2 id="profileNameNew">Utilisateur <span class="online-dot" id="profileOnlineDot" style="display:none;"></span></h2>
+        <h2 id="profileNameNew">Utilisateur</h2>
         <p id="profileEmailNew" style="color:#999;font-size:14px;"></p>
         <p id="profilePhoneNew" style="color:#999;font-size:14px;"></p>
       </div>
@@ -499,6 +500,16 @@ body.dark .wallet-warning{color:#ffb4a8;}
 <!-- Avertissement plein écran (banissement / modération) -->
 <div class="warning-fullscreen" id="warningFullscreen"></div>
 
+<!-- Écran plein écran "problème de connexion" (façon grandes applications) -->
+<div class="warning-fullscreen" id="connectionErrorScreen">
+  <div class="warning-box">
+    <div class="warning-icon">📡</div>
+    <h3>Problème de connexion</h3>
+    <p>Impossible de joindre le serveur BLK Marketplace. Vérifie ta connexion internet, puis réessaie.</p>
+    <button class="btn btn-primary" id="connectionErrorRetryBtn">Réessayer</button>
+  </div>
+</div>
+
 <script>
 // ===================== ICONS SVG =====================
 const TAB_ICONS = {
@@ -520,26 +531,20 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 // ===================== LOGO (image 1 fournie par l'utilisateur) =====================
-const IMGBB_API_KEY = "2b3e869d8b6f382027e70cd216f65580";
-// Upload direct vers imgbb (contourne le backend pour l'hébergement des photos, cause probable
-// de la non-affichage des photos d'articles publiés si l'endpoint /api/upload du backend était en cause).
+// Upload via le backend (route /api/upload, authentifiée) : la clé imgbb reste côté
+// serveur uniquement, elle n'est plus jamais exposée dans le code source du site.
 function uploadToImgbb(base64Image) {
-  const form = new URLSearchParams();
-  form.append('image', base64Image);
-  return fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
-    method: 'POST',
-    body: form
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data && data.success && data.data && data.data.url) return data.data.url;
-    console.error('Réponse imgbb sans URL exploitable:', data);
-    return null;
-  })
-  .catch(err => {
-    console.error('Requête imgbb échouée (réseau/CORS/clé) :', err);
-    return null;
-  });
+  return apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: base64Image }) })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success && data.url) return data.url;
+      console.error('Upload backend sans URL exploitable:', data);
+      return null;
+    })
+    .catch(err => {
+      console.error('Requête upload backend échouée:', err);
+      return null;
+    });
 }
 
 const LOGO_DATA_URL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAGQAZADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7LooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAM7xDqsOj6W97MjPghVQcFmPQVxJ+IV7u40632+m9s1vfE9N3hjd/dnQ/zH9a8tr4XiTN8ZhcUqVGfKrJ9D6bJ8vw9eg51I3dz1vwj4li13zYjAYJ4gGZd2QR6g10FecfCaMnVL2XssIX82/8ArV6PX0eRYuri8FGrW1bv+DPIzOhToYmUKe2gUUUV65wBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAZniDW7LRbTzrlsu3+riX7zn/PeuQsfiBOb8fbLOJbVjj92SXQevv8ApWX8R4LqPxJJLPuMUqr5LdsAcj88/nXNV+d5vxDjaeMdOn7qi9u/r6n1mX5Th54dSn7zkvu9D3e3miuIUmhdZI3G5WU8EVJXl/gTxKdMmFhev/och+Vj/wAsmP8AQ16epDKCCCD0Ir7HKszp5jQVSOjW67P/AC7HgY7BTwlTklt0fcWiiivTOIKKKKACiiigDm/iQM+FJz6SIf8Ax4V5RXr/AI7iM3hS+CjJVA/5MDXkFfm/F8WsbF94r82fYcPyvh5Lz/RHffCNf+Qi3f8Adj/0Ku9rg/hH9zUfrH/7NXeV9Zw3/wAi2n8/zZ4Wcf75P5fkgooor3DzAooooAKKKKACuY1vxnp2m6j9jEUtwyHErRkYQ+nuaqeO/FH2JG03T5AbphiWQf8ALIeg/wBr+VebEknJOSa+Oz3iN4afscK/eW73t5f5n0GWZOq0faVtnsv1PctNvrXUbNLu0lEkTjgjt7H0NWa4j4U297HaXU0gK2kpBiB/iYdS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AUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHlf7Svhe71/wNHeWELTXOlzGcxqMs0RGHwO+OD+Br5T61+gFeeeK/g54H8QXb3j2MthcyEs72Unlhj6lSCufwrzcZgnWlzwep9zwzxVTy2j9WxMW43umul+lj5Cor6nsvgF4GhOZ5NWuvZ7kKP/HVFXX+Bnw8ZcDT7xfcXkn+Ncay2t5H08uOssTslJ/Jf5nyXRX1PcfADwNJ/q5dXh/3bkH+amoF/Z88GDOdQ1pv+26f/EUv7NreRa44yv8Avfd/wT5for6fH7Pfg3dn+0dax6edH/8AEVftfgP4AiwZINSn/wCul2Rn/vkChZbW8hS45ytLTmfy/wCCfKNFfYNv8G/hzCB/xTyye8lxK3/s1Wh8KPh2P+ZVsvxLn+tWsrqdWjmlx9gU9Kcvw/zPjSivsiT4SfDpxz4XtR/uySD+TVC3wb+HBP8AyLiD6XMv/wAVR/ZdXugXH2A605/h/mfHtFfZFt8JPh3A25fDFs5/6aSSP+harM3wx8ASgB/CmmDH92Pb/Kn/AGXU7ol8f4K+lKX4f5nzx+zbpV5f/FCzvYI3+z6fHJLcSAcKChVRn1JPT2NfWwqhoei6TodmLPR9PtrG3Bz5cEYUE+px1Puav16WFw/sIct7nwef5x/a2L9uo8qSsl5ef3hRRRXSeIFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/9k=";
@@ -785,6 +790,10 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       authToken = (data.token || '').trim();
       currentUserId = data.userId;
       currentUser = data.user;
+      // Recharge les données locales (contacts, état de lecture) propres à CE compte —
+      // évite qu'un compte voie les messages/contacts d'un compte précédent sur le même appareil.
+      loadLocalContactsForCurrentUser();
+      loadReadAtForCurrentUser();
       document.getElementById('authPage').style.display = 'none';
       document.getElementById('appContainer').classList.add('active');
       document.getElementById('tabs').classList.add('show');
@@ -800,6 +809,7 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
       loadShopArticles();
       loadPendingSales();
       startMessagePolling();
+      setUserOnline(true);
       if (wasRegistering) showWelcomeModal(currentUser);
     } else {
       errorDiv.style.display = 'block';
@@ -807,28 +817,60 @@ document.getElementById('authForm')?.addEventListener('submit', function(e) {
     }
   })
   .catch(err => {
-    errorDiv.style.display = 'block';
-    errorDiv.textContent = 'Erreur réseau : ' + err.message;
+    showConnectionErrorScreen();
+    console.error('Erreur réseau connexion/inscription:', err);
   });
 });
 
 // ===================== MISE À JOUR PROFIL =====================
+// ===================== STATUT EN LIGNE =====================
+// Informe le backend (route /api/users/online déjà existante) que ce compte est actif,
+// et affiche le point vert sur la photo de profil. Un heartbeat périodique garde le statut
+// à jour pendant une session longue ; on repasse hors-ligne à la déconnexion et, du mieux
+// possible, à la fermeture de l'onglet.
+let onlineHeartbeatInterval = null;
+function setUserOnline(online) {
+  if (!currentUserId || !authToken) return;
+  currentUser.online = online;
+  updateProfileUI(currentUser);
+  apiFetch('/api/users/online', { method: 'POST', body: JSON.stringify({ online }) }).catch(() => {});
+  if (online && !onlineHeartbeatInterval) {
+    onlineHeartbeatInterval = setInterval(() => {
+      apiFetch('/api/users/online', { method: 'POST', body: JSON.stringify({ online: true }) }).catch(() => {});
+    }, 3 * 60 * 1000);
+  }
+  if (!online && onlineHeartbeatInterval) {
+    clearInterval(onlineHeartbeatInterval);
+    onlineHeartbeatInterval = null;
+  }
+}
+window.addEventListener('beforeunload', () => {
+  if (!currentUserId || !authToken) return;
+  fetch(BACKEND_URL + '/api/users/online', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+    body: JSON.stringify({ online: false }),
+    keepalive: true
+  }).catch(() => {});
+});
+
 function updateProfileUI(user) {
   const nameEl = document.getElementById('profileNameNew');
   const emailEl = document.getElementById('profileEmailNew');
   const phoneEl = document.getElementById('profilePhoneNew');
-  const onlineDotEl = document.getElementById('profileOnlineDot');
   const avatarContainer = document.getElementById('profileAvatarContainer');
 
   if (nameEl) nameEl.textContent = user.name || 'Utilisateur';
   if (emailEl) emailEl.textContent = user.email || '';
   if (phoneEl) phoneEl.textContent = user.phone || '';
-  if (onlineDotEl) onlineDotEl.style.display = user.online ? 'inline-block' : 'none';
   if (avatarContainer) {
     const inner = user.photo
       ? safeImgTag(user.photo, user.name)
       : `<span id="profileAvatarLetter">${escapeHtml((user.name || 'U').charAt(0).toUpperCase())}</span>`;
-    avatarContainer.innerHTML = inner + '<div class="avatar-edit-badge">📷</div>';
+    // Petit point vert sur la photo de profil, façon grandes applications, tant que le
+    // compte est marqué "en ligne" (voir setUserOnline()).
+    const onlineDotHtml = user.online ? '<div class="online-status-dot" title="En ligne"></div>' : '';
+    avatarContainer.innerHTML = inner + onlineDotHtml + '<div class="avatar-edit-badge">📷</div>';
   }
 }
 
@@ -1518,7 +1560,15 @@ function showUserProfile(userId) {
 // ===================== MESSAGERIE (plein écran) =====================
 // Contacts enregistrés localement dès qu'une conversation est ouverte, même sans message envoyé,
 // pour qu'ils apparaissent dans l'onglet Messagerie en sortant du chat.
-let localContacts = JSON.parse(localStorage.getItem('blk_local_contacts') || '{}');
+// IMPORTANT : ces clés sont désormais scopées par utilisateur (userId inclus dans la clé
+// localStorage) et rechargées à chaque connexion. Avant, la clé était globale au navigateur :
+// si un 2e compte se connectait sur le même appareil, il voyait les contacts et l'état de
+// lecture du 1er compte.
+let localContacts = {};
+function getLocalContactsKey() { return 'blk_local_contacts_' + (currentUserId || 'anon'); }
+function loadLocalContactsForCurrentUser() {
+  localContacts = JSON.parse(localStorage.getItem(getLocalContactsKey()) || '{}');
+}
 function registerLocalContact(id, name, photo) {
   if (!id) return;
   const prev = localContacts[id] || {};
@@ -1527,18 +1577,20 @@ function registerLocalContact(id, name, photo) {
     photo: photo || prev.photo || null,
     addedAt: prev.addedAt || new Date().toISOString()
   };
-  localStorage.setItem('blk_local_contacts', JSON.stringify(localContacts));
+  localStorage.setItem(getLocalContactsKey(), JSON.stringify(localContacts));
 }
 // Horodatage local de dernière lecture par contact : permet de faire disparaître le badge
-// "non lus" dès qu'on entre dans la conversation, même si le backend n'a pas encore marqué
-// les messages comme lus.
-let locallyReadAt = JSON.parse(localStorage.getItem('blk_read_at') || '{}');
+// "non lus" dès qu'on entre dans la conversation. Le vrai marquage "lu" en base se fait côté
+// backend automatiquement à chaque GET /api/messages/:userId (voir loadConversation), donc
+// aucun appel réseau supplémentaire n'est nécessaire ici.
+let locallyReadAt = {};
+function getReadAtKey() { return 'blk_read_at_' + (currentUserId || 'anon'); }
+function loadReadAtForCurrentUser() {
+  locallyReadAt = JSON.parse(localStorage.getItem(getReadAtKey()) || '{}');
+}
 function markContactRead(contactId) {
   locallyReadAt[contactId] = new Date().toISOString();
-  localStorage.setItem('blk_read_at', JSON.stringify(locallyReadAt));
-  // Best-effort : informe le backend que les messages de ce contact sont lus.
-  // Adapte cette route si ton backend en utilise une autre.
-  apiFetch('/api/messages/read', { method: 'POST', body: JSON.stringify({ senderId: contactId, receiverId: currentUserId }) }).catch(() => {});
+  localStorage.setItem(getReadAtKey(), JSON.stringify(locallyReadAt));
 }
 
 function loadMessages() {
@@ -2351,10 +2403,11 @@ document.getElementById('btnToggleTheme')?.addEventListener('click', () => {
   applyTheme(localStorage.getItem('theme') === 'dark' ? 'light' : 'dark');
 });
 document.getElementById('btnLogout')?.addEventListener('click', () => {
+  setUserOnline(false);
   localStorage.removeItem('authToken');
   localStorage.removeItem('currentUserId');
   localStorage.removeItem('currentUser');
-  location.reload();
+  setTimeout(() => location.reload(), 150);
 });
 
 // ===================== MODÉRATION & BANNISSEMENT =====================
@@ -2376,6 +2429,21 @@ function containsForbiddenContent(text) {
 }
 function getWarningsKey() { return 'blk_warnings_' + (currentUserId || 'anon'); }
 function getWarningsCount() { return parseInt(localStorage.getItem(getWarningsKey()) || '0', 10); }
+// Écran plein écran "problème de connexion", affiché quand une requête réseau échoue
+// complètement (serveur injoignable, pas de connexion), avec un bouton pour réessayer.
+function showConnectionErrorScreen() {
+  const el = document.getElementById('connectionErrorScreen');
+  if (el) el.classList.add('active');
+}
+function hideConnectionErrorScreen() {
+  const el = document.getElementById('connectionErrorScreen');
+  if (el) el.classList.remove('active');
+}
+document.getElementById('connectionErrorRetryBtn')?.addEventListener('click', () => {
+  hideConnectionErrorScreen();
+  document.getElementById('authForm')?.requestSubmit ? document.getElementById('authForm').requestSubmit() : document.getElementById('btnLogin')?.click();
+});
+
 function showCenterWarning(title, message, isBan) {
   const box = document.getElementById('warningFullscreen');
   if (!box) return;
@@ -2433,6 +2501,8 @@ if ('serviceWorker' in navigator) {
 function initApp() {
   if (authToken && currentUserId) {
     currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    loadLocalContactsForCurrentUser();
+    loadReadAtForCurrentUser();
     document.getElementById('authPage').style.display = 'none';
     document.getElementById('appContainer').classList.add('active');
     document.getElementById('tabs').classList.add('show');
@@ -2448,6 +2518,7 @@ function initApp() {
     loadShopArticles();
     loadPendingSales();
     startMessagePolling();
+    setUserOnline(true);
   } else {
     document.getElementById('authPage').style.display = 'flex';
   }
