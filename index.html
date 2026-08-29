@@ -908,9 +908,23 @@ document.getElementById('profilePhotoInput')?.addEventListener('change', functio
       currentUser.photo = url;
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       updateProfileUI(currentUser);
-      showAlert('Photo de profil mise à jour !', 'success');
-      // Sauvegarde côté backend : adapte la route si ton API utilise un chemin différent.
-      apiFetch('/api/users/' + currentUserId, { method: 'PATCH', body: JSON.stringify({ photo: url }) }).catch(() => {});
+      // Sauvegarde côté backend — c'était la vraie cause du bug "les autres ne voient pas ma
+      // photo" : le backend n'expose que PUT sur cette route, pas PATCH, donc la sauvegarde
+      // échouait silencieusement à chaque fois (la photo restait affichée seulement en local).
+      apiFetch('/api/users/' + currentUserId, { method: 'PUT', body: JSON.stringify({ photo: url }) })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showAlert('Photo de profil mise à jour !', 'success');
+          } else {
+            console.error('Échec sauvegarde photo côté serveur:', data);
+            showAlert("La photo s'affiche chez toi mais n'a pas pu être enregistrée sur le serveur. Réessaie.", 'error');
+          }
+        })
+        .catch(err => {
+          console.error('Erreur réseau sauvegarde photo:', err);
+          showAlert("La photo s'affiche chez toi mais n'a pas pu être enregistrée sur le serveur (réseau). Réessaie.", 'error');
+        });
     })
     .catch(err => {
       showSpinner(false);
@@ -1056,56 +1070,31 @@ function showProductModal(product) {
   }
 }
 
-// Animation de paiement : montre l'argent quitter le compte de l'acheteur et être mis sous
-// séquestre par le Wallet BLK. Le vendeur n'est payé qu'après confirmation de réception par
-// l'acheteur (voir showFundsReleaseAnimation, déclenchée depuis "Mes Commandes").
-function showPaymentAnimation(buyerPaid, escrowAmount) {
-  const overlay = document.createElement('div');
-  overlay.className = 'payment-anim-overlay active';
-  overlay.innerHTML = `
-    <div class="payment-anim-box">
-      <div style="font-size:34px;">🔒</div>
-      <h3 style="margin:8px 0 4px;color:var(--accent);">Paiement sécurisé !</h3>
-      <div class="payment-anim-row">
-        <div class="payment-anim-side buyer">
-          <div class="label">Toi</div>
-          <div class="amount" id="paymentAnimBuyer">${buyerPaid}</div>
-          <div style="font-size:11px;color:#999;">FCFA débités</div>
-        </div>
-        <div class="payment-anim-arrow">➜</div>
-        <div class="payment-anim-side seller">
-          <div class="label">Séquestre BLK</div>
-          <div class="amount" id="paymentAnimSeller">0</div>
-          <div style="font-size:11px;color:#999;">FCFA bloqués</div>
-        </div>
-      </div>
-      <p style="font-size:12px;color:#999;">Le vendeur sera payé dès que tu confirmes la réception du colis, dans "Mes Commandes"</p>
+// Grand message de blocage des fonds, affiché juste après l'achat (remplace l'ancienne
+// animation transitoire par un écran clair qu'il faut fermer volontairement, pour que le
+// message "ton argent est bloqué, tu ne peux ni l'utiliser ni le retirer" soit bien lu).
+function showEscrowBlockedMessage(amount) {
+  const box = document.getElementById('warningFullscreen');
+  if (!box) return;
+  box.innerHTML = `
+    <div class="warning-box">
+      <div class="warning-icon">🔒</div>
+      <h3>Argent bloqué en sécurité</h3>
+      <p><strong>${amount} FCFA</strong> ont été débités de ton Wallet BLK et sont conservés en séquestre jusqu'à la confirmation de réception. Tu ne peux ni utiliser ni retirer cette somme tant que tu n'as pas confirmé avoir reçu ton colis, dans l'onglet "Commandes". Le vendeur ne sera payé qu'à ce moment-là.</p>
+      <button class="btn btn-primary" id="escrowBlockedCloseBtn">J'ai compris</button>
     </div>
   `;
-  document.body.appendChild(overlay);
-
-  const steps = 24;
-  const stepTime = 40;
-  let i = 0;
-  const buyerEl = overlay.querySelector('#paymentAnimBuyer');
-  const sellerEl = overlay.querySelector('#paymentAnimSeller');
-  const timer = setInterval(() => {
-    i++;
-    const progress = i / steps;
-    buyerEl.textContent = Math.max(0, Math.round(buyerPaid * (1 - progress)));
-    sellerEl.textContent = Math.round(escrowAmount * progress);
-    if (i >= steps) {
-      clearInterval(timer);
-      buyerEl.textContent = 0;
-      sellerEl.textContent = escrowAmount;
-      setTimeout(() => overlay.remove(), 900);
-    }
-  }, stepTime);
+  box.classList.add('active');
+  box.querySelector('#escrowBlockedCloseBtn').addEventListener('click', () => {
+    box.classList.remove('active');
+    box.innerHTML = '';
+  });
 }
+
 
 // Animation de libération des fonds : montre l'argent quitter le séquestre BLK et arriver
 // chez le vendeur, une fois que l'acheteur a confirmé la réception du colis.
-function showFundsReleaseAnimation(amount) {
+function showFundsReleaseAnimation(amount, sellerName) {
   const overlay = document.createElement('div');
   overlay.className = 'payment-anim-overlay active';
   overlay.innerHTML = `
@@ -1120,7 +1109,7 @@ function showFundsReleaseAnimation(amount) {
         </div>
         <div class="payment-anim-arrow">➜</div>
         <div class="payment-anim-side seller">
-          <div class="label">Vendeur</div>
+          <div class="label">${escapeHtml(sellerName || 'Vendeur')}</div>
           <div class="amount" id="releaseAnimSeller">0</div>
           <div style="font-size:11px;color:#999;">FCFA reçus</div>
         </div>
@@ -1226,7 +1215,7 @@ function showCheckoutModal(product) {
       if (data.success) {
         overlay.remove();
         showAlert('Commande créée !', 'success');
-        showPaymentAnimation(total, product.price);
+        showEscrowBlockedMessage(total);
         loadWallet();
         loadOrders();
         loadProducts();
@@ -1935,15 +1924,14 @@ function createOrderTimerPill(deadline) {
   return { el: wrapper, update };
 }
 
-// Une commande dont le délai est écoulé sans confirmation passe automatiquement "Échouée".
+// Une commande dont le délai est écoulé sans confirmation passe "Échouée". Le backend gère
+// déjà ça tout seul via sa propre tâche planifiée (autoExpireOrders, toutes les 5 min côté
+// serveur) : le frontend n'a rien à déclencher, juste à recharger l'affichage — et sans
+// bandeau d'alerte, puisque le statut "Échouée" est déjà visible directement sur la commande
+// dans l'onglet Commandes (redondant sinon).
 function handleOrderExpired(order) {
   if (order._expiredHandled) return;
   order._expiredHandled = true;
-  // Adapte cette route si ton backend utilise un autre chemin pour marquer un échec.
-  const orderId = getOrderId(order);
-  if (!orderId) { console.warn('handleOrderExpired: identifiant de commande introuvable', order); return; }
-  apiFetch('/api/orders/' + encodeURIComponent(orderId) + '/expire', { method: 'POST' }).catch(() => {});
-  showAlert('Une commande a expiré sans confirmation et est marquée comme échouée.', 'error');
   loadOrders();
 }
 
@@ -1970,9 +1958,13 @@ function loadOrders() {
         card.style.marginBottom = '10px';
         const articleTitle = (order.article && order.article.title) || 'Article';
         const amount = order.totalAmount || order.amount || 0;
+        // Statuts exacts renvoyés par le backend : 'en attente de confirmation', 'livré',
+        // 'annulé', 'expiré' (voir server.js). On matche précisément ces valeurs.
         const statusLower = String(order.status || '').toLowerCase();
-        const isFailed = ['failed', 'expired', 'échoué', 'echoue', 'échouée', 'echouee'].includes(statusLower);
-        const isActive = !isFailed && !['completed', 'cancelled', 'refunded', 'livré', 'livree', 'terminé', 'termine'].includes(statusLower);
+        const isFailed = ['expiré', 'expire', 'échoué', 'echoue', 'échouée', 'echouee'].includes(statusLower);
+        const isDone = ['livré', 'livre', 'annulé', 'annule'].includes(statusLower);
+        const isActive = !isFailed && !isDone;
+
         const createdAt = parseServerDate(order.createdAt);
         const deadline = createdAt ? createdAt.getTime() + PROTECTION_WINDOW_MS : null;
         const alreadyExpired = isActive && deadline && deadline <= Date.now();
@@ -2016,25 +2008,27 @@ function loadOrders() {
 }
 
 // Modale de confirmation de réception : le vendeur n'est payé (fonds libérés du séquestre BLK)
-// qu'une fois que l'acheteur a coché les 3 conditions et validé. Ensuite, l'acheteur peut
-// (facultativement) donner une flamme au vendeur — une seule, jamais plus.
+// qu'une fois que l'acheteur a coché les 3 conditions et validé. Le backend attribue lui-même
+// automatiquement une flamme au vendeur à ce moment-là (une seule, jamais plus — logique déjà
+// gérée côté serveur, rien à faire ici).
 function openOrderConfirmModal(order) {
   const articleTitle = (order.article && order.article.title) || 'Article';
   const amount = order.totalAmount || order.amount || 0;
+  const sellerName = (order.seller && order.seller.name) || 'le vendeur';
   const html = `
     <h3 style="text-align:center;margin-bottom:6px;">Confirmer la réception</h3>
     <p style="text-align:center;color:#999;font-size:13px;margin-bottom:16px;">${escapeHtml(articleTitle)} — ${amount} FCFA</p>
     <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
       <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;">
-        <input type="checkbox" class="order-confirm-check" style="margin-top:3px;">
+        <input type="checkbox" class="order-confirm-check" data-key="recu" style="margin-top:3px;">
         <span>J'ai bien reçu le colis.</span>
       </label>
       <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;">
-        <input type="checkbox" class="order-confirm-check" style="margin-top:3px;">
+        <input type="checkbox" class="order-confirm-check" data-key="bon_etat" style="margin-top:3px;">
         <span>L'article correspond à la description du vendeur.</span>
       </label>
       <label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;">
-        <input type="checkbox" class="order-confirm-check" style="margin-top:3px;">
+        <input type="checkbox" class="order-confirm-check" data-key="confirme" style="margin-top:3px;">
         <span>Je suis satisfait(e) et j'autorise le paiement du vendeur.</span>
       </label>
     </div>
@@ -2064,18 +2058,20 @@ function openOrderConfirmModal(order) {
       return;
     }
     statusEl.textContent = 'Confirmation en cours...';
-    // Libère les fonds séquestrés vers le vendeur. Adapte cette route si ton backend en
-    // utilise une autre (ex. PATCH /api/orders/{id} avec { status: 'completed' }).
-    apiFetch('/api/orders/' + encodeURIComponent(orderId) + '/confirm-receipt', { method: 'POST' })
+    const confirmations = {};
+    checks.forEach(c => { confirmations[c.dataset.key] = c.checked; });
+    // Vraie route backend : POST /api/orders/confirm avec { orderId, confirmations }
+    // (voir server.js) — libère les fonds vers le vendeur et lui attribue automatiquement
+    // une flamme, en une seule transaction atomique.
+    apiFetch('/api/orders/confirm', { method: 'POST', body: JSON.stringify({ orderId, confirmations }) })
       .then(r => r.json())
       .then(data => {
-        if (data.success !== false) {
+        if (data.success) {
           overlay.remove();
-          showFundsReleaseAnimation(amount);
-          showAlert('Réception confirmée, le vendeur est payé !', 'success');
+          showFundsReleaseAnimation(data.sellerReceived || amount, sellerName);
+          showAlert('Réception confirmée, ' + sellerName + ' est payé !', 'success');
           loadOrders();
           loadWallet();
-          setTimeout(() => offerFlameToSeller(order), 1300);
         } else {
           statusEl.style.color = '#E74C3C';
           statusEl.textContent = data.message || 'Erreur lors de la confirmation.';
@@ -2087,33 +2083,6 @@ function openOrderConfirmModal(order) {
         statusEl.textContent = 'Erreur réseau: ' + e.message;
         this.disabled = false;
       });
-  });
-}
-
-// Proposition (facultative) de donner une flamme au vendeur après confirmation. Un seul choix
-// possible : Oui (1 flamme) ou Non (0) — jamais plus d'une flamme par commande.
-function offerFlameToSeller(order) {
-  const sellerId = order.sellerId || (order.article && order.article.sellerId);
-  if (!sellerId) return;
-  const overlay = openModal(`
-    <div style="text-align:center;">
-      <img src="${FLAME_ICON_DATA_URL}" style="width:56px;height:56px;object-fit:contain;margin-bottom:10px;">
-      <h3 style="margin-bottom:8px;">Donner une flamme au vendeur ?</h3>
-      <p style="color:#666;font-size:13.5px;margin-bottom:16px;">Une flamme récompense un vendeur fiable. Tu ne peux en donner qu'une seule pour cette commande.</p>
-      <div style="display:flex;gap:10px;">
-        <button class="btn btn-outline" id="btnNoFlame" style="flex:1;">Non merci</button>
-        <button class="btn btn-primary" id="btnGiveFlame" style="flex:1;">Donner 🔥</button>
-      </div>
-    </div>
-  `);
-  overlay.querySelector('#btnNoFlame').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#btnGiveFlame').addEventListener('click', function() {
-    this.disabled = true;
-    // Adapte cette route si ton backend en utilise une autre.
-    apiFetch('/api/flames/give', { method: 'POST', body: JSON.stringify({ toUserId: sellerId, orderId: getOrderId(order) }) })
-      .then(r => r.json())
-      .then(() => { showAlert('Flamme envoyée au vendeur !', 'success'); overlay.remove(); })
-      .catch(() => { showAlert('Erreur réseau lors de l\'envoi de la flamme.', 'error'); overlay.remove(); });
   });
 }
 
@@ -2308,17 +2277,23 @@ function deleteArticle(articleId) {
 let pendingSalesTimerInterval = null;
 function loadPendingSales() {
   if (!currentUserId) return;
-  apiFetch('/api/orders/seller/' + currentUserId)
+  // Le backend n'a pas de route /api/orders/seller/:id dédiée : GET /api/orders/:userId
+  // renvoie déjà les commandes où l'utilisateur est acheteur ET vendeur (avec un objet
+  // .buyer distinct sur celles où il est vendeur). On filtre ça côté client.
+  apiFetch('/api/orders/' + currentUserId)
     .then(r => r.json())
     .then(data => {
       const section = document.getElementById('pendingSalesSection');
       const list = document.getElementById('pendingSalesList');
       if (!section || !list) return;
       if (pendingSalesTimerInterval) { clearInterval(pendingSalesTimerInterval); pendingSalesTimerInterval = null; }
-      const orders = (data && data.success && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+      const orders = Array.isArray(data) ? data : [];
       const pending = orders.filter(o => {
+        if (o.sellerId !== currentUserId) return false;
         const s = String(o.status || '').toLowerCase();
-        return !['completed', 'cancelled', 'refunded', 'failed', 'expired', 'livré', 'livree', 'terminé', 'termine', 'échoué', 'echoue'].includes(s);
+        const isFailed = ['expiré', 'expire', 'échoué', 'echoue'].includes(s);
+        const isDone = ['livré', 'livre', 'annulé', 'annule'].includes(s);
+        return !isFailed && !isDone;
       });
       if (pending.length === 0) {
         section.style.display = 'none';
