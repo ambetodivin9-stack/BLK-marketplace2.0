@@ -79,7 +79,7 @@ if (!JWT_SECRET) {
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
-const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'accessoires'];
+const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'cosmetiques', 'accessoires'];
 const MAX_TITLE_LEN = 100;
 const MAX_DESCRIPTION_LEN = 2000;
 
@@ -784,38 +784,46 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     let flameGiven = order.flamesGiven || false;
 
     await db.runTransaction(async (t) => {
+      // IMPORTANT : Firestore exige que TOUTES les lectures d'une transaction soient faites
+      // avant TOUTE écriture. C'était exactement la cause de l'échec de confirmation (le
+      // message "Firestore transactions require all reads to be executed before all writes"
+      // venait de t.update(sellerRef,...) appelé avant t.get(adminRef)). On lit tout d'abord.
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
 
       const sellerRef = db.collection('users').doc(order.sellerId);
       const sellerDoc = await t.get(sellerRef);
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
-      t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
+      const currentFlames = sellerDoc.data()?.flames || 0;
 
       const adminRef = db.collection('users').doc(ADMIN_USER_ID);
       const adminDoc = await t.get(adminRef);
-      let adminBalance = 0;
-      if (adminDoc.exists) {
-        adminBalance = adminDoc.data().walletBalance || 0;
-      } else {
+      const adminExists = adminDoc.exists;
+      const adminBalance = adminExists ? (adminDoc.data().walletBalance || 0) : 0;
+
+      // --- toutes les lectures sont terminées, on peut maintenant écrire ---
+
+      t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
+
+      if (!adminExists) {
         t.set(adminRef, {
           name: 'Administrateur BLK',
           email: 'admin@blk.com',
           phone: ADMIN_PHONE,
-          walletBalance: 0,
+          walletBalance: adminTotal,
           photo: '',
           flames: 0,
           blockedUsers: [],
           online: false,
           createdAt: new Date()
         });
+      } else {
+        t.update(adminRef, { walletBalance: adminBalance + adminTotal });
       }
-      t.update(adminRef, { walletBalance: adminBalance + adminTotal });
 
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
 
       if (!flameGiven) {
-        const currentFlames = sellerDoc.data()?.flames || 0;
         t.update(sellerRef, { flames: currentFlames + 1 });
         flameGiven = true;
       }
