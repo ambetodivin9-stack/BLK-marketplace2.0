@@ -781,20 +781,15 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     const amountToSeller = order.amount - sellerCommission;
     const adminTotal = buyerCommission + sellerCommission;
 
-    let flameGiven = order.flamesGiven || false;
-
     await db.runTransaction(async (t) => {
       // IMPORTANT : Firestore exige que TOUTES les lectures d'une transaction soient faites
-      // avant TOUTE écriture. C'était exactement la cause de l'échec de confirmation (le
-      // message "Firestore transactions require all reads to be executed before all writes"
-      // venait de t.update(sellerRef,...) appelé avant t.get(adminRef)). On lit tout d'abord.
+      // avant TOUTE écriture. On lit tout d'abord.
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
 
       const sellerRef = db.collection('users').doc(order.sellerId);
       const sellerDoc = await t.get(sellerRef);
       const sellerBalance = sellerDoc.data()?.walletBalance || 0;
-      const currentFlames = sellerDoc.data()?.flames || 0;
 
       const adminRef = db.collection('users').doc(ADMIN_USER_ID);
       const adminDoc = await t.get(adminRef);
@@ -823,11 +818,10 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
 
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
 
-      if (!flameGiven) {
-        t.update(sellerRef, { flames: currentFlames + 1 });
-        flameGiven = true;
-      }
-
+      // NOTE : la flamme n'est plus donnée automatiquement ici. C'est maintenant un choix
+      // explicite de l'acheteur, proposé côté frontend après cette confirmation, et envoyé
+      // séparément via POST /api/flames (voir plus bas). "flamesGiven" ne devient true que
+      // lorsque ce choix a réellement été fait.
       t.update(orderRef, {
         status: 'livré',
         buyerConfirmed: true,
@@ -836,18 +830,14 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
         sellerReceived: amountToSeller,
         adminCommission: adminTotal,
         adminReceived: adminTotal,
-        adminPhone: ADMIN_PHONE,
-        flamesGiven: flameGiven
+        adminPhone: ADMIN_PHONE
       });
     });
 
-    if (flameGiven) {
-      await db.collection('notifications').add({ userId: order.sellerId, message: 'Tu as recu une flamme !', type: 'flame_received', read: false, orderId, createdAt: new Date() });
-    }
     await db.collection('notifications').add({ userId: order.sellerId, message: `Vente confirmee ! ${amountToSeller} FCFA credites sur ton wallet.`, type: 'sale_confirmed', read: false, orderId, createdAt: new Date() });
     await db.collection('notifications').add({ userId: order.buyerId, message: `Commande #${orderId.slice(0,8)} confirmee avec succes.`, type: 'order_confirmed', read: false, orderId, createdAt: new Date() });
 
-    res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal, flameGiven });
+    res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
     sendServerError(res, 'orders/confirm', error);
@@ -967,20 +957,36 @@ async function autoExpireOrders() {
 setInterval(() => { autoExpireOrders().catch(err => console.error('autoExpireOrders (non gérée):', err.message)); }, 5 * 60 * 1000);
 
 // ==================== FLAMMES ====================
+// Donner une flamme est maintenant TOUJOURS un choix explicite de l'acheteur (jamais
+// automatique). orderId est optionnel : s'il est fourni et correspond à une commande
+// confirmée de cet acheteur pour ce vendeur, on marque aussi flamesGiven=true dessus.
 app.post('/api/flames', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
-    const { sellerId } = req.body;
+    const { sellerId, orderId } = req.body;
     const buyerId = req.userId;
     if (!sellerId) return res.status(400).json({ success: false, message: 'sellerId requis' });
     if (sellerId === buyerId) return res.status(400).json({ success: false, message: 'Vous ne pouvez pas vous donner une flamme' });
     const existing = await db.collection('flames').where('sellerId', '==', sellerId).where('buyerId', '==', buyerId).get();
     if (!existing.empty) return res.status(400).json({ success: false, message: 'Flamme deja donnee' });
-    await db.collection('flames').add({ sellerId, buyerId, createdAt: new Date() });
+    await db.collection('flames').add({ sellerId, buyerId, orderId: orderId || null, createdAt: new Date() });
     const userRef = db.collection('users').doc(sellerId);
     const userDoc = await userRef.get();
     const currentFlames = userDoc.data()?.flames || 0;
     await userRef.update({ flames: currentFlames + 1 });
+
+    if (orderId) {
+      try {
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderDoc = await orderRef.get();
+        if (orderDoc.exists && orderDoc.data().buyerId === buyerId && orderDoc.data().sellerId === sellerId) {
+          await orderRef.update({ flamesGiven: true });
+        }
+      } catch (e) { console.error('[flames] maj flamesGiven ignorée:', e.message); }
+    }
+
+    await db.collection('notifications').add({ userId: sellerId, message: 'Tu as recu une flamme !', type: 'flame_received', read: false, orderId: orderId || null, createdAt: new Date() });
+
     res.json({ success: true, flames: currentFlames + 1 });
   } catch (error) { sendServerError(res, 'flames/give', error); }
 });
@@ -1194,5 +1200,5 @@ process.on('unhandledRejection', (reason) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Serveur BLK démarré sur le port ${PORT}`);
+  console.log(`Serveur demarre sur le port ${PORT}`);
 });
