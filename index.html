@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BLK Marketplace</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-32.png" type="image/png">
 <meta name="theme-color" content="#E74C3C">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1223,7 +1224,7 @@ function showEscrowBlockedMessage(amount) {
   box.classList.add('active');
   box.querySelector('#escrowBlockedCloseBtn').addEventListener('click', () => { box.classList.remove('active'); box.innerHTML = ''; });
 }
-function showFundsReleaseAnimation(amount, sellerName) {
+function showFundsReleaseAnimation(amount, sellerName, onDone) {
   const overlay = document.createElement('div');
   overlay.className = 'payment-anim-overlay active';
   overlay.innerHTML = `
@@ -1247,8 +1248,36 @@ function showFundsReleaseAnimation(amount, sellerName) {
     const progress = i / steps;
     escrowEl.textContent = Math.max(0, Math.round(amount * (1 - progress)));
     sellerEl.textContent = Math.round(amount * progress);
-    if (i >= steps) { clearInterval(timer); escrowEl.textContent = 0; sellerEl.textContent = amount; setTimeout(() => overlay.remove(), 900); }
+    if (i >= steps) { clearInterval(timer); escrowEl.textContent = 0; sellerEl.textContent = amount; setTimeout(() => { overlay.remove(); if (typeof onDone === 'function') onDone(); }, 900); }
   }, stepTime);
+}
+function showFlameChoiceModal(sellerId, sellerName, orderId) {
+  const html = `
+    <div style="text-align:center;">
+      <div style="font-size:44px;margin-bottom:8px;">🔥</div>
+      <h3 style="margin-bottom:8px;">Donner une flamme à ${escapeHtml(sellerName || 'ce vendeur')} ?</h3>
+      <p style="color:#999;font-size:13.5px;margin-bottom:18px;">Une flamme montre aux autres acheteurs que ce vendeur est fiable.</p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" id="flameNoBtn" style="flex:1;">Non merci</button>
+        <button class="btn btn-primary" id="flameYesBtn" style="flex:1;">Oui, donner 🔥</button>
+      </div>
+      <div id="flameChoiceStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>
+    </div>
+  `;
+  const overlay = openModal(html);
+  overlay.querySelector('#flameNoBtn').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#flameYesBtn').addEventListener('click', function() {
+    this.disabled = true;
+    const statusEl = overlay.querySelector('#flameChoiceStatus');
+    statusEl.textContent = 'Envoi en cours...';
+    apiFetch('/api/flames', { method: 'POST', body: JSON.stringify({ sellerId, orderId }) })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) { showAlert('Flamme envoyée à ' + (sellerName || 'ce vendeur') + ' !', 'success'); overlay.remove(); }
+        else { statusEl.style.color = '#E74C3C'; statusEl.textContent = data.message || "Impossible d'envoyer la flamme."; this.disabled = false; }
+      })
+      .catch(e => { statusEl.style.color = '#E74C3C'; statusEl.textContent = 'Erreur réseau: ' + e.message; this.disabled = false; });
+  });
 }
 
 // ===================== CHECKOUT =====================
@@ -1386,7 +1415,13 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
     const urls = []; let i = 0;
     function uploadNext() {
       if (i >= photos.length) {
-        urls.forEach((url, idx) => { if (!url) urls[idx] = PLACEHOLDER_IMAGE; });
+        const failedCount = urls.filter(u => !u).length;
+        if (failedCount > 0) {
+          submitBtn.disabled = false;
+          statusEl.style.color = '#E74C3C';
+          statusEl.textContent = `${failedCount} photo(s) n'ont pas pu être envoyées. Vérifie ta connexion et réessaie (l'article n'a pas été publié).`;
+          return;
+        }
         apiFetch('/api/articles', {
           method: 'POST',
           body: JSON.stringify({ title, price: parseInt(price), category, targetGender, condition, size, description, hashtags, images: urls, sellerName: currentUser.name || 'Utilisateur', sellerPhoto: currentUser.photo || '', stock: parseInt(stock) })
@@ -1747,7 +1782,7 @@ function sendMessagePayload(payload) {
 }
 
 // ===================== COMMANDES =====================
-const PROTECTION_WINDOW_MS = 3 * 60 * 60 * 1000;
+const PROTECTION_WINDOW_MS = 6 * 60 * 60 * 1000; // doit rester égal à ORDER_DELAY_MS côté backend
 let ordersTimerInterval = null;
 function createOrderTimerPill(deadline) {
   const wrapper = document.createElement('div');
@@ -1849,7 +1884,7 @@ function openOrderConfirmModal(order) {
       .then(data => {
         if (data.success) {
           overlay.remove();
-          showFundsReleaseAnimation(data.sellerReceived || amount, sellerName);
+          showFundsReleaseAnimation(data.sellerReceived || amount, sellerName, () => showFlameChoiceModal(order.sellerId, sellerName, orderId));
           showAlert('Réception confirmée, ' + sellerName + ' est payé !', 'success');
           loadOrders(); loadWallet();
         } else { statusEl.style.color = '#E74C3C'; statusEl.textContent = data.message || 'Erreur lors de la confirmation.'; this.disabled = false; }
