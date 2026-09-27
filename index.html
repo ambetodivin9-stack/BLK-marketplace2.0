@@ -628,6 +628,9 @@ body.dark .wallet-warning{color:#ffb4a8;}
 <!-- Fiche article plein écran -->
 <div class="chat-fullscreen" id="productFullscreen"></div>
 
+<!-- Publication d'article plein écran -->
+<div class="chat-fullscreen" id="publishFullscreen"></div>
+
 <!-- Notification de message entrant -->
 <div class="msg-notification" id="msgNotification"></div>
 
@@ -701,13 +704,14 @@ function renderWaveBg(containerId) {
 // ===================== UPLOAD IMAGES (via backend) =====================
 function uploadToImgbb(base64Image) {
   return apiFetch('/api/upload', { method: 'POST', body: JSON.stringify({ base64: base64Image }) })
-    .then(r => r.json())
-    .then(data => {
-      if (data && data.success && data.url) return data.url;
-      console.error('Upload backend sans URL exploitable:', data);
-      return null;
+    .then(r => r.json().catch(() => ({})).then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+      if (data && data.success && data.url) return { url: data.url, error: null };
+      const reason = (data && data.message) ? data.message : `Erreur serveur imprévue (code ${status})`;
+      console.error('Upload backend sans URL exploitable:', status, data);
+      return { url: null, error: reason };
     })
-    .catch(err => { console.error('Requête upload backend échouée:', err); return null; });
+    .catch(err => { console.error('Requête upload backend échouée:', err); return { url: null, error: 'Impossible de joindre le serveur (vérifie ta connexion)' }; });
 }
 
 // ===================== GLOBAL VARS =====================
@@ -1040,9 +1044,9 @@ document.getElementById('profilePhotoInput')?.addEventListener('change', functio
   compressImage(file, 500, 0.75)
     .catch(err => { console.error('Erreur de compression image:', err); throw new Error('COMPRESS_FAILED'); })
     .then(dataUrl => uploadToImgbb(dataUrl.split(',')[1].replace(/\s/g, '')))
-    .then(url => {
+    .then(({ url, error }) => {
       showSpinner(false);
-      if (!url) { showAlert("Échec de l'envoi de la photo. Réessaie dans un instant.", 'error'); return; }
+      if (!url) { showAlert("Échec de l'envoi de la photo : " + (error || 'raison inconnue'), 'error'); return; }
       currentUser.photo = url;
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       updateProfileUI(currentUser);
@@ -1347,8 +1351,14 @@ function showCheckoutModal(product) {
 
 // ===================== PUBLICATION D'ARTICLE =====================
 document.getElementById('btnPublish')?.addEventListener('click', () => {
-  const html = `
-    <h3 style="margin-bottom:16px;text-align:center;">Vendre un article</h3>
+  const screen = document.getElementById('publishFullscreen');
+  screen.classList.add('active');
+  screen.innerHTML = `
+    <div class="chat-header">
+      <button class="chat-back-btn" id="btnClosePublish">‹</button>
+      <div class="chat-contact-info"><div class="chat-contact-name">Publier un article</div></div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px;">
     <div class="publish-field"><label>Photos (max 10)</label><div class="publish-photos" id="publishPhotos"></div><input type="file" id="pubImageInput" accept="image/*" multiple style="display:none;"></div>
     <div class="publish-field"><label>Nom de l'article *</label><input type="text" id="pubTitle" placeholder="Ex: Robe Wax Élégante"></div>
     <div class="publish-field"><label>Prix (FCFA) *</label><input type="number" id="pubPrice" placeholder="Ex: 12500"></div>
@@ -1362,8 +1372,11 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
     <button class="btn btn-primary" id="pubSubmit">Publier l'article</button>
     <button class="btn btn-outline" id="pubCancel" style="margin-top:8px;">Annuler</button>
     <div id="pubStatus" style="margin-top:10px;font-size:13px;text-align:center;color:#999;"></div>
+    </div>
   `;
-  const overlay = openModal(html);
+  const overlay = screen;
+  function closePublish() { screen.classList.remove('active'); screen.innerHTML = ''; }
+  overlay.querySelector('#btnClosePublish').addEventListener('click', closePublish);
   let photos = []; const MAX_PHOTOS = 10;
   function renderPhotos() {
     const container = overlay.querySelector('#publishPhotos');
@@ -1393,7 +1406,7 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
     }
     e.target.value = '';
   });
-  overlay.querySelector('#pubCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#pubCancel').addEventListener('click', closePublish);
   overlay.querySelector('#pubSubmit').addEventListener('click', function() {
     const title = overlay.querySelector('#pubTitle').value.trim();
     const price = overlay.querySelector('#pubPrice').value.trim();
@@ -1408,18 +1421,18 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
     if (!title || !price || !description || !stock) { showAlert('Remplis tous les champs obligatoires (nom, prix, description, stock).', 'error'); return; }
     const hashtagsForCheck = hashtagsInput || '';
     const matched = containsForbiddenContent(title + ' ' + description + ' ' + hashtagsForCheck);
-    if (matched) { overlay.remove(); reportForbiddenArticle(matched); return; }
+    if (matched) { closePublish(); reportForbiddenArticle(matched); return; }
     if (photos.length === 0) photos.push({ dataUrl: PLACEHOLDER_IMAGE });
     const hashtags = hashtagsInput ? hashtagsInput.split(',').map(s => s.trim()).filter(Boolean) : [];
-    const submitBtn = this; submitBtn.disabled = true; statusEl.textContent = 'Upload des photos...';
-    const urls = []; let i = 0;
+    const submitBtn = this; submitBtn.disabled = true; statusEl.style.color = '#999'; statusEl.textContent = 'Upload des photos...';
+    const urls = []; const failReasons = []; let i = 0;
     function uploadNext() {
       if (i >= photos.length) {
         const failedCount = urls.filter(u => !u).length;
         if (failedCount > 0) {
           submitBtn.disabled = false;
           statusEl.style.color = '#E74C3C';
-          statusEl.textContent = `${failedCount} photo(s) n'ont pas pu être envoyées. Vérifie ta connexion et réessaie (l'article n'a pas été publié).`;
+          statusEl.textContent = `${failedCount} photo(s) non envoyées : ${failReasons[0]}. (L'article n'a pas été publié.)`;
           return;
         }
         apiFetch('/api/articles', {
@@ -1429,7 +1442,7 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
         .then(r => r.json())
         .then(data => {
           submitBtn.disabled = false;
-          if (data.success) { showAlert('Article publié !', 'success'); overlay.remove(); loadShopArticles(); loadProducts(); loadStats(); }
+          if (data.success) { showAlert('Article publié !', 'success'); closePublish(); loadShopArticles(); loadProducts(); loadStats(); }
           else { statusEl.style.color = '#E74C3C'; statusEl.textContent = data.message || 'Erreur'; }
         })
         .catch(e => { submitBtn.disabled = false; statusEl.style.color = '#E74C3C'; statusEl.textContent = 'Erreur réseau: ' + e.message; });
@@ -1437,7 +1450,7 @@ document.getElementById('btnPublish')?.addEventListener('click', () => {
       }
       statusEl.textContent = `Upload photo ${i+1}/${photos.length}...`;
       const base64Pure = photos[i].dataUrl.split(',')[1].replace(/\s/g, '');
-      uploadToImgbb(base64Pure).then(url => { urls.push(url); i++; uploadNext(); }).catch(() => { urls.push(null); i++; uploadNext(); });
+      uploadToImgbb(base64Pure).then(({ url, error }) => { urls.push(url); if (!url) failReasons.push(error); i++; uploadNext(); });
     }
     uploadNext();
   });
