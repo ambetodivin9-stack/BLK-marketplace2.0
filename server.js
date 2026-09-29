@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
@@ -12,27 +13,27 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // ==================== CORS ====================
-// Restreint aux origines autorisées via la variable d'env ALLOWED_ORIGINS
-// (séparées par des virgules). Si non définie, autorise tout (pratique en dev,
-// mais à définir en production pour limiter l'abus depuis d'autres sites).
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin: allowedOrigins.length > 0 ? allowedOrigins : true,
 }));
 app.use(express.json({ limit: '10mb' }));
 
+// ==================== FICHIERS STATIQUES (PWA) ====================
+// Sert public/index.html, public/manifest.json, public/sw.js, les icônes, etc.
+app.use(express.static(path.join(__dirname, 'public')));
+
 // ==================== RATE LIMITING ====================
-// Empêche le brute force sur la connexion/inscription et limite l'abus général de l'API.
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 20, // 20 tentatives / 15 min / IP
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Trop de tentatives, réessaie dans quelques minutes.' }
 });
 const globalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
-  max: 120, // 120 requêtes / min / IP
+  windowMs: 60 * 1000,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Trop de requêtes, ralentis un peu.' }
@@ -63,13 +64,12 @@ try {
 }
 
 const IMG_BB_KEY = process.env.IMG_BB_KEY;
+if (!IMG_BB_KEY) {
+  console.warn('ATTENTION: IMG_BB_KEY n\'est pas définie dans les variables d\'environnement Render. Les uploads de photos échoueront tant que ce n\'est pas corrigé.');
+}
 const YABETOO_SECRET = process.env.YABETOO_SECRET_KEY || '';
 const YABETOO_API_BASE = 'https://pay.api.yabetoopay.com/v1';
 
-// ==================== JWT_SECRET : plus de repli non sécurisé ====================
-// Un secret par défaut codé en dur permettrait à quiconque le connaît de forger des
-// tokens valides pour n'importe quel compte. On préfère planter au démarrage (erreur
-// claire dans les logs) plutôt que de tourner avec un secret compromis.
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('ERREUR FATALE: la variable d\'environnement JWT_SECRET n\'est pas définie. Configure-la dans Render (Environment) avec une longue chaîne aléatoire, puis redéploie.');
@@ -79,12 +79,15 @@ if (!JWT_SECRET) {
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
-const ALLOWED_CATEGORIES = ['robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'cosmetiques', 'accessoires'];
+const ALLOWED_CATEGORIES = ['perruques', 'robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'cosmetiques', 'accessoires'];
+const ALLOWED_GENDERS = ['homme', 'femme', 'enfant', 'unisexe'];
 const MAX_TITLE_LEN = 100;
 const MAX_DESCRIPTION_LEN = 2000;
 
 // ==================== ADMIN ====================
-const ADMIN_PHONE = '242065918166';
+// Numéro qui reçoit automatiquement les commissions (buyer + seller) dès qu'une
+// commande est confirmée par l'acheteur.
+const ADMIN_PHONE = '065139495';
 const ADMIN_USER_ID = 'admin';
 const AUTO_WITHDRAW_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -101,8 +104,6 @@ function formatPhoneForYabetoo(phone) {
   return '+' + formatted;
 }
 
-// Renvoie un message générique au client tout en loguant le détail technique côté
-// serveur uniquement (le client ne doit jamais voir de stack trace ou de détail interne).
 function sendServerError(res, context, error) {
   console.error(`[${context}]`, error.message, error.response?.data || '');
   return res.status(500).json({ success: false, message: "Une erreur est survenue. Réessaie dans un instant." });
@@ -124,9 +125,6 @@ function authenticate(req, res, next) {
   }
 }
 
-// Authentification "douce" : si un token valide est fourni, on identifie l'utilisateur ;
-// sinon on continue quand même (utile pour les routes publiques qui affichent plus
-// d'informations si c'est le propriétaire du profil qui consulte).
 function optionalAuthenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -157,11 +155,15 @@ async function ensureAdminDocument() {
       createdAt: new Date()
     });
     console.log('Document admin créé');
+  } else if (adminDoc.data().phone !== ADMIN_PHONE) {
+    // Si le numéro admin a changé dans le code, on met à jour le document existant.
+    await adminRef.update({ phone: ADMIN_PHONE });
+    console.log('Numéro admin mis à jour vers ' + ADMIN_PHONE);
   }
 }
 
 // ==================== ROUTES DE BASE ====================
-app.get('/', (req, res) => {
+app.get('/api/status', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
     services: { firebase: firebaseReady, imgbb: !!IMG_BB_KEY, yabetoo: !!YABETOO_SECRET }
@@ -255,7 +257,7 @@ app.get('/api/articles/seller/:sellerId', async (req, res) => {
 app.post('/api/articles', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
-    const { title, description, price, category, image, images, sellerName, sellerPhoto, condition, size, hashtags, stock } = req.body;
+    const { title, description, price, category, image, images, sellerName, sellerPhoto, condition, size, hashtags, stock, targetGender } = req.body;
     const sellerId = req.userId;
     if (!title || !description || !price || !category) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
@@ -283,6 +285,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
 
     const article = {
       title, description, price: articlePrice, category, condition,
+      targetGender: ALLOWED_GENDERS.includes(targetGender) ? targetGender : 'unisexe',
       size: size || '', hashtags: Array.isArray(hashtags) ? hashtags.slice(0, 15) : [],
       image: imageList[0], images: imageList,
       sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
@@ -382,10 +385,6 @@ app.get('/api/users/search', authenticate, async (req, res) => {
   }
 });
 
-// SÉCURITÉ : cette route est publique (elle sert à afficher un profil vendeur/contact
-// sans forcer une connexion), mais elle ne renvoie plus jamais l'email, le téléphone ou
-// le solde du wallet, SAUF si la personne qui appelle est authentifiée ET consulte SON
-// PROPRE profil. Avant, ces champs étaient renvoyés à absolument n'importe qui.
 app.get('/api/users/:userId', optionalAuthenticate, async (req, res) => {
   if (!firebaseReady) {
     return res.json({ success: true, data: { name: 'Utilisateur Test', photo: '', flames: 0, online: false } });
@@ -782,8 +781,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     const adminTotal = buyerCommission + sellerCommission;
 
     await db.runTransaction(async (t) => {
-      // IMPORTANT : Firestore exige que TOUTES les lectures d'une transaction soient faites
-      // avant TOUTE écriture. On lit tout d'abord.
       const freshOrderDoc = await t.get(orderRef);
       if (freshOrderDoc.data().status !== 'en attente de confirmation') throw new Error('ORDER_ALREADY_PROCESSED');
 
@@ -795,8 +792,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       const adminDoc = await t.get(adminRef);
       const adminExists = adminDoc.exists;
       const adminBalance = adminExists ? (adminDoc.data().walletBalance || 0) : 0;
-
-      // --- toutes les lectures sont terminées, on peut maintenant écrire ---
 
       t.update(sellerRef, { walletBalance: sellerBalance + amountToSeller });
 
@@ -818,10 +813,6 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
 
       t.update(db.collection('products').doc(order.articleId), { status: 'sold', soldAt: new Date(), soldTo: buyerId, orderId });
 
-      // NOTE : la flamme n'est plus donnée automatiquement ici. C'est maintenant un choix
-      // explicite de l'acheteur, proposé côté frontend après cette confirmation, et envoyé
-      // séparément via POST /api/flames (voir plus bas). "flamesGiven" ne devient true que
-      // lorsque ce choix a réellement été fait.
       t.update(orderRef, {
         status: 'livré',
         buyerConfirmed: true,
@@ -837,6 +828,11 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
     await db.collection('notifications').add({ userId: order.sellerId, message: `Vente confirmee ! ${amountToSeller} FCFA credites sur ton wallet.`, type: 'sale_confirmed', read: false, orderId, createdAt: new Date() });
     await db.collection('notifications').add({ userId: order.buyerId, message: `Commande #${orderId.slice(0,8)} confirmee avec succes.`, type: 'order_confirmed', read: false, orderId, createdAt: new Date() });
 
+    // La commission (achat + vente) vient d'être créditée sur le wallet admin.
+    // On déclenche tout de suite le virement automatique vers ADMIN_PHONE (en arrière-plan,
+    // sans bloquer la réponse au client).
+    autoWithdrawAdmin().catch(err => console.error('autoWithdrawAdmin déclenché après confirmation (échec, sera retenté plus tard):', err.message));
+
     res.json({ success: true, message: 'Commande confirmee !', sellerReceived: amountToSeller, adminCommission: adminTotal });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
@@ -851,9 +847,6 @@ app.get('/api/orders/:userId', authenticate, async (req, res) => {
     if (userId !== req.userId && userId !== ADMIN_USER_ID) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const orders = [];
 
-    // Récupère les commandes en tant qu'acheteur ET vendeur en parallèle plutôt qu'en
-    // série, et regroupe les lectures d'articles/utilisateurs pour limiter le nombre
-    // d'appels Firestore (N+1) qui participaient à l'épuisement du quota.
     const [buyerSnapshot, sellerSnapshot] = await Promise.all([
       db.collection('orders').where('buyerId', '==', userId).get(),
       db.collection('orders').where('sellerId', '==', userId).get()
@@ -957,9 +950,6 @@ async function autoExpireOrders() {
 setInterval(() => { autoExpireOrders().catch(err => console.error('autoExpireOrders (non gérée):', err.message)); }, 5 * 60 * 1000);
 
 // ==================== FLAMMES ====================
-// Donner une flamme est maintenant TOUJOURS un choix explicite de l'acheteur (jamais
-// automatique). orderId est optionnel : s'il est fourni et correspond à une commande
-// confirmée de cet acheteur pour ce vendeur, on marque aussi flamesGiven=true dessus.
 app.post('/api/flames', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
@@ -1045,9 +1035,6 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     let messages = [];
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
 
-    // Regroupe les mises à jour "lu" en un seul batch au lieu d'un .update() par message
-    // à chaque appel (c'était un facteur majeur de consommation du quota d'écriture,
-    // vu que le frontend sonde cette route régulièrement).
     const unread = messages.filter(m => m.receiverId === userId && !m.read);
     if (unread.length > 0) {
       const batch = db.batch();
@@ -1123,8 +1110,10 @@ app.post('/api/notifications/read/:id', authenticate, async (req, res) => {
 });
 
 // ==================== ADMIN: RETRAIT AUTOMATIQUE ====================
+let adminWithdrawing = false;
 async function autoWithdrawAdmin() {
-  if (!firebaseReady || !YABETOO_SECRET) return;
+  if (!firebaseReady || !YABETOO_SECRET || adminWithdrawing) return;
+  adminWithdrawing = true;
   try {
     const adminRef = db.collection('users').doc(ADMIN_USER_ID);
     const adminDoc = await adminRef.get();
@@ -1135,9 +1124,9 @@ async function autoWithdrawAdmin() {
     const balance = adminDoc.data().walletBalance || 0;
     if (balance <= 0) return;
 
-    console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA`);
+    console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA vers ${ADMIN_PHONE}`);
     const formattedPhone = formatPhoneForYabetoo(ADMIN_PHONE);
-    const operatorName = 'mtn';
+    const operatorName = 'mtn'; // change en 'airtel' si le numéro est Airtel Money
 
     const disbursementResponse = await axios.post(
       `${YABETOO_API_BASE}/disbursements`,
@@ -1161,7 +1150,9 @@ async function autoWithdrawAdmin() {
     const disbursement = disbursementResponse.data;
     console.log('Disbursement admin créé:', disbursement);
 
-    await adminRef.update({ walletBalance: 0 });
+    // On décrémente uniquement le montant réellement envoyé à Yabetoo, pour ne pas
+    // écraser un solde qui aurait pu changer entre-temps (nouvelle commission arrivée).
+    await adminRef.update({ walletBalance: admin.firestore.FieldValue.increment(-balance) });
     await db.collection('transactions').add({
       userId: ADMIN_USER_ID,
       amount: balance,
@@ -1170,17 +1161,16 @@ async function autoWithdrawAdmin() {
       yabetooDisbursementId: disbursement.id || null,
       type: 'withdraw_auto',
       status: 'pending',
-      description: 'Retrait automatique admin',
+      description: 'Retrait automatique commissions',
       createdAt: new Date()
     });
   } catch (error) {
-    console.error('Erreur autoWithdrawAdmin:', error.message);
+    console.error('Erreur autoWithdrawAdmin:', error.response?.data || error.message);
+  } finally {
+    adminWithdrawing = false;
   }
 }
 
-// FIX CRITIQUE : chaque appel async au démarrage est maintenant protégé par un .catch().
-// Avant, une erreur ici (ex: quota Firestore dépassé) devenait une "unhandled promise
-// rejection" qui fait planter tout le process Node (Exited with status 1), en boucle.
 setTimeout(() => {
   autoWithdrawAdmin().catch(err => console.error('autoWithdrawAdmin (non gérée):', err.message));
 }, 10000);
@@ -1194,7 +1184,6 @@ if (firebaseReady) {
     .catch(err => console.error('ensureAdminDocument a échoué (le serveur continue de tourner):', err.message));
 }
 
-// Filet de sécurité global : logue sans jamais planter le process.
 process.on('unhandledRejection', (reason) => {
   console.error('Promesse rejetée non gérée (ignorée, le serveur continue de tourner):', reason);
 });
