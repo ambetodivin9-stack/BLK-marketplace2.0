@@ -458,7 +458,7 @@ body.dark .wallet-warning{color:#ffb4a8;}
       <form class="onboard-form" id="step2FormOnb">
         <div class="onboard-input-group"><input type="email" id="regEmail" placeholder="Adresse e-mail" required autocomplete="off"></div>
         <div class="onboard-input-group"><input type="password" id="regPassword" placeholder="Mot de passe (8 caractères min.)" required></div>
-        <div class="onboard-input-group"><input type="tel" id="regPhone" placeholder="Numéro de téléphone" required></div>
+        <div class="onboard-input-group"><input type="tel" id="regPhone" placeholder="Ex: 242065918166" required></div>
         <div class="onboard-error" id="step2ErrorOnb"></div>
         <button type="submit" class="onboard-btn-main" style="margin-top:8px;">Suivant</button>
       </form>
@@ -608,6 +608,9 @@ body.dark .wallet-warning{color:#ffb4a8;}
   <!-- Page Profil -->
   <div class="page" id="pageProfile">
     <div class="icon-btn-row">
+      <button class="icon-btn" id="btnInstallApp" title="Installer l'application" style="display:none;color:var(--accent3);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      </button>
       <button class="icon-btn" id="btnShareApp" title="Partager l'application">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5"/><path d="M8.6 13.5 15.4 17.5"/></svg>
       </button>
@@ -725,6 +728,58 @@ body.dark .wallet-warning{color:#ffb4a8;}
   else window.addEventListener('load', hideSplash);
   setTimeout(hideSplash, 4000);
 })();
+
+// ===================== INSTALLATION DE L'APPLICATION (PWA) =====================
+// Permet d'installer BLK comme une vraie app (icône sur l'écran d'accueil, dans le
+// tiroir d'applications), avec la fenêtre d'autorisation native du téléphone.
+let blkDeferredInstallPrompt = null;
+function isAppAlreadyInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIos() {
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  blkDeferredInstallPrompt = e;
+  const btn = document.getElementById('btnInstallApp');
+  if (btn && !isAppAlreadyInstalled()) btn.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  blkDeferredInstallPrompt = null;
+  const btn = document.getElementById('btnInstallApp');
+  if (btn) btn.style.display = 'none';
+  showAlert && showAlert('BLK Marketplace est installée sur ton téléphone !', 'success');
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btnInstallApp');
+  if (btn && isIos() && !isAppAlreadyInstalled()) btn.style.display = 'flex';
+});
+document.getElementById('btnInstallApp')?.addEventListener('click', async () => {
+  if (blkDeferredInstallPrompt) {
+    blkDeferredInstallPrompt.prompt();
+    const choice = await blkDeferredInstallPrompt.userChoice;
+    blkDeferredInstallPrompt = null;
+    if (choice.outcome !== 'accepted') showAlert('Installation annulée.', 'info');
+    return;
+  }
+  if (isIos()) {
+    openModal(`
+      <div style="text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">📲</div>
+        <h3 style="margin-bottom:10px;">Installer BLK Marketplace</h3>
+        <p style="color:#666;font-size:14px;line-height:1.7;text-align:left;">
+          1. Appuie sur le bouton <strong>Partager</strong> en bas de Safari (le carré avec une flèche vers le haut)<br>
+          2. Fais défiler et appuie sur <strong>« Sur l'écran d'accueil »</strong><br>
+          3. Appuie sur <strong>« Ajouter »</strong> en haut à droite
+        </p>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="this.closest('.modal-overlay').remove()">J'ai compris</button>
+      </div>
+    `);
+    return;
+  }
+  showAlert("Ton navigateur ne propose pas d'installation directe. Utilise le menu du navigateur et cherche « Installer l'application » ou « Ajouter à l'écran d'accueil ».", 'info');
+});
 
 // ===================== ICONS SVG =====================
 const TAB_ICONS = {
@@ -1218,11 +1273,13 @@ function openProductFullscreen(product) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:var(--input-bg);border-radius:12px;cursor:pointer;" id="pfSellerRow">
         <div class="profile-avatar-new" style="width:40px;height:40px;">${product.sellerPhoto ? safeImgTag(product.sellerPhoto, product.sellerName, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(product.sellerName ? product.sellerName.charAt(0).toUpperCase() : '?')}</div>
         <div><div style="font-weight:700;">${escapeHtml(product.sellerName) || 'Anonyme'}</div><div style="font-size:12px;color:#999;">Voir la boutique</div></div>
-        <button class="btn btn-sm btn-outline" style="margin-left:auto;" id="pfBtnMessageSeller">Message</button>
+        ${product.sellerId !== currentUserId ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;" id="pfBtnMessageSeller">Message</button>` : ''}
       </div>
       <div style="display:flex;gap:10px;margin-bottom:20px;">
-        <button class="btn btn-primary" style="flex:1;" id="pfBtnBuyNow">Acheter maintenant</button>
-        ${product.sellerId === currentUserId && product.status === 'active' ? `<button class="btn btn-danger" style="flex:1;" id="pfBtnDelete">Supprimer</button>` : ''}
+        ${product.sellerId === currentUserId
+          ? (product.status === 'active' ? `<button class="btn btn-danger" style="flex:1;" id="pfBtnDelete">Supprimer</button>` : `<p style="flex:1;text-align:center;color:#999;font-size:13px;">C'est ton article</p>`)
+          : `<button class="btn btn-primary" style="flex:1;" id="pfBtnBuyNow">Acheter maintenant</button>`
+        }
       </div>
       <h3 style="font-size:15px;margin-bottom:10px;">Autres articles de ${escapeHtml(product.sellerName || 'ce vendeur')}</h3>
       <div id="pfOtherItems" class="articles-grid"><p class="empty" style="grid-column:1/-1;">Chargement...</p></div>
@@ -1242,8 +1299,8 @@ function openProductFullscreen(product) {
     screen.querySelector('#pfCarouselRight').addEventListener('click', () => updateCarousel((currentIndex + 1) % images.length));
     dots.forEach(dot => dot.addEventListener('click', () => updateCarousel(parseInt(dot.dataset.index))));
   }
-  screen.querySelector('#pfBtnBuyNow').addEventListener('click', () => showCheckoutModal(product));
-  screen.querySelector('#pfBtnMessageSeller').addEventListener('click', () => openDiscussion(product.sellerId, product.sellerName || 'Vendeur', product));
+  screen.querySelector('#pfBtnBuyNow')?.addEventListener('click', () => showCheckoutModal(product));
+  screen.querySelector('#pfBtnMessageSeller')?.addEventListener('click', () => openDiscussion(product.sellerId, product.sellerName || 'Vendeur', product));
   screen.querySelector('#pfSellerRow').addEventListener('click', (e) => { if (!e.target.closest('#pfBtnMessageSeller')) scrollToOtherItems(); });
   function scrollToOtherItems() { screen.querySelector('#pfOtherItems')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   const deleteBtn = screen.querySelector('#pfBtnDelete');
@@ -1363,7 +1420,7 @@ function showCheckoutModal(product) {
       </div>
       <div style="margin-bottom:16px;">
         <label style="font-weight:600;font-size:14px;">TON NUMÉRO MOBILE MONEY</label>
-        <input type="tel" id="checkoutPhone" placeholder="Ex: 065918166" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-top:6px;font-size:15px;background:var(--input-bg);color:var(--text);">
+        <input type="tel" id="checkoutPhone" placeholder="Ex: 242065918166" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-top:6px;font-size:15px;background:var(--input-bg);color:var(--text);">
       </div>
       <div style="background:var(--input-bg);border-radius:12px;padding:12px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Article</span><span>${product.price} FCFA</span></div>
@@ -1977,7 +2034,7 @@ function openMoneyForm(kind) {
   const isDeposit = kind === 'deposit';
   let html = `<h3 style="text-align:center;margin-bottom:14px;">${isDeposit ? 'Déposer sur ton wallet' : 'Retirer de ton wallet'}</h3>`;
   html += `<div style="display:flex;gap:10px;margin-bottom:10px;"><button type="button" class="btn btn-sm money-op-btn" data-op="mtn" style="flex:1;">MTN</button><button type="button" class="btn btn-sm btn-outline money-op-btn" data-op="airtel" style="flex:1;">Airtel</button></div>`;
-  html += `<input type="tel" id="moneyPhone" placeholder="Numéro Mobile Money" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">`;
+  html += `<input type="tel" id="moneyPhone" placeholder="Ex: 242065918166" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">`;
   html += `<input type="number" id="moneyAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">`;
   html += `<button class="btn btn-primary" id="moneySubmit">${isDeposit ? 'Confirmer le dépôt' : 'Confirmer le retrait'}</button>`;
   html += `<button class="btn btn-outline" id="moneyCancel" style="margin-top:8px;">Annuler</button>`;
@@ -2011,7 +2068,7 @@ function openMoneyForm(kind) {
 }
 function openTransferForm() {
   let html = '<h3 style="margin-bottom:14px;text-align:center;">Transférer à un utilisateur BLK</h3>';
-  html += '<input type="tel" id="transferPhone" placeholder="Numéro du destinataire" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">';
+  html += '<input type="tel" id="transferPhone" placeholder="Ex: 242065918166" style="width:100%;padding:12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">';
   html += '<input type="number" id="transferAmount" placeholder="Montant (FCFA)" style="width:100%;padding:12px;margin-bottom:14px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);">';
   html += '<button class="btn btn-primary" id="transferSubmit">Envoyer</button>';
   html += '<button class="btn btn-outline" id="transferCancel" style="margin-top:8px;">Annuler</button>';
