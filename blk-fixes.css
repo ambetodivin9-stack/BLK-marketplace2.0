@@ -1,0 +1,12 @@
+/* BLK Marketplace - correctifs (charger après le <style> de index.html) */
+.alert{position:fixed;top:14px;left:12px;right:12px;max-width:560px;margin:0 auto;z-index:8000;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);}
+#chatFullscreen{z-index:1600;}
+.chat-fullscreen{height:100dvh;}
+.chat-send-btn{font-size:0;}
+.chat-send-btn::after{content:'➤';font-size:16px;}
+.contact-row-badge,.tab-badge{background:#3498DB !important;}
+.contact-row-badge{min-width:20px;height:20px;font-size:12px;font-weight:800;}
+.contact-row:has(.contact-row-badge) .contact-row-name{font-weight:900;}
+.contact-row:has(.contact-row-badge) .contact-row-preview{color:var(--text);font-weight:600;}
+.onboard-logo,.blk-splash-logo{background:#fff;border-radius:26px;padding:12px;}
+.brand-logo-img{width:56px;height:56px;}
