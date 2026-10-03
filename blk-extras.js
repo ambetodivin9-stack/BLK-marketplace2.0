@@ -14,7 +14,7 @@
     /* La messagerie passe au-dessus de la fiche article */
     '#chatFullscreen{z-index:1600 !important;}' +
     /* Logo sans cadre : détouré sur l\'accueil, silhouette blanche sur les écrans en couleur */
-    '.brand-logo-img{width:104px;height:104px;}.onboard-logo,.onboard-logo-welcome{width:128px;height:128px;}' +
+    '.app{padding-top:14px !important;}.brand-row{padding-top:0;}.brand-logo-img{width:104px;height:104px;}.onboard-logo,.onboard-logo-welcome{width:128px;height:128px;}' +
     '.onboard-logo,.onboard-logo-welcome,.blk-splash-logo{filter:brightness(0) invert(1) drop-shadow(0 6px 18px rgba(0,0,0,.35)) !important;}';
   document.head.appendChild(st);
 
@@ -130,4 +130,57 @@
   window.addEventListener('beforeinstallprompt', function (e) { deferred = e; setTimeout(showBanner, 2500); });
   window.addEventListener('appinstalled', function () { var b = document.getElementById('installBanner'); if (b) b.remove(); });
   if (ios && !standalone) setTimeout(showBanner, 3000);
+
+  // ---------- Boutons « Télécharger l'application » (tous les appareils) ----------
+  function isSafariIos() { return ios && /safari/i.test(navigator.userAgent) && !/crios|fxios|edgios|opios/i.test(navigator.userAgent); }
+  function infoModal(title, html) {
+    if (typeof openModal !== 'function') { alert(title); return; }
+    var ov = openModal('<div style="text-align:center;"><div style="font-size:40px;margin-bottom:8px;">📲</div><h3 style="margin-bottom:10px;">' + title + '</h3><div style="color:#666;font-size:14px;line-height:1.7;text-align:left;">' + html + '</div><button class="btn btn-primary" id="dlOk" style="margin-top:14px;">J\'ai compris</button></div>');
+    ov.querySelector('#dlOk').onclick = function () { ov.remove(); };
+  }
+  function doInstall() {
+    if (deferred) {
+      try {
+        deferred.prompt();
+        deferred = null;
+        return;
+      } catch (e) { deferred = null; }
+    }
+    if (ios) {
+      if (!isSafariIos()) {
+        infoModal('Ouvre dans Safari', 'Sur iPhone, l\'installation se fait depuis <strong>Safari</strong>. Copie le lien de ce site, ouvre-le dans Safari, puis appuie sur le bouton <strong>Partager</strong> et <strong>« Sur l\'écran d\'accueil »</strong>.');
+      } else {
+        infoModal('Installer BLK Marketplace', '1. Appuie sur le bouton <strong>Partager</strong> (le carré avec une flèche vers le haut)<br>2. Fais défiler et appuie sur <strong>« Sur l\'écran d\'accueil »</strong><br>3. Appuie sur <strong>« Ajouter »</strong>');
+      }
+      return;
+    }
+    infoModal('Installer BLK Marketplace', '<strong>Android :</strong> ouvre le menu du navigateur (les 3 points) et choisis <strong>« Installer l\'application »</strong> ou <strong>« Ajouter à l\'écran d\'accueil »</strong>.<br><br><strong>Ordinateur (Chrome / Edge) :</strong> clique sur l\'icône d\'installation à droite de la barre d\'adresse, ou ouvre le menu et choisis <strong>« Installer BLK Marketplace »</strong>.');
+  }
+  function addDownloadButtons() {
+    if (standalone) return;
+    var wb = document.querySelector('#onbWelcome .onboard-bottom');
+    if (wb && !document.getElementById('dlWelcome')) {
+      var b1 = document.createElement('button');
+      b1.id = 'dlWelcome'; b1.className = 'onboard-btn-main'; b1.type = 'button';
+      b1.style.cssText = 'margin-top:12px;background:transparent;color:#fff;border:2px solid rgba(255,255,255,.85);box-shadow:none;';
+      b1.textContent = '📲 Télécharger l\'application';
+      b1.onclick = doInstall;
+      wb.appendChild(b1);
+    }
+    var pb = document.querySelector('.promo-banner');
+    if (pb && !document.getElementById('dlHome')) {
+      var b2 = document.createElement('button');
+      b2.id = 'dlHome'; b2.className = 'btn btn-outline'; b2.type = 'button';
+      b2.style.cssText = 'margin-bottom:12px;';
+      b2.textContent = '📲 Télécharger l\'application';
+      b2.onclick = doInstall;
+      pb.insertAdjacentElement('afterend', b2);
+    }
+    var pbtn = document.getElementById('btnInstallApp');
+    if (pbtn) pbtn.style.display = 'flex';
+  }
+  addDownloadButtons();
+  window.addEventListener('appinstalled', function () {
+    ['dlWelcome', 'dlHome'].forEach(function (id) { var el = document.getElementById(id); if (el) el.remove(); });
+  });
 })();
