@@ -10,7 +10,12 @@
     '#installBanner img{width:42px;height:42px;border-radius:10px;}' +
     '#installBanner .t{flex:1;font-size:13px;font-weight:700;line-height:1.3;}' +
     '#installBanner button{border:none;border-radius:12px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer;background:var(--accent);color:#fff;}' +
-    '#installBanner button.x{background:transparent;color:#999;padding:6px;font-size:16px;}';
+    '#installBanner button.x{background:transparent;color:#999;padding:6px;font-size:16px;}' +
+    /* La messagerie passe au-dessus de la fiche article */
+    '#chatFullscreen{z-index:1600 !important;}' +
+    /* Logo sans cadre : détouré sur l\'accueil, silhouette blanche sur les écrans en couleur */
+    '.brand-logo-img{width:68px;height:68px;}' +
+    '.onboard-logo,.onboard-logo-welcome,.blk-splash-logo{filter:brightness(0) invert(1) drop-shadow(0 6px 18px rgba(0,0,0,.35)) !important;}';
   document.head.appendChild(st);
 
   // ---------- Upload avec réessais ----------
@@ -45,6 +50,32 @@
       if (s) { s.style.color = '#E74C3C'; s.textContent = 'Ajoute au moins une photo.'; }
     }
   }, true);
+
+  // ---------- Fiche article : photo et nom actuels du vendeur ----------
+  var origOpenProduct = window.openProductFullscreen;
+  if (typeof origOpenProduct === 'function') {
+    window.openProductFullscreen = function (product) {
+      origOpenProduct(product);
+      if (!product || !product.sellerId) return;
+      apiFetch('/api/users/' + product.sellerId)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.success) return;
+          var row = document.getElementById('pfSellerRow');
+          if (!row) return;
+          var av = row.querySelector('.profile-avatar-new');
+          if (av) {
+            av.style.width = '48px'; av.style.height = '48px';
+            av.innerHTML = d.data.photo
+              ? safeImgTag(d.data.photo, d.data.name, 'width:100%;height:100%;object-fit:cover;')
+              : escapeHtml((d.data.name || '?').charAt(0).toUpperCase());
+          }
+          var nameEl = row.querySelector('div:nth-child(2) > div:first-child');
+          if (nameEl && d.data.name) nameEl.textContent = d.data.name;
+        })
+        .catch(function () {});
+    };
+  }
 
   // ---------- Glisser vers le bas pour actualiser ----------
   var ptr = document.getElementById('ptr');
