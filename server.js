@@ -13,6 +13,9 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// Render est derrière un proxy : sans ça, tous les utilisateurs partagent la même limite de requêtes.
+app.set('trust proxy', 1);
+
 // ==================== CORS ====================
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
