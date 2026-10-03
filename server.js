@@ -8,6 +8,7 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -63,7 +64,8 @@ try {
   console.error('Erreur Firebase:', error.message);
 }
 
-const IMG_BB_KEY = process.env.IMG_BB_KEY;
+// Accepte les deux noms de variable (IMG_BB_KEY ou IMGBB_API_KEY)
+const IMG_BB_KEY = process.env.IMG_BB_KEY || process.env.IMGBB_API_KEY;
 if (!IMG_BB_KEY) {
   console.warn('ATTENTION: IMG_BB_KEY n\'est pas définie dans les variables d\'environnement Render. Les uploads de photos échoueront tant que ce n\'est pas corrigé.');
 }
@@ -109,19 +111,51 @@ function sendServerError(res, context, error) {
   return res.status(500).json({ success: false, message: "Une erreur est survenue. Réessaie dans un instant." });
 }
 
-function authenticate(req, res, next) {
+// ==================== SESSION UNIQUE (un seul appareil par compte) ====================
+// À chaque connexion on génère un identifiant de session (sid) stocké sur l'utilisateur
+// et placé dans le token. Si quelqu'un se reconnecte ailleurs, l'ancien token est refusé.
+const sessionCache = new Map();
+
+async function newSession(userId) {
+  const sid = crypto.randomBytes(16).toString('hex');
+  await db.collection('users').doc(userId).set({ sessionId: sid }, { merge: true });
+  sessionCache.set(userId, { sid, ts: Date.now() });
+  return sid;
+}
+
+async function getCurrentSid(userId) {
+  const cached = sessionCache.get(userId);
+  if (cached && Date.now() - cached.ts < 30000) return cached.sid;
+  const doc = await db.collection('users').doc(userId).get();
+  const sid = doc.exists ? (doc.data().sessionId || null) : null;
+  sessionCache.set(userId, { sid, ts: Date.now() });
+  return sid;
+}
+
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, message: 'Non authentifié' });
   }
   const token = authHeader.split(' ')[1];
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Token invalide ou expiré' });
+  }
+  try {
+    if (firebaseReady) {
+      const current = await getCurrentSid(decoded.userId);
+      if (current && decoded.sid !== current) {
+        return res.status(401).json({ success: false, code: 'SESSION_REPLACED', message: 'Ton compte a été ouvert sur un autre appareil.' });
+      }
+    }
     req.userId = decoded.userId;
     req.userEmail = decoded.email;
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Token invalide ou expiré' });
+    return sendServerError(res, 'authenticate', err);
   }
 }
 
@@ -189,7 +223,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       phone, photo: '', walletBalance: 0, flames: 0,
       blockedUsers: [], online: true, createdAt: new Date()
     });
-    const token = jwt.sign({ userId: userRef.id, email }, JWT_SECRET, { expiresIn: '30d' });
+    const sid = await newSession(userRef.id);
+    const token = jwt.sign({ userId: userRef.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone } });
   } catch (error) {
     sendServerError(res, 'auth/register', error);
@@ -207,7 +242,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const userData = userDoc.data();
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
-    const token = jwt.sign({ userId: userDoc.id, email }, JWT_SECRET, { expiresIn: '30d' });
+    const sid = await newSession(userDoc.id);
+    const token = jwt.sign({ userId: userDoc.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '' } });
   } catch (error) {
     sendServerError(res, 'auth/login', error);
