@@ -14,7 +14,7 @@
     /* La messagerie passe au-dessus de la fiche article */
     '#chatFullscreen{z-index:1600 !important;}' +
     /* Logo sans cadre : détouré sur l\'accueil, silhouette blanche sur les écrans en couleur */
-    '.brand-logo-img{width:68px;height:68px;}' +
+    '.brand-logo-img{width:104px;height:104px;}.onboard-logo,.onboard-logo-welcome{width:128px;height:128px;}' +
     '.onboard-logo,.onboard-logo-welcome,.blk-splash-logo{filter:brightness(0) invert(1) drop-shadow(0 6px 18px rgba(0,0,0,.35)) !important;}';
   document.head.appendChild(st);
 
