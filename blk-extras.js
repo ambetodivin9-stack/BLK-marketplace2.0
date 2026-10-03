@@ -13,6 +13,7 @@
     '#installBanner button.x{background:transparent;color:#999;padding:6px;font-size:16px;}' +
     /* La messagerie passe au-dessus de la fiche article */
     '#chatFullscreen{z-index:1600 !important;}' +
+    '#btnToggleTheme{display:none !important;}' +
     /* Logo sans cadre : détouré sur l\'accueil, silhouette blanche sur les écrans en couleur */
     '.app{padding-top:14px !important;}.brand-row{padding-top:0;}.brand-logo-img{width:104px;height:104px;}.onboard-logo,.onboard-logo-welcome{width:128px;height:128px;}' +
     '.onboard-logo,.onboard-logo-welcome,.blk-splash-logo{filter:brightness(0) invert(1) drop-shadow(0 6px 18px rgba(0,0,0,.35)) !important;}';
