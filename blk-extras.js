@@ -27,6 +27,12 @@
 #productFullscreen .carousel-track{align-items:center;}
 #productFullscreen .carousel-slide img{aspect-ratio:auto !important;width:100%;height:auto !important;max-height:78vh;object-fit:contain !important;}
 
+/* Accueil : les photos s'affichent à leur vraie taille, sans recadrage (deux colonnes comme Pinterest) */
+.articles-grid{display:block !important;column-count:2;column-gap:10px;}
+.articles-grid .article-card{break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:10px;display:block;}
+.articles-grid .article-card img{aspect-ratio:auto !important;width:100%;height:auto !important;object-fit:contain !important;display:block;}
+.articles-grid > .empty,.articles-grid > p{column-span:all;}
+
 /* Bouton retour plus grand */
 .chat-back-btn{font-size:42px !important;width:56px;height:56px;margin-left:-8px;display:flex !important;align-items:center;justify-content:center;line-height:1;padding:0 0 6px;}
 .chat-menu-btn{background:none;border:none;color:var(--accent);font-size:30px;font-weight:900;width:48px;height:48px;cursor:pointer;line-height:1;flex-shrink:0;}
@@ -622,37 +628,9 @@
       return 'server';
     } catch (e) { return 'error'; }
   }
-  var pushBtn = null;
-  function paintPush(state) {
-    if (!pushBtn) return;
-    if (state === 'ok') {
-      pushBtn.textContent = '🔔 Notifications activées ✓';
-      pushBtn.style.borderColor = '#2ECC71'; pushBtn.style.color = '#2ECC71';
-    } else if (state === 'denied') {
-      infoModal('Notifications bloquées', 'Les notifications sont bloquées pour BLK. Ouvre les <strong>réglages de ton téléphone</strong>, trouve <strong>BLK</strong> (ou ton navigateur) et autorise les notifications, puis reviens appuyer sur ce bouton.');
-    } else if (state === 'unsupported') {
-      infoModal('Non disponible', 'Ton navigateur ne permet pas les notifications. Installe l\'application sur ton écran d\'accueil pour les recevoir.');
-    } else {
-      infoModal('Réessaie plus tard', 'Les notifications ne sont pas disponibles pour le moment. Réessaie dans quelques instants.');
-    }
-  }
+  // Désabonnement à la déconnexion
   var lo = $('btnLogout');
-  if (lo && !$('btnPush')) {
-    pushBtn = document.createElement('button');
-    pushBtn.id = 'btnPush'; pushBtn.className = 'btn btn-outline'; pushBtn.type = 'button';
-    pushBtn.style.cssText = 'margin-top:10px;';
-    pushBtn.textContent = '🔔 Activer les notifications';
-    lo.insertAdjacentElement('beforebegin', pushBtn);
-    pushBtn.onclick = async function () {
-      if (ios && !standalone) {
-        infoModal('Installe d\'abord l\'application', 'Sur iPhone, les notifications fonctionnent seulement quand l\'application est installée : appuie sur <strong>Partager</strong>, puis <strong>« Sur l\'écran d\'accueil »</strong>. Ouvre ensuite BLK depuis ton écran d\'accueil et reviens appuyer ici.');
-        return;
-      }
-      pushBtn.disabled = true;
-      var st2 = await enablePush();
-      pushBtn.disabled = false;
-      paintPush(st2);
-    };
+  if (lo) {
     lo.addEventListener('click', function () {
       try {
         var ep = localStorage.getItem('blk_push_endpoint');
@@ -663,17 +641,24 @@
       } catch (e) {}
     }, true);
   }
-  // Réabonnement automatique dès qu'on est connecté et que la permission est déjà accordée
+  // Activation automatique, sans bouton : la permission est demandée au premier toucher après la connexion
   var pushTries = 0;
   var pushTimer = setInterval(function () {
     pushTries++;
     if (pushTries > 150) { clearInterval(pushTimer); return; }
     if (typeof authToken !== 'undefined' && authToken && typeof currentUserId !== 'undefined' && currentUserId) {
       clearInterval(pushTimer);
-      if ('Notification' in window && Notification.permission === 'granted') enablePush().then(paintPush2);
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'granted') { enablePush(); }
+      else if (Notification.permission === 'default' && (!ios || standalone)) {
+        var askOnce = function () {
+          document.removeEventListener('click', askOnce, true);
+          enablePush();
+        };
+        document.addEventListener('click', askOnce, true);
+      }
     }
   }, 2000);
-  function paintPush2(state) { if (state === 'ok') paintPush('ok'); }
 
   // Touche une notification : ouvre directement la discussion
   if ('serviceWorker' in navigator) {
