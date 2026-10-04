@@ -9,6 +9,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+let webpush = null;
+try { webpush = require('web-push'); } catch (e) { console.warn('Module web-push absent : les notifications push sont désactivées (ajoute "web-push" dans package.json).'); }
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -103,10 +105,11 @@ function parseAmount(value) {
 }
 
 function formatPhoneForYabetoo(phone) {
-  let formatted = String(phone).trim().replace(/\s/g, '').replace(/\+/g, '');
-  if (formatted.startsWith('0')) formatted = formatted.substring(1);
-  if (!formatted.startsWith('242')) formatted = '242' + formatted;
-  return '+' + formatted;
+  // Numéros du Congo-Brazzaville : 9 chiffres avec le 0 initial (ex. 06 513 9495 -> +242065139495).
+  let digits = String(phone).replace(/\D/g, '');
+  let rest = digits.startsWith('242') ? digits.slice(3) : digits;
+  if (rest.length === 8) rest = '0' + rest;
+  return '+242' + rest;
 }
 
 function sendServerError(res, context, error) {
@@ -996,27 +999,36 @@ app.post('/api/flames', authenticate, async (req, res) => {
     const buyerId = req.userId;
     if (!sellerId) return res.status(400).json({ success: false, message: 'sellerId requis' });
     if (sellerId === buyerId) return res.status(400).json({ success: false, message: 'Vous ne pouvez pas vous donner une flamme' });
-    const existing = await db.collection('flames').where('sellerId', '==', sellerId).where('buyerId', '==', buyerId).get();
+
+    let existing;
+    if (orderId) {
+      // Une flamme possible par commande : l'acheteur peut en redonner à chaque nouvel achat chez le même vendeur.
+      const orderDoc = await db.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) return res.status(404).json({ success: false, message: 'Commande introuvable' });
+      const o = orderDoc.data();
+      if (o.buyerId !== buyerId || o.sellerId !== sellerId) return res.status(403).json({ success: false, message: 'Non autorisé' });
+      if (o.status !== 'livré') return res.status(400).json({ success: false, message: "Confirme d'abord la réception de la commande." });
+      if (o.flamesGiven) return res.status(400).json({ success: false, message: 'Flamme deja donnee pour cette commande' });
+      existing = await db.collection('flames').where('orderId', '==', orderId).where('buyerId', '==', buyerId).get();
+    } else {
+      existing = await db.collection('flames').where('sellerId', '==', sellerId).where('buyerId', '==', buyerId).get();
+    }
     if (!existing.empty) return res.status(400).json({ success: false, message: 'Flamme deja donnee' });
+
     await db.collection('flames').add({ sellerId, buyerId, orderId: orderId || null, createdAt: new Date() });
     const userRef = db.collection('users').doc(sellerId);
-    const userDoc = await userRef.get();
-    const currentFlames = userDoc.data()?.flames || 0;
-    await userRef.update({ flames: currentFlames + 1 });
+    await userRef.set({ flames: admin.firestore.FieldValue.increment(1) }, { merge: true });
+    const updated = await userRef.get();
+    const newFlames = updated.data()?.flames || 0;
 
     if (orderId) {
-      try {
-        const orderRef = db.collection('orders').doc(orderId);
-        const orderDoc = await orderRef.get();
-        if (orderDoc.exists && orderDoc.data().buyerId === buyerId && orderDoc.data().sellerId === sellerId) {
-          await orderRef.update({ flamesGiven: true });
-        }
-      } catch (e) { console.error('[flames] maj flamesGiven ignorée:', e.message); }
+      try { await db.collection('orders').doc(orderId).update({ flamesGiven: true }); }
+      catch (e) { console.error('[flames] maj flamesGiven ignorée:', e.message); }
     }
 
     await db.collection('notifications').add({ userId: sellerId, message: 'Tu as recu une flamme !', type: 'flame_received', read: false, orderId: orderId || null, createdAt: new Date() });
 
-    res.json({ success: true, flames: currentFlames + 1 });
+    res.json({ success: true, flames: newFlames });
   } catch (error) { sendServerError(res, 'flames/give', error); }
 });
 
@@ -1074,6 +1086,7 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     let messages = [];
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
 
+    messages = messages.filter(m => !(m.deletedFor || []).includes(userId));
     const unread = messages.filter(m => m.receiverId === userId && !m.read);
     if (unread.length > 0) {
       const batch = db.batch();
@@ -1106,6 +1119,8 @@ app.post('/api/messages', authenticate, async (req, res) => {
     const receiverDoc = await db.collection('users').doc(receiverId).get();
     const blockedUsers = receiverDoc.data()?.blockedUsers || [];
     if (blockedUsers.includes(senderId)) return res.status(403).json({ success: false, message: 'Vous etes bloque par ce destinataire' });
+    const senderBlocked = senderDoc.data()?.blockedUsers || [];
+    if (senderBlocked.includes(receiverId)) return res.status(403).json({ success: false, message: 'Tu as bloqué ce contact. Débloque-le pour lui écrire.' });
 
     const message = {
       senderId, receiverId, text: text || '', audioUrl: audioUrl || '', audioDuration: audioDuration || 0,
@@ -1116,9 +1131,82 @@ app.post('/api/messages', authenticate, async (req, res) => {
     };
     const docRef = await db.collection('messages').add(message);
     await db.collection('notifications').add({ userId: receiverId, message: `Nouveau message de ${senderName}`, type: 'new_message', read: false, messageId: docRef.id, createdAt: new Date() });
+    sendPushToUser(receiverId, { title: senderName, body: text ? String(text).slice(0, 140) : '🎤 Message vocal', tag: 'msg-' + senderId, senderId, senderName })
+      .catch(err => console.error('[push] envoi ignoré:', err.message));
     res.json({ success: true, id: docRef.id });
   } catch (error) { sendServerError(res, 'messages/send', error); }
 });
+
+// ==================== SUPPRESSION D'UNE DISCUSSION (de ton côté uniquement) ====================
+app.post('/api/messages/delete-conversation', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const { contactId } = req.body;
+    if (!contactId) return res.status(400).json({ success: false, message: 'contactId requis' });
+    const snapshot = await db.collection('messages').where('participants', 'array-contains', req.userId).get();
+    const docs = snapshot.docs.filter(d => { const m = d.data(); return m.senderId === contactId || m.receiverId === contactId; });
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = db.batch();
+      docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { deletedFor: admin.firestore.FieldValue.arrayUnion(req.userId) }));
+      await batch.commit();
+    }
+    res.json({ success: true, deleted: docs.length });
+  } catch (error) { sendServerError(res, 'messages/delete-conversation', error); }
+});
+
+// ==================== NOTIFICATIONS PUSH (application fermée) ====================
+let pushReady = false;
+let vapidPublicKey = null;
+async function initPush() {
+  if (!webpush || !firebaseReady) return;
+  const ref = db.collection('config').doc('vapid');
+  const snap = await ref.get();
+  let keys;
+  if (snap.exists && snap.data().publicKey && snap.data().privateKey) keys = snap.data();
+  else {
+    keys = webpush.generateVAPIDKeys();
+    await ref.set({ publicKey: keys.publicKey, privateKey: keys.privateKey, createdAt: new Date() });
+  }
+  webpush.setVapidDetails('mailto:admin@blk.com', keys.publicKey, keys.privateKey);
+  vapidPublicKey = keys.publicKey;
+  pushReady = true;
+  console.log('Notifications push prêtes');
+}
+function pushDocId(endpoint) { return crypto.createHash('sha256').update(String(endpoint)).digest('hex'); }
+
+app.get('/api/push/key', (req, res) => {
+  if (!pushReady) return res.json({ success: false, message: 'Notifications non disponibles' });
+  res.json({ success: true, publicKey: vapidPublicKey });
+});
+app.post('/api/push/subscribe', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const sub = req.body && req.body.subscription;
+    if (!sub || !sub.endpoint || !sub.keys) return res.status(400).json({ success: false, message: 'Abonnement invalide' });
+    await db.collection('pushSubscriptions').doc(pushDocId(sub.endpoint)).set({ userId: req.userId, subscription: sub, updatedAt: new Date() });
+    res.json({ success: true });
+  } catch (error) { sendServerError(res, 'push/subscribe', error); }
+});
+app.post('/api/push/unsubscribe', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const endpoint = req.body && req.body.endpoint;
+    if (endpoint) await db.collection('pushSubscriptions').doc(pushDocId(endpoint)).delete();
+    res.json({ success: true });
+  } catch (error) { sendServerError(res, 'push/unsubscribe', error); }
+});
+async function sendPushToUser(userId, payload) {
+  if (!pushReady || !userId) return;
+  const snap = await db.collection('pushSubscriptions').where('userId', '==', userId).get();
+  const body = JSON.stringify(payload);
+  await Promise.all(snap.docs.map(async (d) => {
+    try { await webpush.sendNotification(d.data().subscription, body, { TTL: 86400 }); }
+    catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) await d.ref.delete();
+      else console.error('[push]', err.statusCode || '', err.body || err.message);
+    }
+  }));
+}
 
 // ==================== NOTIFICATIONS ====================
 app.get('/api/notifications/:userId', authenticate, async (req, res) => {
@@ -1163,8 +1251,8 @@ async function autoWithdrawAdmin() {
     const balance = adminDoc.data().walletBalance || 0;
     if (balance <= 0) return;
 
-    console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA vers ${ADMIN_PHONE}`);
     const formattedPhone = formatPhoneForYabetoo(ADMIN_PHONE);
+    console.log(`Tentative de retrait automatique pour admin: ${balance} FCFA vers ${formattedPhone}`);
     const operatorName = 'mtn'; // change en 'airtel' si le numéro est Airtel Money
 
     const disbursementResponse = await axios.post(
@@ -1218,6 +1306,7 @@ setInterval(() => {
 }, AUTO_WITHDRAW_INTERVAL_MS);
 
 if (firebaseReady) {
+  initPush().catch(err => console.error('initPush a échoué (le serveur continue de tourner):', err.message));
   ensureAdminDocument()
     .then(() => console.log('Admin document prêt'))
     .catch(err => console.error('ensureAdminDocument a échoué (le serveur continue de tourner):', err.message));
