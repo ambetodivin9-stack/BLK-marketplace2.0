@@ -608,6 +608,70 @@
     ['dlWelcome', 'dlHome'].forEach(function (id) { var el = $(id); if (el) el.remove(); });
   });
   // =====================================================================
+  // COMMANDES : seul l'acheteur peut confirmer la réception ; le vendeur voit seulement le temps restant
+  // =====================================================================
+  var origConfirmModal = window.openOrderConfirmModal;
+  if (typeof origConfirmModal === 'function') {
+    window.openOrderConfirmModal = function (order) {
+      if (order && order.buyerId && order.buyerId !== currentUserId) return;
+      origConfirmModal(order);
+    };
+  }
+  window.loadOrders = function () {
+    if (!currentUserId) return;
+    apiFetch('/api/orders/' + currentUserId)
+      .then(function (r) { return r.json(); })
+      .then(function (orders) {
+        var container = $('ordersList'), empty = $('emptyOrders');
+        if (!container) return;
+        if (ordersTimerInterval) { clearInterval(ordersTimerInterval); ordersTimerInterval = null; }
+        if (!Array.isArray(orders) || orders.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        container.innerHTML = '';
+        var timerTargets = [];
+        orders.forEach(function (order) {
+          var card = document.createElement('div');
+          card.className = 'glass'; card.style.marginBottom = '10px';
+          var isBuyer = order.buyerId === currentUserId;
+          var articleTitle = (order.article && order.article.title) || 'Article';
+          var amount = isBuyer ? (order.totalAmount || order.amount || 0) : (order.amount || order.totalAmount || 0);
+          var st = String(order.status || '').toLowerCase();
+          var isFailed = ['expiré', 'expire', 'échoué', 'echoue', 'échouée', 'echouee'].indexOf(st) > -1;
+          var isDone = ['livré', 'livre', 'annulé', 'annule'].indexOf(st) > -1;
+          var isActive = !isFailed && !isDone;
+          var createdAt = parseServerDate(order.createdAt);
+          var deadline = createdAt ? createdAt.getTime() + PROTECTION_WINDOW_MS : null;
+          var alreadyExpired = isActive && deadline && deadline <= Date.now();
+          var hint = '';
+          if (isActive && !alreadyExpired) {
+            hint = isBuyer
+              ? '<br><span style="font-size:12px;color:var(--accent3);font-weight:700;">Toucher pour confirmer la réception ➜</span>'
+              : '<br><span style="font-size:12px;color:var(--accent2);font-weight:700;">En attente de la confirmation de l\'acheteur</span>';
+          }
+          var tag = '<span style="display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;margin-bottom:4px;background:' + (isBuyer ? 'rgba(52,152,219,.15);color:#3498DB' : 'rgba(46,204,113,.15);color:var(--accent3)') + ';">' + (isBuyer ? 'Mon achat' : 'Ma vente') + '</span><br>';
+          var info = document.createElement('div');
+          info.innerHTML = tag + '<strong>' + escapeHtml(articleTitle) + '</strong><br>' + amount + ' FCFA<br><span style="font-size:12px;color:' + (isFailed ? 'var(--accent)' : '#999') + ';font-weight:' + (isFailed ? '700' : '400') + ';">Statut: ' + (isFailed ? 'Échouée' : escapeHtml(order.status || 'En attente')) + '</span>' + hint;
+          card.appendChild(info);
+          if (isActive && deadline && !alreadyExpired) {
+            var pill = createOrderTimerPill(deadline); card.appendChild(pill.el);
+            timerTargets.push({ update: pill.update, order: order });
+          }
+          if (isActive && !alreadyExpired && isBuyer) {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function () { openOrderConfirmModal(order); });
+          } else if (alreadyExpired) { handleOrderExpired(order); }
+          container.appendChild(card);
+        });
+        if (timerTargets.length > 0) {
+          ordersTimerInterval = setInterval(function () {
+            timerTargets.forEach(function (t) { if (!t.update()) handleOrderExpired(t.order); });
+          }, 1000);
+        }
+      })
+      .catch(function (e) { console.error(e); var c = $('ordersList'); if (c) c.innerHTML = '<p class="empty">Erreur chargement</p>'; });
+  };
+
+  // =====================================================================
   // ACCUEIL : les photos d'une même publication défilent toutes les 3 secondes
   // =====================================================================
   function productImages(p) {
