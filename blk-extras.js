@@ -33,6 +33,11 @@
 .articles-grid .article-card img{aspect-ratio:auto !important;width:100%;height:auto !important;object-fit:contain !important;display:block;}
 .articles-grid > .empty,.articles-grid > p{column-span:all;}
 
+/* Diaporama des photos d'une même publication */
+.sl-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:4px;pointer-events:none;z-index:3;}
+.sl-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6);box-shadow:0 0 3px rgba(0,0,0,.45);transition:all .3s;}
+.sl-dots i.on{background:#fff;width:15px;border-radius:3px;}
+
 /* Bouton retour plus grand */
 .chat-back-btn{font-size:42px !important;width:56px;height:56px;margin-left:-8px;display:flex !important;align-items:center;justify-content:center;line-height:1;padding:0 0 6px;}
 .chat-menu-btn{background:none;border:none;color:var(--accent);font-size:30px;font-weight:900;width:48px;height:48px;cursor:pointer;line-height:1;flex-shrink:0;}
@@ -602,6 +607,73 @@
   window.addEventListener('appinstalled', function () {
     ['dlWelcome', 'dlHome'].forEach(function (id) { var el = $(id); if (el) el.remove(); });
   });
+  // =====================================================================
+  // ACCUEIL : les photos d'une même publication défilent toutes les 3 secondes
+  // =====================================================================
+  function productImages(p) {
+    var list = [];
+    if (p && p.image) list.push(p.image);
+    if (p && Array.isArray(p.images)) p.images.forEach(function (u) { if (u && list.indexOf(u) === -1) list.push(u); });
+    return list.slice(0, 8);
+  }
+  function setupSlide(card, imgs) {
+    if (card.dataset.sl) return; card.dataset.sl = '1';
+    card.style.position = 'relative';
+    function mk() {
+      var i = document.createElement('img');
+      i.className = 'sl-layer'; i.alt = ''; i.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .6s ease;background:var(--input-bg);pointer-events:none;';
+      card.appendChild(i); return i;
+    }
+    var dots = document.createElement('div'); dots.className = 'sl-dots';
+    dots.innerHTML = imgs.map(function (_, k) { return '<i class="' + (k === 0 ? 'on' : '') + '"></i>'; }).join('');
+    var A = mk(), B = mk(); card.appendChild(dots);
+    card._sl = { imgs: imgs, idx: 0, A: A, B: B, cur: null, dots: dots };
+  }
+  function paintDots(s) {
+    var d = s.dots.children;
+    for (var k = 0; k < d.length; k++) d[k].className = k === s.idx ? 'on' : '';
+  }
+  function advanceSlide(card) {
+    var s = card._sl; if (!s) return;
+    var next = (s.idx + 1) % s.imgs.length;
+    if (next === 0) {
+      if (s.cur) s.cur.style.opacity = 0;
+      s.cur = null; s.idx = 0; paintDots(s); return;
+    }
+    var idle = (s.cur === s.A) ? s.B : s.A, old = s.cur, url = s.imgs[next];
+    function show() {
+      idle.style.opacity = 1; s.cur = idle; s.idx = next; paintDots(s);
+      if (old) setTimeout(function () { if (s.cur !== old) old.style.opacity = 0; }, 700);
+    }
+    idle.style.zIndex = 2; if (old) old.style.zIndex = 1;
+    idle.style.opacity = 0;
+    if (idle.getAttribute('src') === url && idle.complete) { show(); return; }
+    idle.onload = function () { idle.onload = null; show(); };
+    idle.onerror = function () { idle.onerror = null; };
+    idle.src = url;
+  }
+  function inView(el) { var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < (window.innerHeight || 800); }
+  function decorateSlides() {
+    var grid = $('productsGrid'); if (!grid || typeof allProducts === 'undefined') return;
+    grid.querySelectorAll('.article-card').forEach(function (card) {
+      if (card.dataset.sl) return;
+      var base = card.querySelector('img'); if (!base) return;
+      var src = base.getAttribute('src');
+      var prod = allProducts.filter(function (p) { return (p.image || (p.images && p.images[0])) === src; })[0];
+      var imgs = prod ? productImages(prod) : [];
+      if (imgs.length > 1) setupSlide(card, imgs);
+    });
+  }
+  var pg = $('productsGrid');
+  if (pg) { new MutationObserver(decorateSlides).observe(pg, { childList: true }); decorateSlides(); }
+  setInterval(function () {
+    if (document.hidden) return;
+    document.querySelectorAll('#productsGrid .article-card[data-sl]').forEach(function (card) {
+      if (!inView(card)) return;
+      setTimeout(function () { advanceSlide(card); }, Math.random() * 1200);
+    });
+  }, 3000);
+
   // =====================================================================
   // NOTIFICATIONS PUSH (messages reçus même application fermée)
   // =====================================================================
