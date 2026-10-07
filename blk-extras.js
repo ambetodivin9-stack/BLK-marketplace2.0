@@ -834,6 +834,11 @@
   var appEl0 = $('appContainer');
   if (appEl0) new MutationObserver(startTourIfPending).observe(appEl0, { attributes: true, attributeFilter: ['class'] });
   startTourIfPending();
+  // Pour revoir le guide : ouvre le site avec #guide à la fin de l'adresse (ex. ...vercel.app/#guide)
+  if (/guide/.test(location.hash + location.search)) {
+    try { localStorage.setItem('blk_tour_pending', '1'); history.replaceState(null, '', location.pathname); } catch (e) {}
+    startTourIfPending();
+  }
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('.tab-item');
     if (!t) return;
@@ -841,6 +846,21 @@
     hideTip();
     setTimeout(function () { showTip(tab); }, 350);
   }, true);
+
+  // =====================================================================
+  // CONNEXION / INSCRIPTION : message pendant que le serveur se réveille
+  // =====================================================================
+  [['loginSubmitOnb', 'Se connecter', 'Connexion en cours…'], ['finalizeRegisterBtn', 'Valider', 'Création du compte…']].forEach(function (c) {
+    var btn = $(c[0]); if (!btn) return;
+    var timer = null;
+    new MutationObserver(function () {
+      clearTimeout(timer);
+      if (btn.disabled) {
+        btn.textContent = c[2];
+        timer = setTimeout(function () { if (btn.disabled) btn.textContent = c[2] + ' (le serveur se réveille, patiente jusqu\'à 1 minute)'; }, 6000);
+      } else { btn.textContent = c[1]; }
+    }).observe(btn, { attributes: true, attributeFilter: ['disabled'] });
+  });
 
   // =====================================================================
   // NOTIFICATIONS PUSH (messages reçus même application fermée)
