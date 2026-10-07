@@ -9,6 +9,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+let compression = null;
+try { compression = require('compression'); } catch (e) { console.warn('Module compression absent (facultatif).'); }
 let webpush = null;
 try { webpush = require('web-push'); } catch (e) { console.warn('Module web-push absent : les notifications push sont désactivées (ajoute "web-push" dans package.json).'); }
 
@@ -23,25 +25,35 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s
 app.use(cors({
   origin: allowedOrigins.length > 0 ? allowedOrigins : true,
 }));
+if (compression) app.use(compression());
 app.use(express.json({ limit: '10mb' }));
+
+// Mémoire de la liste des articles (évite de relire toute la base à chaque ouverture de l'app)
+let articlesCache = { at: 0, data: null };
+function invalidateArticlesCache() { articlesCache = { at: 0, data: null }; }
 
 // ==================== FICHIERS STATIQUES (PWA) ====================
 // Sert public/index.html, public/manifest.json, public/sw.js, les icônes, etc.
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== RATE LIMITING ====================
+// Sur les réseaux mobiles, beaucoup de personnes partagent la même adresse IP :
+// on compte donc par compte (e-mail / jeton) et non par IP seule.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 15,
+  skipSuccessfulRequests: true, // seules les connexions ratées comptent
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => 'auth:' + String((req.body && req.body.email) || '').trim().toLowerCase() + '|' + req.ip,
   message: { success: false, message: 'Trop de tentatives, réessaie dans quelques minutes.' }
 });
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 120,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.headers.authorization ? 'tok:' + String(req.headers.authorization).slice(-48) : 'ip:' + req.ip,
   message: { success: false, message: 'Trop de requêtes, ralentis un peu.' }
 });
 app.use(globalLimiter);
@@ -216,7 +228,8 @@ app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
-    const { email, password, name, phone } = req.body;
+    const { password, name, phone } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
     if (!email || !password || !name || !phone) return res.status(400).json({ success: false, message: 'Champs requis' });
     if (String(password).length < 8) return res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères' });
     const usersRef = db.collection('users');
@@ -240,10 +253,18 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
-    const { email, password } = req.body;
+    const rawEmail = String(req.body.email || '').trim();
+    const password = req.body.password;
+    const email = rawEmail.toLowerCase();
     if (!email || !password) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
-    const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
-    if (snapshot.empty) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
+    // Les téléphones mettent parfois une majuscule au début : on essaie les variantes
+    const candidates = [email, rawEmail, email.charAt(0).toUpperCase() + email.slice(1)].filter((v, i, arr) => v && arr.indexOf(v) === i);
+    let snapshot = null;
+    for (const c of candidates) {
+      snapshot = await db.collection('users').where('email', '==', c).limit(1).get();
+      if (!snapshot.empty) break;
+    }
+    if (!snapshot || snapshot.empty) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
     const valid = await bcrypt.compare(password, userData.password);
@@ -260,6 +281,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
   try {
+    if (articlesCache.data && Date.now() - articlesCache.at < 20000) return res.json({ success: true, data: articlesCache.data });
     const snapshot = await db.collection('products').where('status', '==', 'active').get();
     let articles = [];
     snapshot.forEach(doc => articles.push({ id: doc.id, ...doc.data() }));
@@ -271,6 +293,7 @@ app.get('/api/articles', async (req, res) => {
       return dateB - dateA;
     });
     articles = articles.slice(0, 200);
+    articlesCache = { at: Date.now(), data: articles };
     res.json({ success: true, data: articles });
   } catch (error) {
     sendServerError(res, 'articles/list', error);
@@ -335,6 +358,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
       status: 'active', views: 0, favorites: 0, stock: quantity, createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
+    invalidateArticlesCache();
     res.json({ success: true, id: docRef.id });
   } catch (error) {
     if (error.message === 'AMOUNT_INVALID') return res.status(400).json({ success: false, message: 'Prix invalide' });
@@ -353,6 +377,7 @@ app.delete('/api/articles/:id', authenticate, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Non autorisé' });
     }
     await articleRef.update({ status: 'inactive' });
+    invalidateArticlesCache();
     res.json({ success: true });
   } catch (error) {
     sendServerError(res, 'articles/delete', error);
@@ -768,6 +793,7 @@ app.post('/api/orders/create', authenticate, async (req, res) => {
       });
     });
 
+    invalidateArticlesCache();
     const order = {
       articleId, buyerId, sellerId,
       buyerPhone: buyerPhone || buyerDoc.data()?.phone || '',
@@ -867,6 +893,7 @@ app.post('/api/orders/confirm', authenticate, async (req, res) => {
       });
     });
 
+    invalidateArticlesCache();
     await db.collection('notifications').add({ userId: order.sellerId, message: `Vente confirmee ! ${amountToSeller} FCFA credites sur ton wallet.`, type: 'sale_confirmed', read: false, orderId, createdAt: new Date() });
     await db.collection('notifications').add({ userId: order.buyerId, message: `Commande #${orderId.slice(0,8)} confirmee avec succes.`, type: 'order_confirmed', read: false, orderId, createdAt: new Date() });
 
@@ -958,6 +985,7 @@ app.post('/api/orders/cancel/:orderId', authenticate, async (req, res) => {
       t.update(orderRef, { status: 'annulé', cancelledAt: new Date(), cancelledBy: userId });
     });
 
+    invalidateArticlesCache();
     res.json({ success: true, message: 'Commande annulee et remboursee', refunded: order.totalAmount });
   } catch (error) {
     if (error.message === 'ORDER_ALREADY_PROCESSED') return res.status(400).json({ success: false, message: 'Commande déjà traitée' });
@@ -984,6 +1012,7 @@ async function autoExpireOrders() {
           t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
           t.update(doc.ref, { status: 'expiré', expiredAt: new Date() });
         });
+        invalidateArticlesCache();
         await db.collection('notifications').add({ userId: order.buyerId, message: 'Ta commande a expire, tu as ete rembourse.', type: 'order_expired', read: false, orderId: doc.id, createdAt: new Date() });
       }
     }
