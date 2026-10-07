@@ -38,6 +38,22 @@
 .sl-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6);box-shadow:0 0 3px rgba(0,0,0,.45);transition:all .3s;}
 .sl-dots i.on{background:#fff;width:15px;border-radius:3px;}
 
+/* Chargement : squelette et message de réveil du serveur */
+.sk{break-inside:avoid;margin-bottom:10px;border-radius:16px;background:linear-gradient(90deg,var(--input-bg) 25%,var(--border) 50%,var(--input-bg) 75%);background-size:200% 100%;animation:skm 1.2s linear infinite;}
+@keyframes skm{to{background-position:-200% 0;}}
+#wakePill{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:7500;background:#252a47;color:#fff;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:92vw;text-align:center;}
+
+/* Petit guide du personnage pour les nouveaux inscrits */
+#tourBubble{position:fixed;top:18px;right:10px;z-index:7900;width:min(300px,88vw);display:none;}
+#tourBubble.show{display:block;animation:tourIn .45s cubic-bezier(.34,1.56,.64,1);}
+@keyframes tourIn{from{opacity:0;transform:translateY(-14px) scale(.9);}to{opacity:1;transform:none;}}
+@keyframes tourFloat{0%,100%{transform:translateY(-50%);}50%{transform:translateY(calc(-50% - 5px));}}
+#tourBubble .tb-card{position:relative;background:var(--card-bg);border:2px solid var(--accent);border-radius:20px;padding:12px 30px 12px 84px;min-height:100px;box-shadow:0 14px 34px rgba(0,0,0,.28);}
+#tourBubble .tb-card img{position:absolute;left:8px;top:50%;height:88px;width:auto;transform:translateY(-50%);animation:tourFloat 2.2s ease-in-out infinite;pointer-events:none;}
+#tourBubble .tb-t{font-weight:800;font-size:14px;color:var(--accent);margin-bottom:3px;}
+#tourBubble .tb-x{font-size:12.5px;line-height:1.45;color:var(--text);}
+#tourBubble .tb-c{position:absolute;top:4px;right:6px;width:28px;height:28px;background:none;border:none;color:#999;font-size:16px;cursor:pointer;}
+
 /* Bouton retour plus grand */
 .chat-back-btn{font-size:42px !important;width:56px;height:56px;margin-left:-8px;display:flex !important;align-items:center;justify-content:center;line-height:1;padding:0 0 6px;}
 .chat-menu-btn{background:none;border:none;color:var(--accent);font-size:30px;font-weight:900;width:48px;height:48px;cursor:pointer;line-height:1;flex-shrink:0;}
@@ -149,6 +165,7 @@
   if (typeof origOpenProduct === 'function') {
     window.openProductFullscreen = function (product) {
       origOpenProduct(product);
+      document.querySelectorAll('#pfCarousel img').forEach(function (im) { im.loading = 'eager'; });
       if (!product || !product.sellerId) return;
       apiFetch('/api/users/' + product.sellerId)
         .then(function (r) { return r.json(); })
@@ -672,6 +689,34 @@
   };
 
   // =====================================================================
+  // DÉMARRAGE RAPIDE : images paresseuses, squelette et message de réveil du serveur
+  // =====================================================================
+  var origSafeImg = window.safeImgTag;
+  if (typeof origSafeImg === 'function') {
+    window.safeImgTag = function () {
+      return String(origSafeImg.apply(this, arguments)).replace(/^<img /, '<img loading="lazy" decoding="async" ');
+    };
+  }
+  (function () {
+    var grid = $('productsGrid');
+    var logged = typeof authToken !== 'undefined' && authToken;
+    if (grid && logged && !grid.children.length && !window.__articlesLoaded) {
+      var h = [150, 210, 180, 240, 170, 200], sk = '';
+      h.forEach(function (x) { sk += '<div class="sk" style="height:' + x + 'px"></div>'; });
+      grid.innerHTML = sk;
+    }
+    setTimeout(function () {
+      if (window.__articlesLoaded || !logged || navigator.onLine === false) return;
+      if (document.querySelector('#productsGrid .article-card')) return;
+      var pill = document.createElement('div');
+      pill.id = 'wakePill'; pill.textContent = '⏳ Le serveur se réveille, ça peut prendre jusqu\'à 1 minute…';
+      document.body.appendChild(pill);
+      document.addEventListener('blk-articles-loaded', function () { pill.remove(); });
+      setTimeout(function () { if (pill.parentNode) pill.remove(); }, 90000);
+    }, 6000);
+  })();
+
+  // =====================================================================
   // ACCUEIL : les photos d'une même publication défilent toutes les 3 secondes
   // =====================================================================
   function productImages(p) {
@@ -737,6 +782,65 @@
       setTimeout(function () { advanceSlide(card); }, Math.random() * 1200);
     });
   }, 3000);
+
+  // =====================================================================
+  // PETIT GUIDE (personnage) pour les nouveaux inscrits : explique chaque onglet
+  // =====================================================================
+  var TOUR = {
+    pageHome: ['Accueil', 'Ici tu découvres tous les articles. Cherche un article ou un vendeur, filtre par catégorie et touche une photo pour l\'ouvrir.'],
+    pageShop: ['Magasin', 'C\'est ta boutique ! Publie tes articles et suis tes ventes, tes revenus et tes commandes grâce aux graphiques.'],
+    pageMessages: ['Messages', 'Discute avec les vendeurs et les acheteurs. Maintiens appuyé sur une discussion pour la bloquer ou la supprimer.'],
+    pageOrders: ['Commandes', 'Retrouve tes achats et tes ventes. Quand tu reçois ton colis, touche ta commande pour confirmer la réception : le vendeur est payé à ce moment-là.'],
+    pageProfile: ['Profil', 'Ton Wallet BLK, tes flammes 🔥 et ton compte. Pense à retirer ton argent vers ton Mobile Money quand une vente est terminée.']
+  };
+  var tb = document.createElement('div');
+  tb.id = 'tourBubble';
+  tb.innerHTML = '<div class="tb-card"><img src="mascot.png" alt=""><button class="tb-c" type="button" aria-label="Fermer">✕</button><div class="tb-t"></div><div class="tb-x"></div></div>';
+  document.body.appendChild(tb);
+  var tbTimer = null;
+  function tourKey() { return 'blk_tour_' + (typeof currentUserId !== 'undefined' && currentUserId ? currentUserId : 'x'); }
+  function tourState() { try { return JSON.parse(localStorage.getItem(tourKey()) || 'null'); } catch (e) { return null; } }
+  function saveTour(o) { try { localStorage.setItem(tourKey(), JSON.stringify(o)); } catch (e) {} }
+  function hideTip() { tb.classList.remove('show'); clearTimeout(tbTimer); }
+  tb.querySelector('.tb-c').onclick = hideTip;
+  function showTip(tab) {
+    var st = tourState();
+    if (!st || !st.active || !TOUR[tab] || (st.seen && st.seen[tab])) return;
+    st.seen = st.seen || {}; st.seen[tab] = 1;
+    if (Object.keys(TOUR).every(function (k) { return st.seen[k]; })) st.active = false;
+    saveTour(st);
+    tb.querySelector('.tb-t').textContent = 'Flammy · ' + TOUR[tab][0];
+    tb.querySelector('.tb-x').textContent = TOUR[tab][1];
+    tb.classList.remove('show'); void tb.offsetWidth; tb.classList.add('show');
+    clearTimeout(tbTimer); tbTimer = setTimeout(hideTip, 15000);
+  }
+  // Le guide ne démarre que pour une nouvelle inscription
+  var origGoOnboard = window.goToOnboardScreen;
+  if (typeof origGoOnboard === 'function') {
+    window.goToOnboardScreen = function (id) {
+      if (id === 'onbWelcomeName') { try { localStorage.setItem('blk_tour_pending', '1'); } catch (e) {} }
+      return origGoOnboard.apply(this, arguments);
+    };
+  }
+  function startTourIfPending() {
+    var appEl = $('appContainer');
+    if (localStorage.getItem('blk_tour_pending') !== '1') return;
+    if (!appEl || !appEl.classList.contains('active')) return;
+    if (typeof currentUserId === 'undefined' || !currentUserId) return;
+    localStorage.removeItem('blk_tour_pending');
+    saveTour({ active: true, seen: {} });
+    setTimeout(function () { showTip('pageHome'); }, 900);
+  }
+  var appEl0 = $('appContainer');
+  if (appEl0) new MutationObserver(startTourIfPending).observe(appEl0, { attributes: true, attributeFilter: ['class'] });
+  startTourIfPending();
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.tab-item');
+    if (!t) return;
+    var tab = t.dataset.tab;
+    hideTip();
+    setTimeout(function () { showTip(tab); }, 350);
+  }, true);
 
   // =====================================================================
   // NOTIFICATIONS PUSH (messages reçus même application fermée)
