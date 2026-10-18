@@ -1,4 +1,4 @@
-const CACHE = 'blk-v6';
+const CACHE = 'blk-v7';
 const SHELL = ['./', 'index.html', 'manifest.json', 'logo.png', 'banner.jpg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'blk-extras.js', 'blk-boot.js', 'mascot.png'];
 
 self.addEventListener('install', e => {
@@ -18,6 +18,18 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
+
+  // Icônes de l'application : TOUJOURS le réseau d'abord (sinon l'ancienne icône reste en mémoire)
+  if (/(^|\/)(icon-[^/]*|favicon[^/]*|apple-touch-icon[^/]*)\.png$/i.test(url.pathname)) {
+    e.respondWith(
+      fetch(req, { cache: 'no-cache' }).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
 
   // Images : affichées tout de suite depuis la mémoire, mises à jour en arrière-plan
   if (/\.(png|jpe?g|webp|svg|gif|ico)$/i.test(url.pathname)) {
