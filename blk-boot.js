@@ -2,6 +2,32 @@
    À charger tout en haut de index.html (dans <head>), avant le script principal. */
 (function () {
   var BACKEND = 'https://blk-marketplace2-0.onrender.com';
+  var APP_URL = 'https://blk-marketplace2-0.vercel.app';
+
+  // Navigateur trop ancien (ou application qui n'a pas pu démarrer) : message clair au lieu d'une page vide
+  function showOld() {
+    if (document.getElementById('oldBrowser') || !document.body) return;
+    var android = /android/i.test(navigator.userAgent);
+    var d = document.createElement('div');
+    d.id = 'oldBrowser';
+    d.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;background:#E74C3C;color:#fff;font-family:Arial,sans-serif;padding:28px;text-align:center;overflow:auto;';
+    d.innerHTML = '<div style="max-width:340px;margin:50px auto 0;"><div style="font-size:46px;">&#9888;</div>' +
+      '<h2 style="font-size:22px;margin:10px 0;">Ton navigateur ne peut pas ouvrir BLK</h2>' +
+      '<p style="font-size:15px;line-height:1.5;margin:0 0 18px;">Ouvre ce lien avec <b>Google Chrome</b> ou <b>Safari</b> (version r&eacute;cente).</p>' +
+      '<button id="obCopy" style="width:100%;padding:15px;border:0;border-radius:14px;background:#fff;color:#E74C3C;font-size:16px;font-weight:bold;">Copier le lien</button>' +
+      (android ? '<a href="intent://blk-marketplace2-0.vercel.app/#Intent;scheme=https;package=com.android.chrome;end" style="display:block;margin-top:10px;padding:15px;border-radius:14px;border:2px solid #fff;color:#fff;font-size:16px;font-weight:bold;text-decoration:none;">Ouvrir avec Chrome</a>' : '') +
+      '<p style="font-size:13px;opacity:.9;margin-top:16px;word-break:break-all;">' + APP_URL + '</p></div>';
+    document.body.appendChild(d);
+    document.getElementById('obCopy').onclick = function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(APP_URL); this.innerHTML = 'Lien copi&eacute; !'; }
+      else { window.prompt('Copie ce lien :', APP_URL); }
+    };
+  }
+  window.addEventListener('load', function () {
+    setTimeout(function () { if (typeof window.apiFetch !== 'function') showOld(); }, 1500);
+  });
+  if (!(window.fetch && window.Promise)) return;
+
   var origFetch = window.fetch.bind(window);
 
   // 1) Réveil immédiat du serveur : sur l'offre gratuite de Render il s'endort après 15 min sans visite.
