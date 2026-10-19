@@ -26,7 +26,7 @@ app.use(cors({
   origin: allowedOrigins.length > 0 ? allowedOrigins : true,
 }));
 if (compression) app.use(compression());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 // Mémoire de la liste des articles (évite de relire toute la base à chaque ouverture de l'app)
 let articlesCache = { at: 0, data: null };
@@ -267,6 +267,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     if (!snapshot || snapshot.empty) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
+    if (!userData.password || userData.deleted) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const sid = await newSession(userDoc.id);
@@ -434,6 +435,7 @@ app.get('/api/users/search', authenticate, async (req, res) => {
     let users = [];
     snapshot.forEach(doc => {
       const data = doc.data();
+      if (data.deleted) return;
       const name = (data.name || '').toLowerCase();
       if (name.includes(query)) {
         users.push({
@@ -1236,6 +1238,189 @@ async function sendPushToUser(userId, payload) {
     }
   }));
 }
+
+// ==================== SUPPRESSION DU COMPTE ====================
+app.post('/api/account/delete', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const { password, confirmed, confirmText } = req.body;
+    if (!confirmed || String(confirmText || '').trim().toUpperCase() !== 'SUPPRIMER') {
+      return res.status(400).json({ success: false, message: 'Tu dois accepter les conditions et taper SUPPRIMER.' });
+    }
+    const userId = req.userId;
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    if (!doc.exists) return res.status(404).json({ success: false, message: 'Compte introuvable' });
+    const u = doc.data();
+
+    if (u.password) {
+      const ok = password ? await bcrypt.compare(String(password), u.password) : false;
+      if (!ok) return res.status(401).json({ success: false, message: 'Mot de passe incorrect.' });
+    }
+    if ((u.walletBalance || 0) > 0) {
+      return res.status(400).json({ success: false, message: `Retire d'abord ton solde (${u.walletBalance} FCFA) vers ton Mobile Money, puis réessaie.` });
+    }
+    const [asBuyer, asSeller] = await Promise.all([
+      db.collection('orders').where('buyerId', '==', userId).get(),
+      db.collection('orders').where('sellerId', '==', userId).get()
+    ]);
+    const pending = [...asBuyer.docs, ...asSeller.docs].filter(d => d.data().status === 'en attente de confirmation');
+    if (pending.length > 0) {
+      return res.status(400).json({ success: false, message: `Tu as ${pending.length} commande(s) en cours. Termine-les avant de supprimer ton compte.` });
+    }
+
+    // Articles retirés de la vente
+    const prods = await db.collection('products').where('sellerId', '==', userId).get();
+    for (let i = 0; i < prods.docs.length; i += 400) {
+      const batch = db.batch();
+      prods.docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { status: 'inactive', sellerDeleted: true }));
+      await batch.commit();
+    }
+    // Discussions supprimées de son côté
+    const msgs = await db.collection('messages').where('participants', 'array-contains', userId).get();
+    for (let i = 0; i < msgs.docs.length; i += 400) {
+      const batch = db.batch();
+      msgs.docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { deletedFor: admin.firestore.FieldValue.arrayUnion(userId) }));
+      await batch.commit();
+    }
+    // Notifications téléphone
+    const subs = await db.collection('pushSubscriptions').where('userId', '==', userId).get();
+    await Promise.all(subs.docs.map(d => d.ref.delete()));
+
+    // Le compte est anonymisé : plus de nom, e-mail, téléphone ni photo
+    await userRef.set({
+      name: 'Compte supprimé', email: '', phone: '', photo: '', password: '', walletBalance: 0, flames: 0,
+      blockedUsers: [], online: false, sessionId: null, deleted: true, deletedAt: new Date()
+    }, { merge: true });
+    sessionCache.delete(userId);
+    invalidateArticlesCache();
+    res.json({ success: true });
+  } catch (error) { sendServerError(res, 'account/delete', error); }
+});
+
+// ==================== CONNEXION / INSCRIPTION PAR WHATSAPP ====================
+// Principe : l'app crée un code, ouvre WhatsApp avec un message déjà écrit ("Mon code : BLK-XXXXXXXX"),
+// la personne appuie sur Envoyer. WhatsApp nous transmet son numéro (vérifié) et son nom de profil.
+const WA_NUMBER = String(process.env.WHATSAPP_NUMBER || '').replace(/\D/g, '');
+const WA_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || '';
+const WA_APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
+const WA_TOKEN = process.env.WHATSAPP_TOKEN || '';
+const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '';
+const WA_CODE_TTL_MS = 10 * 60 * 1000;
+function waEnabled() { return !!(WA_NUMBER && WA_VERIFY_TOKEN && WA_APP_SECRET && firebaseReady); }
+
+function waPhoneVariants(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  const rest = digits.startsWith('242') ? digits.slice(3) : digits;
+  const rest9 = rest.length === 8 ? '0' + rest : rest;
+  return [...new Set([digits, '+' + digits, rest, rest9, '242' + rest9, '+242' + rest9])].filter(Boolean);
+}
+function waVerifySignature(rawBody, header, secret) {
+  if (!secret || !header) return false;
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(rawBody || Buffer.from('')).digest('hex');
+  const a = Buffer.from(String(header)), b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+async function waFindOrCreateUser(phoneDigits, waName) {
+  for (const v of waPhoneVariants(phoneDigits)) {
+    const snap = await db.collection('users').where('phone', '==', v).limit(5).get();
+    const found = snap.docs.find(d => !d.data().deleted);
+    if (found) return { userId: found.id, isNew: false };
+  }
+  const ref = db.collection('users').doc();
+  await ref.set({
+    name: waName || 'Membre BLK', email: '', password: '', phone: phoneDigits, photo: '',
+    walletBalance: 0, flames: 0, blockedUsers: [], online: true, authMethod: 'whatsapp', createdAt: new Date()
+  });
+  return { userId: ref.id, isNew: true };
+}
+async function waSendText(to, body) {
+  if (!WA_TOKEN || !WA_PHONE_ID) return;
+  try {
+    await axios.post(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`,
+      { messaging_product: 'whatsapp', to, type: 'text', text: { body } },
+      { headers: { Authorization: `Bearer ${WA_TOKEN}` }, timeout: 10000 });
+  } catch (e) { console.error('[whatsapp] message de bienvenue ignoré:', e.response?.data || e.message); }
+}
+
+app.get('/api/auth/whatsapp/config', (req, res) => res.json({ success: true, enabled: waEnabled() }));
+
+app.post('/api/auth/whatsapp/start', async (req, res) => {
+  if (!waEnabled()) return res.status(503).json({ success: false, message: 'Connexion WhatsApp non disponible pour le moment.' });
+  try {
+    const code = 'BLK-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    await db.collection('waSessions').doc(code).set({ status: 'pending', createdAt: new Date() });
+    const text = `Bonjour BLK ! Mon code : ${code}`;
+    res.json({ success: true, code, link: `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}` });
+  } catch (error) { sendServerError(res, 'whatsapp/start', error); }
+});
+
+app.get('/api/auth/whatsapp/status', async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  try {
+    const code = String(req.query.code || '').toUpperCase();
+    if (!/^BLK-[A-F0-9]{8}$/.test(code)) return res.status(400).json({ success: false, message: 'Code invalide' });
+    const ref = db.collection('waSessions').doc(code);
+    const snap = await ref.get();
+    if (!snap.exists) return res.json({ success: true, status: 'unknown' });
+    const s = snap.data();
+    const created = s.createdAt && s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+    if (s.status !== 'verified') {
+      return res.json({ success: true, status: (Date.now() - created.getTime() > WA_CODE_TTL_MS) ? 'expired' : 'pending' });
+    }
+    await ref.delete(); // un code ne sert qu'une fois
+    const userDoc = await db.collection('users').doc(s.userId).get();
+    const u = userDoc.data() || {};
+    const sid = await newSession(s.userId);
+    const token = jwt.sign({ userId: s.userId, email: u.email || '', sid }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, status: 'verified', token, userId: s.userId, isNew: !!s.isNew,
+      user: { id: s.userId, name: u.name || 'Membre BLK', email: u.email || '', phone: u.phone || '' } });
+  } catch (error) { sendServerError(res, 'whatsapp/status', error); }
+});
+
+// Vérification de l'adresse du webhook par Meta
+app.get('/api/whatsapp/webhook', (req, res) => {
+  if (req.query['hub.mode'] === 'subscribe' && WA_VERIFY_TOKEN && req.query['hub.verify_token'] === WA_VERIFY_TOKEN) {
+    return res.status(200).send(req.query['hub.challenge']);
+  }
+  res.sendStatus(403);
+});
+
+// Messages reçus sur le numéro WhatsApp de BLK
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  if (!waVerifySignature(req.rawBody, req.headers['x-hub-signature-256'], WA_APP_SECRET)) return res.sendStatus(403);
+  res.sendStatus(200);
+  try {
+    if (!firebaseReady) return;
+    for (const entry of (req.body.entry || [])) {
+      for (const change of (entry.changes || [])) {
+        const value = change.value || {};
+        const contacts = value.contacts || [];
+        for (const m of (value.messages || [])) {
+          if (m.type !== 'text') continue;
+          const match = String((m.text && m.text.body) || '').toUpperCase().match(/BLK-([A-F0-9]{8})/);
+          if (!match) continue;
+          const ref = db.collection('waSessions').doc('BLK-' + match[1]);
+          const snap = await ref.get();
+          if (!snap.exists) continue;
+          const s = snap.data();
+          const created = s.createdAt && s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+          if (s.status !== 'pending' || Date.now() - created.getTime() > WA_CODE_TTL_MS) continue;
+          const phone = String(m.from || '').replace(/\D/g, '');
+          if (!phone) continue;
+          const contact = contacts.find(c => c.wa_id === m.from) || contacts[0] || {};
+          const waName = (contact.profile && contact.profile.name) ? String(contact.profile.name).slice(0, 60) : '';
+          const { userId, isNew } = await waFindOrCreateUser(phone, waName);
+          await ref.update({ status: 'verified', userId, isNew, verifiedAt: new Date() });
+          const first = (waName || '').split(' ')[0] || 'toi';
+          waSendText(phone, isNew
+            ? `Bienvenue sur BLK Marketplace, ${first} ! 🎉 Ton compte est prêt : retourne sur l'application.`
+            : `Content de te revoir, ${first} ! Retourne sur l'application BLK, tu es connecté(e).`);
+        }
+      }
+    }
+  } catch (error) { console.error('[whatsapp/webhook]', error.message); }
+});
 
 // ==================== NOTIFICATIONS ====================
 app.get('/api/notifications/:userId', authenticate, async (req, res) => {

@@ -54,6 +54,18 @@
 #tourBubble .tb-x{font-size:12.5px;line-height:1.45;color:var(--text);}
 #tourBubble .tb-c{position:absolute;top:4px;right:6px;width:28px;height:28px;background:none;border:none;color:#999;font-size:16px;cursor:pointer;}
 
+/* Champs : 16px minimum pour que l'iPhone ne zoome pas à chaque clic */
+input,select,textarea{font-size:16px !important;}
+/* Continuer avec WhatsApp */
+.wa-wrap{width:100%;margin-top:4px;}
+.wa-or{color:rgba(255,255,255,.85);text-align:center;font-size:13px;margin:12px 0 10px;}
+.wa-btn{width:100%;padding:16px;border:none;border-radius:18px;background:#25D366;color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,.2);cursor:pointer;}
+.wa-btn:active{transform:scale(.98);}
+#waOverlay{position:fixed;inset:0;z-index:9500;background:linear-gradient(160deg,#128C7E,#25D366);display:flex;align-items:center;justify-content:center;padding:24px;}
+#waOverlay .wa-card{background:var(--card-bg);color:var(--text);border-radius:24px;padding:26px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);}
+#waOverlay ol{text-align:left;font-size:14px;line-height:1.7;margin:12px 0 16px 20px;}
+#waOverlay .wa-spin{width:34px;height:34px;border:4px solid rgba(37,211,102,.25);border-top-color:#25D366;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px;}
+
 /* Bouton retour plus grand */
 .chat-back-btn{font-size:42px !important;width:56px;height:56px;margin-left:-8px;display:flex !important;align-items:center;justify-content:center;line-height:1;padding:0 0 6px;}
 .chat-menu-btn{background:none;border:none;color:var(--accent);font-size:30px;font-weight:900;width:48px;height:48px;cursor:pointer;line-height:1;flex-shrink:0;}
@@ -861,6 +873,197 @@
       } else { btn.textContent = c[1]; }
     }).observe(btn, { attributes: true, attributeFilter: ['disabled'] });
   });
+
+  // =====================================================================
+  // CONNEXION : champs adaptés aux téléphones + nouvel essai si le serveur dort
+  // =====================================================================
+  (function () {
+    var vp = document.querySelector('meta[name="viewport"]');
+    if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0');
+    function attrs(id, o) { var el = $(id); if (!el) return; Object.keys(o).forEach(function (k) { el.setAttribute(k, o[k]); }); }
+    var mail = { autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', autocomplete: 'email', inputmode: 'email' };
+    attrs('loginEmailOnb', mail); attrs('regEmail', mail);
+    attrs('loginPasswordOnb', { autocomplete: 'current-password', autocapitalize: 'none', autocorrect: 'off' });
+    attrs('regPassword', { autocomplete: 'new-password', autocapitalize: 'none', autocorrect: 'off' });
+    attrs('regPhone', { inputmode: 'tel', autocomplete: 'tel' });
+  })();
+  var origApiFetch = window.apiFetch;
+  if (typeof origApiFetch === 'function') {
+    window.apiFetch = function (url, options) {
+      if (url !== '/api/auth/login' && url !== '/api/auth/register') return origApiFetch(url, options);
+      var attempt = 0;
+      function once() {
+        attempt++;
+        var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, 25000);
+        return origApiFetch(url, Object.assign({}, options, { signal: ctrl.signal })).then(function (res) {
+          clearTimeout(t);
+          var json = (res.headers.get('content-type') || '').indexOf('json') > -1;
+          if ((!json || [502, 503, 504].indexOf(res.status) > -1) && attempt < 6) return new Promise(function (r) { setTimeout(r, 3000); }).then(once);
+          return res;
+        }, function (err) {
+          clearTimeout(t);
+          if (attempt < 6) return new Promise(function (r) { setTimeout(r, 3000); }).then(once);
+          throw err;
+        });
+      }
+      return once();
+    };
+  }
+
+  // =====================================================================
+  // DÉCONNEXION : choix entre se déconnecter ou supprimer le compte
+  // =====================================================================
+  function openLogoutChoice() {
+    var ov = openModal('<div style="text-align:center;"><h3 style="margin-bottom:6px;">Déconnexion</h3><p style="color:#999;font-size:13.5px;margin-bottom:16px;">Que veux-tu faire ?</p>' +
+      '<button class="btn btn-primary" id="acLogout" style="margin-bottom:8px;">Se déconnecter</button>' +
+      '<button class="btn btn-outline" id="acDelete" style="margin-bottom:8px;">Supprimer mon compte</button>' +
+      '<button class="btn btn-outline" id="acCancel" style="border-color:#999;color:#999;">Annuler</button></div>');
+    ov.querySelector('#acCancel').onclick = function () { ov.remove(); };
+    ov.querySelector('#acLogout').onclick = function () { ov.remove(); window.__blkLogoutOk = true; var b = $('btnLogout'); if (b) b.click(); };
+    ov.querySelector('#acDelete').onclick = function () { ov.remove(); openDeleteAccount(); };
+  }
+  function openDeleteAccount() {
+    var hasPwd = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.email);
+    var ov = openModal('<div><h3 style="text-align:center;margin-bottom:8px;color:var(--accent);">Supprimer mon compte</h3>' +
+      '<div style="font-size:13px;line-height:1.6;color:#777;text-align:left;margin-bottom:12px;">' +
+      '<strong style="color:var(--text);">Conditions de suppression :</strong><br>' +
+      '• La suppression est <strong>définitive</strong> et ne peut pas être annulée.<br>' +
+      '• Ton solde Wallet doit être à <strong>0 FCFA</strong> : retire-le d\'abord vers ton Mobile Money.<br>' +
+      '• Tu ne dois avoir <strong>aucune commande en cours</strong> (achat ou vente).<br>' +
+      '• Tes articles sont retirés de la vente et tes discussions sont supprimées.<br>' +
+      '• Ton nom, e-mail, téléphone et ta photo sont effacés. Tes flammes sont perdues.<br>' +
+      '• Les commandes déjà terminées restent enregistrées, sans ton nom.</div>' +
+      '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:10px;"><input type="checkbox" id="acAgree" style="margin-top:3px;"><span>J\'ai lu et j\'accepte ces conditions.</span></label>' +
+      '<input type="text" id="acWord" placeholder="Tape SUPPRIMER pour confirmer" autocomplete="off" autocapitalize="characters" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--input-bg);color:var(--text);">' +
+      (hasPwd ? '<input type="password" id="acPwd" placeholder="Ton mot de passe" autocomplete="current-password" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--input-bg);color:var(--text);">' : '') +
+      '<button class="btn btn-danger" id="acGo" disabled style="opacity:.5;margin-top:4px;">Supprimer définitivement</button>' +
+      '<button class="btn btn-outline" id="acBack" style="margin-top:8px;">Annuler</button>' +
+      '<div id="acMsg" style="margin-top:10px;font-size:13px;text-align:center;color:#E74C3C;"></div></div>');
+    var agree = ov.querySelector('#acAgree'), word = ov.querySelector('#acWord'), go = ov.querySelector('#acGo'), msg = ov.querySelector('#acMsg');
+    function check() {
+      var ok = agree.checked && word.value.trim().toUpperCase() === 'SUPPRIMER';
+      go.disabled = !ok; go.style.opacity = ok ? '1' : '.5';
+    }
+    agree.onchange = check; word.oninput = check;
+    ov.querySelector('#acBack').onclick = function () { ov.remove(); };
+    go.onclick = function () {
+      go.disabled = true; msg.style.color = '#999'; msg.textContent = 'Suppression en cours…';
+      var pwdEl = ov.querySelector('#acPwd');
+      apiFetch('/api/account/delete', { method: 'POST', body: JSON.stringify({ password: pwdEl ? pwdEl.value : '', confirmed: true, confirmText: 'SUPPRIMER' }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.success) {
+            ['authToken', 'currentUserId', 'currentUser', 'blk_push_endpoint'].forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+            ov.querySelector('div').innerHTML = '<div style="text-align:center;padding:10px;"><div style="font-size:40px;">✅</div><h3 style="margin:8px 0;">Compte supprimé</h3><p style="color:#999;font-size:14px;">Merci d\'avoir utilisé BLK Marketplace.</p></div>';
+            setTimeout(function () { location.reload(); }, 1800);
+          } else { msg.style.color = '#E74C3C'; msg.textContent = (d && d.message) || 'Erreur'; check(); }
+        })
+        .catch(function () { msg.style.color = '#E74C3C'; msg.textContent = 'Erreur réseau, réessaie.'; check(); });
+    };
+  }
+  (function () {
+    var b = $('btnLogout');
+    if (!b) return;
+    b.addEventListener('click', function (e) {
+      if (window.__blkLogoutOk) { window.__blkLogoutOk = false; return; }
+      e.stopImmediatePropagation(); e.preventDefault();
+      openLogoutChoice();
+    }, true);
+  })();
+
+  // =====================================================================
+  // CONTINUER AVEC WHATSAPP (inscription et connexion)
+  // =====================================================================
+  var WA_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.2-.7-2.7-1.1-4.4-3.8-4.6-4-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .6l-.4.6c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.1 1 2.1 1.3 2.4 1.4.3.1.4.1.6-.1l.8-1c.2-.3.4-.2.7-.1l1.8.9c.3.1.5.2.5.3.1.2.1.8-.1 1.3z"/></svg>';
+  var waTimer = null;
+  function waStop() {
+    clearInterval(waTimer); waTimer = null;
+    try { localStorage.removeItem('blk_wa'); } catch (e) {}
+    var o = $('waOverlay'); if (o) o.remove();
+  }
+  function waFinish(d) {
+    waStop();
+    commitAuthSuccess(d);
+    var first = ((d.user && d.user.name) || '').split(' ')[0] || 'toi';
+    if (d.isNew) {
+      var t = $('onbWelcomeNameText'); if (t) t.textContent = first + ' 👋';
+      goToOnboardScreen('onbWelcomeName');
+    } else { doPostLoginInit(); }
+  }
+  function waPoll(code) {
+    clearInterval(waTimer);
+    var t0 = Date.now();
+    waTimer = setInterval(function () {
+      if (Date.now() - t0 > 10 * 60 * 1000) { waStop(); return; }
+      apiFetch('/api/auth/whatsapp/status?code=' + encodeURIComponent(code) + '&t=' + Date.now())
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.status === 'verified') waFinish(d);
+          else if (d && (d.status === 'expired' || d.status === 'unknown')) { waStop(); infoModal('Code expiré', 'Le délai est dépassé. Appuie de nouveau sur « Continuer avec WhatsApp ».'); }
+        }).catch(function () {});
+    }, 2000);
+  }
+  function waShowWait(code, link) {
+    var o = $('waOverlay'); if (o) o.remove();
+    o = document.createElement('div'); o.id = 'waOverlay';
+    o.innerHTML = '<div class="wa-card"><div class="wa-spin"></div><h3>Termine dans WhatsApp</h3>' +
+      '<ol><li>WhatsApp s\'ouvre avec un message déjà écrit.</li><li>Appuie sur <strong>Envoyer</strong>.</li><li>Reviens ici : tu es connecté automatiquement.</li></ol>' +
+      '<button class="wa-btn" id="waOpen" type="button">' + WA_SVG + ' Ouvrir WhatsApp</button>' +
+      '<button class="btn btn-outline" id="waCancel" type="button" style="margin-top:10px;border-color:#999;color:#999;">Annuler</button></div>';
+    document.body.appendChild(o);
+    o.querySelector('#waOpen').onclick = function () { window.location.href = link; };
+    o.querySelector('#waCancel').onclick = waStop;
+    waPoll(code);
+  }
+  function waStart() {
+    var btn = this; btn.disabled = true;
+    apiFetch('/api/auth/whatsapp/start', { method: 'POST', body: '{}' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        btn.disabled = false;
+        if (!d || !d.success) { infoModal('WhatsApp indisponible', (d && d.message) || 'Réessaie dans un instant.'); return; }
+        try { localStorage.setItem('blk_wa', JSON.stringify({ code: d.code, link: d.link, t: Date.now() })); } catch (e) {}
+        waShowWait(d.code, d.link);
+        window.location.href = d.link;
+      })
+      .catch(function () { btn.disabled = false; infoModal('Erreur réseau', 'Vérifie ta connexion et réessaie.'); });
+  }
+  function addWaButtons() {
+    ['loginFormOnb', 'step1FormOnb'].forEach(function (id) {
+      var f = $(id); if (!f || (f.nextElementSibling && f.nextElementSibling.classList.contains('wa-wrap'))) return;
+      var w = document.createElement('div'); w.className = 'wa-wrap';
+      w.innerHTML = '<div class="wa-or">ou</div><button type="button" class="wa-btn">' + WA_SVG + ' Continuer avec WhatsApp</button>';
+      f.insertAdjacentElement('afterend', w);
+      w.querySelector('.wa-btn').onclick = waStart;
+    });
+  }
+  if (typeof authToken === 'undefined' || !authToken) {
+    apiFetch('/api/auth/whatsapp/config').then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.enabled) return;
+      addWaButtons();
+      try {
+        var saved = JSON.parse(localStorage.getItem('blk_wa') || 'null');
+        if (saved && Date.now() - saved.t < 10 * 60 * 1000) waShowWait(saved.code, saved.link);
+      } catch (e) {}
+    }).catch(function () {});
+  }
+
+  // =====================================================================
+  // PARTAGE : on partage toujours la bonne adresse du site
+  // =====================================================================
+  (function () {
+    var CANON = 'https://blk-marketplace2-0.vercel.app';
+    var b = $('btnShareApp'); if (!b) return;
+    b.addEventListener('click', function (e) {
+      e.stopImmediatePropagation(); e.preventDefault();
+      var data = { title: 'BLK Marketplace', text: 'Découvre BLK Marketplace, la plateforme de vente de mode en ligne !', url: CANON };
+      if (navigator.share) { navigator.share(data).catch(function () {}); }
+      else if (navigator.clipboard) {
+        navigator.clipboard.writeText(CANON).then(function () { showAlert('Lien copié ! Colle-le où tu veux le partager.', 'success'); })
+          .catch(function () { showAlert('Impossible de copier le lien automatiquement.', 'error'); });
+      } else { showAlert(CANON, 'info'); }
+    }, true);
+  })();
 
   // =====================================================================
   // NOTIFICATIONS PUSH (messages reçus même application fermée)
