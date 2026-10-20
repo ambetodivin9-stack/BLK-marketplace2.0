@@ -1,5 +1,9 @@
-const CACHE = 'blk-v6';
-const SHELL = ['./', 'index.html', 'manifest.json', 'logo.png', 'banner.jpg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'blk-extras.js', 'blk-boot.js', 'mascot.png'];
+const CACHE = 'blk-v7';
+const SHELL = [
+  './', 'index.html', 'manifest.json', 'logo.png', 'banner.jpg',
+  'favicon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
+  'blk-extras.js', 'blk-boot.js', 'blk-nozoom.js', 'mascot.png'
+];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
