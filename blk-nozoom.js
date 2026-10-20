@@ -54,3 +54,29 @@
   put();
   document.addEventListener('DOMContentLoaded', put);
 })();
+
+/* BLK - Efface la pastille rouge de l'icône (et les notifications) dès que l'application est ouverte */
+(function () {
+  function clearBadge() {
+    try {
+      if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function () {});
+      else if (navigator.setAppBadge) navigator.setAppBadge(0).catch(function () {});
+    } catch (e) {}
+    try {
+      if (window.caches) {
+        caches.open('blk-badge').then(function (c) { return c.put('/__badge', new Response('0')); }).catch(function () {});
+      }
+    } catch (e) {}
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (r) {
+          if (r && r.getNotifications) r.getNotifications().then(function (list) { list.forEach(function (n) { n.close(); }); });
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+  clearBadge();
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') clearBadge(); });
+  window.addEventListener('pageshow', clearBadge);
+  window.addEventListener('focus', clearBadge);
+})();

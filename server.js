@@ -58,6 +58,9 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
+// ==================== RELANCES, NOUVEAUTÉS ET NOTIFICATIONS DE COMMANDES ====================
+require('./engagement')(app, { getDb: () => db, isReady: () => firebaseReady, push: (uid, p) => sendPushToUser(uid, p) });
+
 let db = null;
 let firebaseReady = false;
 
