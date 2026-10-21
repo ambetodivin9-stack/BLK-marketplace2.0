@@ -80,3 +80,44 @@
   window.addEventListener('pageshow', clearBadge);
   window.addEventListener('focus', clearBadge);
 })();
+
+/* BLK - Barre d'onglets : se cache quand on descend sur l'accueil, réapparaît en douceur quand on remonte */
+(function () {
+  var style = document.createElement('style');
+  style.textContent =
+    '.tab-bar{transform:translateY(0);opacity:1;transition:transform .42s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;will-change:transform;}' +
+    '.tab-bar.tb-hidden{transform:translateY(calc(100% + 60px));opacity:0;pointer-events:none;transition:transform .28s ease-in,opacity .2s ease-in;}';
+  (document.head || document.documentElement).appendChild(style);
+
+  var lastY = 0, ticking = false;
+
+  function bar() { return document.getElementById('tabs'); }
+  function onHome() {
+    var h = document.getElementById('pageHome');
+    return !!(h && h.classList.contains('active'));
+  }
+  function showBar() { var b = bar(); if (b) b.classList.remove('tb-hidden'); }
+  function hideBar() { var b = bar(); if (b) b.classList.add('tb-hidden'); }
+
+  function update() {
+    ticking = false;
+    var y = Math.max(0, window.pageYOffset || document.documentElement.scrollTop || 0);
+    if (!onHome()) { showBar(); lastY = y; return; }
+    var d = y - lastY;
+    if (y <= 40) { showBar(); lastY = y; return; }
+    if (Math.abs(d) < 8) return;                       // on ignore les tout petits mouvements
+    var atBottom = (y + window.innerHeight) >= (document.documentElement.scrollHeight - 5);
+    if (d > 0) hideBar();                              // on descend : la barre disparaît
+    else if (!atBottom) showBar();                     // on remonte : la barre revient
+    lastY = y;
+  }
+
+  window.addEventListener('scroll', function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+
+  // Quand on change d'onglet, la barre revient toujours
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.tab-item')) { showBar(); lastY = 0; }
+  }, true);
+})();
