@@ -121,3 +121,36 @@
     if (e.target && e.target.closest && e.target.closest('.tab-item')) { showBar(); lastY = 0; }
   }, true);
 })();
+
+/* ===== Logo de l'écran de bienvenue : réparation des images vides ===== */
+(function () {
+  function iconSrc() {
+    try {
+      var l = document.querySelector('link[rel="apple-touch-icon"][href^="data:"]');
+      if (l && l.href) return l.href;
+    } catch (e) {}
+    return '/logo.png';
+  }
+  function fix() {
+    var src = iconSrc();
+    var imgs = document.querySelectorAll('img[alt="BLK"]');
+    for (var i = 0; i < imgs.length; i++) {
+      var im = imgs[i];
+      var s = im.getAttribute('src');
+      if (!s || s === '#' || s === window.location.href) im.setAttribute('src', src);
+    }
+  }
+  // Si une image BLK ne charge pas, on met le logo intégré à la place
+  document.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && t.tagName === 'IMG' && t.getAttribute('alt') === 'BLK' && t.getAttribute('src') !== iconSrc()) {
+      t.setAttribute('src', iconSrc());
+    }
+  }, true);
+  fix();
+  document.addEventListener('DOMContentLoaded', fix);
+  window.addEventListener('load', fix);
+  try {
+    new MutationObserver(fix).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  } catch (e) {}
+})();
