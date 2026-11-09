@@ -228,6 +228,7 @@ app.get('/ping', (req, res) => res.send('pong'));
 app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED_CATEGORIES }));
 
 // ==================== AUTH ====================
+const cleanLoc = (v) => String(v || '').trim().slice(0, 60);
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
@@ -243,11 +244,12 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     await userRef.set({
       name, email, password: hashedPassword,
       phone, photo: '', walletBalance: 0, flames: 0,
+      country: cleanLoc(req.body.country), city: cleanLoc(req.body.city),
       blockedUsers: [], online: true, createdAt: new Date()
     });
     const sid = await newSession(userRef.id);
     const token = jwt.sign({ userId: userRef.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone } });
+    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone, country: cleanLoc(req.body.country), city: cleanLoc(req.body.city) } });
   } catch (error) {
     sendServerError(res, 'auth/register', error);
   }
@@ -275,7 +277,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const sid = await newSession(userDoc.id);
     const token = jwt.sign({ userId: userDoc.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '' } });
+    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '', photo: userData.photo || '', country: userData.country || '', city: userData.city || '' } });
   } catch (error) {
     sendServerError(res, 'auth/login', error);
   }
@@ -351,6 +353,9 @@ app.post('/api/articles', authenticate, async (req, res) => {
 
     const sellerDoc = await db.collection('users').doc(sellerId).get();
     const sellerFlames = sellerDoc.exists ? (sellerDoc.data().flames || 0) : 0;
+    const sellerData = sellerDoc.exists ? sellerDoc.data() : {};
+    const artCountry = cleanLoc(req.body.country) || sellerData.country || '';
+    const artCity = cleanLoc(req.body.city) || sellerData.city || '';
 
     const article = {
       title, description, price: articlePrice, category, condition,
@@ -358,7 +363,7 @@ app.post('/api/articles', authenticate, async (req, res) => {
       size: size || '', hashtags: Array.isArray(hashtags) ? hashtags.slice(0, 15) : [],
       image: imageList[0], images: imageList,
       sellerId, sellerName: sellerName || 'Anonyme', sellerPhoto: sellerPhoto || '',
-      sellerFlames,
+      sellerFlames, country: artCountry, city: artCity,
       status: 'active', views: 0, favorites: 0, stock: quantity, createdAt: new Date()
     };
     const docRef = await db.collection('products').add(article);
@@ -491,6 +496,8 @@ app.put('/api/users/:userId', authenticate, async (req, res) => {
     if (userId !== req.userId) return res.status(403).json({ success: false, message: 'Non autorisé' });
     const { name, email, phone, photo, isSeller } = req.body;
     const updateData = {};
+    if (req.body.country !== undefined) updateData.country = cleanLoc(req.body.country);
+    if (req.body.city !== undefined) updateData.city = cleanLoc(req.body.city);
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
@@ -548,6 +555,47 @@ app.get('/api/wallet/:userId', authenticate, async (req, res) => {
   }
 });
 
+// ===================== SÉCURITÉ DES PAIEMENTS =====================
+const FV = admin.firestore.FieldValue;
+const PAY_OK = ['success', 'completed', 'succeeded'];
+const PAY_FAIL = ['failed', 'canceled', 'cancelled', 'expired', 'rejected'];
+async function yabetooGet(path) {
+  const r = await axios.get(`${YABETOO_API_BASE}${path}`, { headers: { 'Authorization': `Bearer ${YABETOO_SECRET}` }, timeout: 15000 });
+  return (r.data && (r.data.data || r.data)) || {};
+}
+// Crédite un dépôt UNE seule fois, et seulement si Yabetoo confirme lui-même le paiement
+// (on ne fait jamais confiance au contenu du webhook reçu).
+async function verifyAndCreditDeposit(txDoc) {
+  const tx = txDoc.data();
+  if (!tx || tx.type !== 'deposit' || tx.status === 'completed' || !tx.yabetooId) return 'skip';
+  let intent;
+  try { intent = await yabetooGet(`/payment-intents/${encodeURIComponent(tx.yabetooId)}`); }
+  catch (e) { console.error('[verify deposit] vérification impossible:', e.response?.status || e.message); return 'unverified'; }
+  const status = String(intent.status || '').toLowerCase();
+  if (PAY_OK.includes(status)) {
+    const credited = await db.runTransaction(async (t) => {
+      const fresh = await t.get(txDoc.ref);
+      if (fresh.data().status === 'completed') return false;
+      t.update(db.collection('users').doc(tx.userId), { walletBalance: FV.increment(tx.amount) });
+      t.update(txDoc.ref, { status: 'completed', completedAt: new Date() });
+      return true;
+    });
+    return credited ? 'credited' : 'already';
+  }
+  if (PAY_FAIL.includes(status)) { await txDoc.ref.update({ status: 'failed', failedAt: new Date() }); return 'failed'; }
+  return 'pending';
+}
+async function reconcilePendingDeposits() {
+  if (!firebaseReady || !YABETOO_SECRET) return;
+  const snap = await db.collection('transactions').where('type', '==', 'deposit').where('status', 'in', ['pending', 'succeeded', 'requires_action', 'processing']).limit(40).get();
+  for (const d of snap.docs) {
+    const created = d.data().createdAt && d.data().createdAt.toDate ? d.data().createdAt.toDate() : null;
+    if (created && Date.now() - created.getTime() < 20000) continue;
+    try { await verifyAndCreditDeposit(d); } catch (e) { console.error('[reconcile]', e.message); }
+  }
+}
+setInterval(() => { reconcilePendingDeposits().catch(e => console.error('[reconcile]', e.message)); }, 2 * 60 * 1000);
+
 app.post('/api/payment/initiate', authenticate, async (req, res) => {
   try {
     const { amount, phone, operator } = req.body;
@@ -602,9 +650,12 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
     await transactionRef.update({ transactionId: confirmData.transactionId || confirmData.intentId || intent.id, status: confirmData.status || 'pending' });
 
     if (confirmData.status === 'succeeded' && confirmData.captured) {
-      const currentBalance = userDoc.data()?.walletBalance || 0;
-      await userRef.update({ walletBalance: currentBalance + depositAmount });
-      await transactionRef.update({ status: 'completed', completedAt: new Date() });
+      await db.runTransaction(async (t) => {
+        const fresh = await t.get(transactionRef);
+        if (fresh.data().status === 'completed') return;
+        t.update(userRef, { walletBalance: FV.increment(depositAmount) });
+        t.update(transactionRef, { status: 'completed', completedAt: new Date() });
+      });
       return res.json({ success: true, message: 'Depot confirme et wallet credite !', status: 'succeeded' });
     }
 
@@ -617,56 +668,49 @@ app.post('/api/payment/initiate', authenticate, async (req, res) => {
 });
 
 app.post('/api/payment/callback', async (req, res) => {
-  try {
-    res.status(200).json({ success: true });
-    setImmediate(async () => {
-      try {
-        if (!firebaseReady) return;
-        const eventType = req.body.type || '';
-        const payload = req.body.data || req.body;
+  // On répond tout de suite, puis on VÉRIFIE auprès de Yabetoo : le contenu reçu n'est jamais cru tel quel.
+  res.status(200).json({ success: true });
+  setImmediate(async () => {
+    try {
+      if (!firebaseReady || !YABETOO_SECRET) return;
+      const eventType = String(req.body.type || '');
+      const payload = req.body.data || req.body;
 
-        if (eventType.startsWith('disbursement')) {
-          const disb = payload.disbursement || payload;
-          const disbId = disb.id;
-          const disbStatus = disb.status;
-          const snapshot = await db.collection('transactions').where('yabetooDisbursementId', '==', disbId).get();
-          if (snapshot.empty) return;
-          const transactionDoc = snapshot.docs[0];
-          const transactionData = transactionDoc.data();
-          if (transactionData.status !== 'pending') return;
-          if (disbStatus === 'success' || disbStatus === 'completed' || disbStatus === 'succeeded') {
-            await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
-          } else {
-            const userRef = db.collection('users').doc(transactionData.userId);
-            const userDoc = await userRef.get();
-            const currentBalance = userDoc.data()?.walletBalance || 0;
-            await userRef.update({ walletBalance: currentBalance + transactionData.amount });
-            await transactionDoc.ref.update({ status: 'failed', failedAt: new Date() });
-          }
-          return;
-        }
-
-        const { id, status, amount, reference } = payload;
-        let snapshot = await db.collection('transactions').where('yabetooId', '==', id).get();
-        if (snapshot.empty && reference) snapshot = await db.collection('transactions').where('reference', '==', reference).get();
+      if (eventType.startsWith('disbursement')) {
+        const disb = payload.disbursement || payload;
+        const disbId = disb.id;
+        if (!disbId) return;
+        const snapshot = await db.collection('transactions').where('yabetooDisbursementId', '==', disbId).get();
         if (snapshot.empty) return;
         const transactionDoc = snapshot.docs[0];
-        const transactionData = transactionDoc.data();
-        if (transactionData.status === 'completed') return;
-
-        if (status === 'success' || status === 'completed' || status === 'succeeded') {
-          const userRef = db.collection('users').doc(transactionData.userId);
-          const userDoc = await userRef.get();
-          const currentBalance = userDoc.data()?.walletBalance || 0;
-          const creditAmount = parseInt(amount || transactionData.amount);
-          await userRef.update({ walletBalance: currentBalance + creditAmount });
-          await transactionDoc.ref.update({ status: 'completed', completedAt: new Date() });
-        } else {
-          await transactionDoc.ref.update({ status: 'failed', failedAt: new Date() });
+        let real;
+        try { real = String((await yabetooGet(`/disbursements/${encodeURIComponent(disbId)}`)).status || '').toLowerCase(); }
+        catch (e) { console.error('[callback] vérification retrait impossible:', e.response?.status || e.message); return; }
+        if (PAY_OK.includes(real)) {
+          await db.runTransaction(async (t) => {
+            const f = await t.get(transactionDoc.ref);
+            if (f.data().status !== 'pending') return;
+            t.update(transactionDoc.ref, { status: 'completed', completedAt: new Date() });
+          });
+        } else if (PAY_FAIL.includes(real)) {
+          await db.runTransaction(async (t) => {
+            const f = await t.get(transactionDoc.ref);
+            const d = f.data();
+            if (d.status !== 'pending') return;
+            t.update(db.collection('users').doc(d.userId), { walletBalance: FV.increment(d.amount) });
+            t.update(transactionDoc.ref, { status: 'failed', failedAt: new Date() });
+          });
         }
-      } catch (error) { console.error('Erreur traitement webhook:', error); }
-    });
-  } catch (error) { res.status(500).json({ success: false }); }
+        return;
+      }
+
+      const { id, reference } = payload;
+      let snapshot = id ? await db.collection('transactions').where('yabetooId', '==', id).get() : { empty: true };
+      if (snapshot.empty && reference) snapshot = await db.collection('transactions').where('reference', '==', reference).get();
+      if (snapshot.empty) return;
+      await verifyAndCreditDeposit(snapshot.docs[0]);
+    } catch (error) { console.error('Erreur traitement webhook:', error); }
+  });
 });
 
 app.post('/api/wallet/transfer', authenticate, async (req, res) => {
@@ -719,8 +763,16 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
 
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
-    const currentBalance = doc.data()?.walletBalance || 0;
-    if (currentBalance < withdrawAmount) return res.status(400).json({ success: false, message: 'Solde insuffisant' });
+
+    // 1) On débite AVANT d'appeler Yabetoo, de façon atomique (impossible de retirer deux fois le même solde)
+    const reserved = await db.runTransaction(async (t) => {
+      const u = await t.get(userRef);
+      const bal = u.data()?.walletBalance || 0;
+      if (bal < withdrawAmount) return null;
+      t.update(userRef, { walletBalance: bal - withdrawAmount });
+      return bal - withdrawAmount;
+    });
+    if (reserved === null) return res.status(400).json({ success: false, message: 'Solde insuffisant' });
 
     let disbursement;
     try {
@@ -737,11 +789,17 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       disbursement = disbursementResponse.data;
     } catch (yabetooError) {
       console.error('Erreur Yabetoo disbursement:', JSON.stringify(yabetooError.response?.data || yabetooError.message));
+      await userRef.update({ walletBalance: FV.increment(withdrawAmount) }); // remboursement immédiat
       return res.status(502).json({ success: false, message: "Le retrait a échoué (aucun montant débité). Réessaie dans un instant." });
     }
 
-    const newBalance = currentBalance - withdrawAmount;
-    await userRef.update({ walletBalance: newBalance });
+    await db.collection('transactions').add({
+      userId, amount: withdrawAmount, phone: formattedPhone, operator: operatorName,
+      yabetooDisbursementId: disbursement.id || null, type: 'withdraw', status: 'pending',
+      description: 'Retrait Yabetoo (execution J+1)', createdAt: new Date()
+    });
+
+    res.json({ success: true, message: "Retrait initie. Yabetoo l'executera automatiquement sous 24h vers ton Mobile Money.", newBalance: reserved });
     await db.collection('transactions').add({
       userId, amount: withdrawAmount, phone: formattedPhone, operator: operatorName,
       yabetooDisbursementId: disbursement.id || null, type: 'withdraw', status: 'pending',
@@ -1536,3 +1594,4 @@ process.on('unhandledRejection', (reason) => {
 app.listen(PORT, () => {
   console.log(`Serveur demarre sur le port ${PORT}`);
 });
+
