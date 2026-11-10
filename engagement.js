@@ -12,8 +12,8 @@ module.exports = function setupEngagement(app, ctx) {
 
   const CRON_SECRET = process.env.CRON_SECRET || '';
   const DAY = 24 * 60 * 60 * 1000;
-  const ARTICLES_THRESHOLD = 30;            // nombre de nouveaux articles avant d'avertir tout le monde
-  const BROADCAST_MIN_GAP = 3 * 60 * 60 * 1000; // au moins 3 h entre deux annonces de nouveautés
+  const ARTICLES_THRESHOLD = 5;             // nombre de nouveaux articles avant d'avertir tout le monde
+  const BROADCAST_MIN_GAP = 30 * 60 * 1000; // au moins 30 min entre deux annonces de nouveautés
 
   function toMs(v) {
     if (!v) return 0;
@@ -50,7 +50,7 @@ module.exports = function setupEngagement(app, ctx) {
   });
 
   // ---------------------------------------------------------------------------
-  // 2) Nouveautés : tous les 30 nouveaux articles, on prévient tout le monde
+  // 2) Nouveautés : tous les 5 nouveaux articles, on prévient tout le monde
   // ---------------------------------------------------------------------------
   app.use((req, res, next) => {
     if (req.method === 'POST' && req.path === '/api/articles') {
@@ -89,10 +89,7 @@ module.exports = function setupEngagement(app, ctx) {
     const ids = await allSubscribedUserIds();
     const payload = {
       title: '🆕 Nouveautés sur BLK !',
-      body: pick([
-        `${ARTICLES_THRESHOLD} nouveaux articles viennent d'arriver 😍 Viens les découvrir avant qu'ils partent 🔥`,
-        `Des dizaines de nouveautés t'attendent 🛍️✨ Fais un tour sur BLK !`
-      ]),
+      body: `${ARTICLES_THRESHOLD} nouveaux articles sont disponibles sur la marketplace 🛍️✨ Viens les découvrir !`,
       tag: 'blk-news',
       noBadge: true
     };
@@ -100,6 +97,30 @@ module.exports = function setupEngagement(app, ctx) {
       await Promise.all(ids.slice(i, i + 10).map(id => push(id, payload).catch(() => {})));
     }
     console.log('[engagement] nouveautés envoyées à', ids.length, 'utilisateurs');
+  }
+
+  // Message quotidien envoyé à tous (une seule fois par jour)
+  const DAILY_TITLE = 'BLK Marketplace';
+  const DAILY_BODY = 'Une marketplace mobile avec une identité visuelle africaine🫶🏾, publiez des articles👗, achetez et vendez en toute confiance 👍🏾😋.';
+  async function dailyBroadcast() {
+    if (!isReady()) return { sent: 0, skipped: true };
+    const db = getDb();
+    const ref = db.collection('config').doc('engagement');
+    const today = new Date().toISOString().slice(0, 10);
+    const go = await db.runTransaction(async (t) => {
+      const sn = await t.get(ref);
+      const d = sn.exists ? sn.data() : {};
+      if (d.lastDailyDay === today) return false;
+      t.set(ref, { lastDailyDay: today }, { merge: true });
+      return true;
+    });
+    if (!go) return { sent: 0, skipped: true };
+    const ids = await allSubscribedUserIds();
+    const payload = { title: DAILY_TITLE, body: DAILY_BODY, tag: 'blk-daily', noBadge: true };
+    for (let i = 0; i < ids.length; i += 10) {
+      await Promise.all(ids.slice(i, i + 10).map(id => push(id, payload).catch(() => {})));
+    }
+    return { sent: ids.length };
   }
 
   // ---------------------------------------------------------------------------
@@ -177,8 +198,9 @@ module.exports = function setupEngagement(app, ctx) {
         await push(snap.docs[0].id, p);
         return res.json({ success: true, test: true, message: 'Notification de test envoyée' });
       }
+      const daily = await dailyBroadcast();
       const r = await runReminders();
-      res.json({ success: true, ...r });
+      res.json({ success: true, daily, ...r });
     } catch (e) {
       console.error('[engagement] cron:', e.message);
       res.status(500).json({ success: false });
