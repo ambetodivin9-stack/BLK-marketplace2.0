@@ -1,10 +1,9 @@
-const CACHE = 'blk-v8';
-const BADGE_CACHE = 'blk-badge';   // petit stockage du nombre à afficher sur l'icône
-const BADGE_KEY = '/__badge';
+const CACHE = 'blk-v9';
 const SHELL = [
   './', 'index.html', 'manifest.json', 'logo.png', 'banner.jpg',
   'favicon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
-  'blk-extras.js', 'blk-boot.js', 'blk-nozoom.js', 'mascot.png'
+  'blk-extras.js', 'blk-boot.js', 'blk-nozoom.js', 'blk-features.js', 'mascot.png',
+  'images/flamme.png', 'images/colis.png', 'images/connexion.png'
 ];
 
 self.addEventListener('install', e => {
@@ -15,7 +14,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== BADGE_CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -56,37 +55,20 @@ self.addEventListener('fetch', e => {
   }));
 });
 
-// ----- Pastille rouge sur l'icône de l'application -----
-async function bumpBadge() {
-  const c = await caches.open(BADGE_CACHE);
-  const r = await c.match(BADGE_KEY);
-  const n = (r ? parseInt(await r.text(), 10) || 0 : 0) + 1;
-  await c.put(BADGE_KEY, new Response(String(n)));
-  return n;
-}
-
 // ----- Notifications push : message reçu même application fermée -----
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
-  e.waitUntil((async () => {
-    await self.registration.showNotification(d.title || 'BLK Marketplace', {
+  e.waitUntil(
+    self.registration.showNotification(d.title || 'BLK Marketplace', {
       body: d.body || 'Nouveau message',
       tag: d.tag || 'blk-msg',
       renotify: true,
       icon: 'icon-192.png',
       badge: 'icon-192.png',
       data: d
-    });
-    // Message non lu ou commande : on ajoute 1 sur l'icône, sauf si l'application est déjà ouverte à l'écran
-    if (d.noBadge) return;
-    try {
-      const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (wins.some(w => w.visibilityState === 'visible')) return;
-      const n = await bumpBadge();
-      if (self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
-    } catch (_) {}
-  })());
+    })
+  );
 });
 
 self.addEventListener('notificationclick', e => {
