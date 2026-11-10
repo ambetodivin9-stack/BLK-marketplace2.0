@@ -10,7 +10,9 @@
     { "src": "blk-extras.js", "use": "@vercel/static" },
     { "src": "blk-fixes.js", "use": "@vercel/static" },
     { "src": "blk-fixes.css", "use": "@vercel/static" },
-    { "src": "blk-nozoom.js", "use": "@vercel/static" }
+    { "src": "blk-nozoom.js", "use": "@vercel/static" },
+    { "src": "blk-features.js", "use": "@vercel/static" },
+    { "src": "images/*.png", "use": "@vercel/static" }
   ],
   "headers": [
     {
