@@ -1169,6 +1169,22 @@ app.get('/api/stats/:userId', authenticate, async (req, res) => {
 });
 
 // ==================== MESSAGES ====================
+app.post('/api/messages/read', authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false });
+  try {
+    const contactId = String(req.body.contactId || '');
+    if (!contactId) return res.status(400).json({ success: false, message: 'contactId manquant' });
+    const snapshot = await db.collection('messages').where('participants', 'array-contains', req.userId).get();
+    const batch = db.batch(); let n = 0;
+    snapshot.forEach(doc => {
+      const m = doc.data();
+      if (n < 400 && m.receiverId === req.userId && m.senderId === contactId && !m.read) { batch.update(doc.ref, { read: true }); n++; }
+    });
+    if (n > 0) await batch.commit();
+    res.json({ success: true, marked: n });
+  } catch (e) { console.error('Erreur marquage messages lus:', e.message); res.status(500).json({ success: false }); }
+});
+
 app.get('/api/messages/:userId', authenticate, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
@@ -1179,12 +1195,7 @@ app.get('/api/messages/:userId', authenticate, async (req, res) => {
     snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
 
     messages = messages.filter(m => !(m.deletedFor || []).includes(userId));
-    const unread = messages.filter(m => m.receiverId === userId && !m.read);
-    if (unread.length > 0) {
-      const batch = db.batch();
-      unread.forEach(m => { batch.update(db.collection('messages').doc(m.id), { read: true }); m.read = true; });
-      await batch.commit();
-    }
+    // Les messages ne sont PLUS marqués « lus » ici : seulement quand la discussion est ouverte (voir /api/messages/read)
 
     messages.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
@@ -1594,4 +1605,3 @@ process.on('unhandledRejection', (reason) => {
 app.listen(PORT, () => {
   console.log(`Serveur demarre sur le port ${PORT}`);
 });
-
