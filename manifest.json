@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "BLK Marketplace",
-  "short_name": "BLK",
+  "name": "BLKmarketplace",
+  "short_name": "BLKmarketplace",
   "description": "Achète et vends des articles de mode en toute confiance.",
   "start_url": "/",
   "scope": "/",
