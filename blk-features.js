@@ -134,6 +134,7 @@
     var t = flameCfg(c), h = Math.round(t.size * (small ? 0.62 : 1));
     return '<img class="blk-flame" src="/images/flamme.png" alt="flammes" style="height:' + h + 'px;width:auto;--fd:' + t.dur + 's;filter:hue-rotate(' + Math.round(t.hue) + 'deg) drop-shadow(0 0 ' + t.glow + 'px hsla(' + Math.round(t.gh) + ',100%,55%,.85))">';
   }
+  window.blkFlameImg = flameImg;
   function num(el) { var m = el && (el.textContent || '').match(/\d+/); return m ? parseInt(m[0], 10) : null; }
   function decorateFlames() {
     var cnt = $('#profileFlamesCount'), lab = $('#btnFlameInfo .stat-label-new');
@@ -476,7 +477,7 @@
     if (info && !info.dataset.bs) {
       info.dataset.bs = '1';
       info.addEventListener('click', function () {
-        if (typeof activeConversationId !== 'undefined' && activeConversationId) showSellerArticles(activeConversationId, ($('.chat-contact-name', info) || {}).textContent || 'ce vendeur');
+        if (typeof activeConversationId !== 'undefined' && activeConversationId) (window.blkShowSellerProfile || showSellerArticles)(activeConversationId, ($('.chat-contact-name', info) || {}).textContent || 'ce vendeur');
       });
     }
     var sub = $('#pubSubmit');
@@ -494,5 +495,160 @@
   var pend = false;
   new MutationObserver(function () { if (!pend) { pend = true; requestAnimationFrame(function () { pend = false; try { run(); } catch (e) { console.warn('blk-features v2:', e); } }); } })
     .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  run();
+})();
+
+
+/* ===================== v3 : profil vendeur + connexion par code ===================== */
+(function () {
+  'use strict';
+  function $(s, r) { return (r || document).querySelector(s); }
+  var st = document.createElement('style');
+  st.textContent =
+    '.blk-sp{position:fixed;inset:0;z-index:1600;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 40px;animation:blkSpIn .35s ease}' +
+    '@keyframes blkSpIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}' +
+    '.blk-sp-top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 18px) 0 12px}' +
+    '.blk-sp-back{background:none;border:none;font-size:28px;color:var(--accent);cursor:pointer;line-height:1}' +
+    '.blk-sp-card{position:relative;border-radius:30px;padding:22px 20px 20px;color:#fff;overflow:hidden;box-shadow:0 14px 34px rgba(231,76,60,.28);' +
+    'background:radial-gradient(circle at 18% 12%,#FFC070 0,transparent 42%),radial-gradient(circle at 88% 22%,#2F8F6B 0,transparent 38%),radial-gradient(circle at 62% 78%,#C0392B 0,transparent 55%),linear-gradient(160deg,#FF9A3C,#E74C3C 70%,#B8372B);background-size:140% 140%;animation:blkSpFlow 9s ease-in-out infinite alternate}' +
+    '@keyframes blkSpFlow{from{background-position:0 0}to{background-position:100% 100%}}' +
+    '.blk-sp-card::after{content:"";position:absolute;inset:0;opacity:.14;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27120%27 height=%27120%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%272%27/%3E%3C/filter%3E%3Crect width=%27120%27 height=%27120%27 filter=%27url(%23n)%27/%3E%3C/svg%3E")}' +
+    '.blk-sp-card>*{position:relative;z-index:1}' +
+    '.blk-sp-avatar{width:92px;height:92px;border-radius:50%;background:#fff8ee;border:4px solid rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:38px;font-weight:800;color:var(--accent);box-shadow:0 8px 20px rgba(0,0,0,.18)}' +
+    '.blk-sp-avatar img{width:100%;height:100%;object-fit:cover}' +
+    '.blk-sp-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:14px}' +
+    '.blk-sp-name{font-size:22px;font-weight:800;line-height:1.2}.blk-sp-sub{font-size:13px;opacity:.85;margin-top:3px}' +
+    '.blk-sp-pill{border:1.5px solid rgba(255,255,255,.85);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}' +
+    '.blk-sp-dot{width:9px;height:9px;border-radius:50%;background:#7CFF9B;box-shadow:0 0 8px #7CFF9B}.blk-sp-dot.off{background:#ddd;box-shadow:none}' +
+    '.blk-sp-stats{display:flex;justify-content:space-between;margin:22px 4px 20px}' +
+    '.blk-sp-stat{text-align:center;flex:1}.blk-sp-stat .v{display:flex;align-items:center;justify-content:center;gap:7px;font-size:26px;font-weight:800;min-height:46px}.blk-sp-stat .l{font-size:12.5px;opacity:.88;margin-top:2px}' +
+    '.blk-sp-cta{width:100%;border:none;background:#fff;border-radius:999px;padding:8px 22px 8px 8px;display:flex;align-items:center;gap:14px;font-size:16px;font-weight:700;color:#1a1a1a;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.14)}' +
+    '.blk-sp-cta:active{transform:scale(.97)}.blk-sp-arrow{width:44px;height:44px;border-radius:50%;background:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0}.blk-sp-cta span.t{flex:1;text-align:center;padding-right:44px}' +
+    '.blk-sp h3.sec{margin:22px 2px 10px;font-size:16px}' +
+    '.blk-sp .article-card .pr{padding:6px 8px;font-size:12px;font-weight:700}' +
+    /* connexion par code */
+    '#blkCode{position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,#FF9A3C,#E74C3C 65%,#C0392B);overflow-y:auto}' +
+    '.blk-code-card{background:var(--card-bg);color:var(--text);border-radius:26px;padding:24px 20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:blkSpIn .35s ease}' +
+    '.blk-code-card h3{text-align:center;margin-bottom:6px}.blk-code-card p.s{text-align:center;color:#888;font-size:13.5px;line-height:1.5;margin-bottom:16px}' +
+    '.blk-code-card input{width:100%;padding:14px;border:1.5px solid var(--border);border-radius:14px;font-size:16px;background:var(--input-bg);color:var(--text);margin-bottom:12px}' +
+    '.blk-code-card input.big{text-align:center;font-size:26px;letter-spacing:8px;font-weight:800}' +
+    '.blk-code-err{color:#E74C3C;font-size:13px;text-align:center;min-height:18px;margin:2px 0 8px}' +
+    '.blk-code-link{background:none;border:none;color:var(--accent);font-weight:700;font-size:13.5px;cursor:pointer;display:block;margin:10px auto 0}.blk-code-link:disabled{color:#aaa}';
+  document.head.appendChild(st);
+
+  // ---------------------------------------------------------------- Profil du vendeur
+  function statIcon(kind) {
+    if (kind === 'doc') return '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V8h4.5L13 3.5ZM8 12h8v1.6H8V12Zm0 3.6h8v1.6H8v-1.6Z"/></svg>';
+    return '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="6"/></svg>';
+  }
+  window.blkShowSellerProfile = function (id, name) {
+    var old = $('#blkSP'); if (old) old.remove();
+    var pg = document.createElement('div'); pg.id = 'blkSP'; pg.className = 'blk-sp';
+    pg.innerHTML = '<div class="blk-sp-top"><button class="blk-sp-back" id="blkSPback">‹</button><strong>Profil du vendeur</strong></div><p class="empty">Chargement...</p>';
+    document.body.appendChild(pg);
+    $('#blkSPback', pg).addEventListener('click', function () { pg.remove(); });
+    Promise.all([
+      apiFetch('/api/users/' + id).then(function (r) { return r.json(); }),
+      apiFetch('/api/articles/seller/' + id).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
+    ]).then(function (res) {
+      var u = (res[0] && res[0].success && res[0].data) || { name: name };
+      var list = ((res[1] && res[1].data) || []).filter(function (a) { return a.status === 'active'; });
+      var flames = u.flames || 0, nm = u.name || name || 'Vendeur';
+      var where = [u.city, u.country].filter(Boolean).join(', ');
+      var avatar = u.photo ? safeImgTag(u.photo, nm, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(nm.charAt(0).toUpperCase());
+      var fl = window.blkFlameImg ? window.blkFlameImg(flames) : '🔥';
+      pg.innerHTML =
+        '<div class="blk-sp-top"><button class="blk-sp-back" id="blkSPback">‹</button><strong>Profil du vendeur</strong></div>' +
+        '<div class="blk-sp-card">' +
+          '<div class="blk-sp-avatar">' + avatar + '</div>' +
+          '<div class="blk-sp-row"><div><div class="blk-sp-name">' + escapeHtml(nm) + '</div><div class="blk-sp-sub">' + escapeHtml(where || 'Vendeur BLK') + '</div></div>' +
+          '<div class="blk-sp-pill"><span class="blk-sp-dot' + (u.online ? '' : ' off') + '"></span>' + (u.online ? 'En ligne' : 'Hors ligne') + '</div></div>' +
+          '<div class="blk-sp-stats">' +
+            '<div class="blk-sp-stat"><div class="v">' + fl + '<span>' + flames + '</span></div><div class="l">Flammes</div></div>' +
+            '<div class="blk-sp-stat"><div class="v">' + statIcon('doc') + '<span>' + list.length + '</span></div><div class="l">Articles</div></div>' +
+            '<div class="blk-sp-stat"><div class="v"><span>' + (flames >= 100 ? 'Top' : (flames > 0 ? 'Fiable' : 'Nouveau')) + '</span></div><div class="l">Niveau</div></div>' +
+          '</div>' +
+          '<button class="blk-sp-cta" id="blkSPmsg"><span class="blk-sp-arrow"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><span class="t">Écrire un message</span></button>' +
+        '</div>' +
+        '<h3 class="sec">Articles en vente</h3><div class="articles-grid" id="blkSPgrid"></div>';
+      $('#blkSPback', pg).addEventListener('click', function () { pg.remove(); });
+      $('#blkSPmsg', pg).addEventListener('click', function () {
+        pg.remove();
+        if (typeof activeConversationId !== 'undefined' && activeConversationId === id) { var i = $('#messageInput'); if (i) i.focus(); }
+        else openDiscussion(id, nm);
+      });
+      var grid = $('#blkSPgrid', pg);
+      if (!list.length) { grid.innerHTML = '<p class="empty" style="grid-column:1/-1;">Aucun article en vente pour le moment</p>'; return; }
+      list.forEach(function (a) {
+        var card = document.createElement('div'); card.className = 'article-card';
+        card.innerHTML = safeImgTag(a.image || (a.images && a.images[0]) || PLACEHOLDER_IMAGE, a.title) + '<div class="pr">' + Number(a.price || 0) + ' FCFA</div>';
+        card.addEventListener('click', function () { pg.remove(); openProductFullscreen(a); });
+        grid.appendChild(card);
+      });
+    }).catch(function () { pg.innerHTML += '<p class="empty">Impossible de charger ce profil.</p>'; });
+  };
+
+  // ---------------------------------------------------------------- Connexion par code (8 chiffres)
+  function openCodeLogin() {
+    var ov = document.createElement('div'); ov.id = 'blkCode';
+    document.body.appendChild(ov);
+    var ident = '', timer = null;
+    function stepA() {
+      ov.innerHTML = '<div class="blk-code-card"><h3>Connexion avec un code</h3><p class="s">Entre l’e-mail ou le numéro de ton compte, puis choisis où recevoir ton code à 8 chiffres. Il est envoyé uniquement à l’e-mail ou au numéro enregistrés sur ce compte.</p>' +
+        '<input id="bcId" type="text" placeholder="E-mail ou numéro de téléphone" autocomplete="off" autocapitalize="off" value="' + escapeHtml(ident) + '">' +
+        '<button class="btn btn-primary" id="bcMail">Recevoir par e-mail</button><button class="btn btn-outline" id="bcSms" style="margin-top:8px;">Recevoir par SMS</button>' +
+        '<div class="blk-code-err" id="bcErr"></div><button class="blk-code-link" id="bcCancel">Annuler</button></div>';
+      $('#bcCancel', ov).addEventListener('click', function () { clearInterval(timer); ov.remove(); });
+      $('#bcMail', ov).addEventListener('click', function () { send('email'); });
+      $('#bcSms', ov).addEventListener('click', function () { send('sms'); });
+    }
+    function send(channel) {
+      ident = $('#bcId', ov).value.trim();
+      var err = $('#bcErr', ov);
+      if (!ident) { err.textContent = 'Entre ton e-mail ou ton numéro.'; return; }
+      err.style.color = '#999'; err.textContent = 'Envoi en cours...';
+      apiFetch('/api/auth/recover/request', { method: 'POST', body: JSON.stringify({ identifier: ident, channel: channel }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) { if (x.ok && x.d.success) stepB(channel); else { err.style.color = '#E74C3C'; err.textContent = x.d.message || 'Erreur, réessaie.'; } })
+        .catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
+    }
+    function stepB(channel) {
+      var left = 60;
+      ov.innerHTML = '<div class="blk-code-card"><h3>Entre ton code</h3><p class="s">Si un compte correspond, un code à 8 chiffres vient d’être envoyé par ' + (channel === 'sms' ? 'SMS' : 'e-mail') + '. Il est valable 10 minutes. Ne le partage avec personne.</p>' +
+        '<input id="bcCode" class="big" type="tel" inputmode="numeric" maxlength="8" placeholder="00000000" autocomplete="one-time-code">' +
+        '<button class="btn btn-primary" id="bcGo">Valider</button><div class="blk-code-err" id="bcErr"></div>' +
+        '<button class="blk-code-link" id="bcAgain" disabled>Renvoyer le code (60 s)</button><button class="blk-code-link" id="bcBack">Changer de méthode</button></div>';
+      var again = $('#bcAgain', ov);
+      clearInterval(timer);
+      timer = setInterval(function () { left--; if (left <= 0) { clearInterval(timer); again.disabled = false; again.textContent = 'Renvoyer le code'; } else again.textContent = 'Renvoyer le code (' + left + ' s)'; }, 1000);
+      again.addEventListener('click', function () { clearInterval(timer); send(channel); });
+      $('#bcBack', ov).addEventListener('click', function () { clearInterval(timer); stepA(); });
+      $('#bcGo', ov).addEventListener('click', function () {
+        var code = $('#bcCode', ov).value.replace(/\D/g, ''), err = $('#bcErr', ov);
+        if (code.length !== 8) { err.textContent = 'Le code contient 8 chiffres.'; return; }
+        err.style.color = '#999'; err.textContent = 'Vérification...';
+        apiFetch('/api/auth/recover/verify', { method: 'POST', body: JSON.stringify({ identifier: ident, code: code }) })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.success) {
+              clearInterval(timer); ov.remove();
+              commitAuthSuccess(d); doPostLoginInit();
+              showAlert('Connecté. Par sécurité, les retraits et transferts sont bloqués 24 h sur ce nouvel appareil.', 'info');
+            } else { err.style.color = '#E74C3C'; err.textContent = d.message || 'Code invalide ou expiré'; }
+          }).catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
+      });
+    }
+    stepA();
+  }
+  function run() {
+    var btn = $('#loginSubmitOnb');
+    if (btn && !$('#blkCodeLink')) {
+      var l = document.createElement('button'); l.type = 'button'; l.id = 'blkCodeLink'; l.className = 'onboard-skip-link';
+      l.style.cssText = 'display:block;margin:16px auto 0;'; l.textContent = 'Connexion avec un code (nouvel appareil)';
+      btn.insertAdjacentElement('afterend', l);
+      l.addEventListener('click', openCodeLogin);
+    }
+  }
+  new MutationObserver(function () { try { run(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true });
   run();
 })();

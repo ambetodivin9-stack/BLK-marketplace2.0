@@ -283,6 +283,113 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 });
 
+// ==================== CONNEXION PAR CODE (nouvel appareil) ====================
+// Le code à 8 chiffres est envoyé UNIQUEMENT à l'e-mail ou au numéro déjà enregistrés sur le compte.
+// Il est valable 10 min, utilisable une seule fois, limité à 5 essais, et jamais stocké en clair.
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_MAX_TRIES = 5;
+const NEW_DEVICE_LOCK_MS = 24 * 60 * 60 * 1000; // retraits/transferts bloqués 24 h après une connexion par code
+const DIAL = { 'République du Congo': '242', 'RDC': '243', 'Ouganda': '256', 'Rwanda': '250', 'Zambie': '260', 'Ghana': '233', 'Nigeria': '234' };
+function hashCode(userId, code) { return crypto.createHash('sha256').update(userId + ':' + code + ':' + JWT_SECRET).digest('hex'); }
+function phoneToE164(phone, country) {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (!d) return null;
+  const dial = DIAL[country] || '242';
+  if (d.startsWith('00')) d = d.slice(2);
+  else if (d.startsWith('0')) d = dial + d.slice(1);
+  else if (!d.startsWith(dial) && d.length <= 9) d = dial + d;
+  return '+' + d;
+}
+async function sendEmailCode(to, code) {
+  const key = process.env.BREVO_API_KEY, from = process.env.MAIL_FROM;
+  if (!key || !from) throw new Error('E-mail non configuré (BREVO_API_KEY / MAIL_FROM)');
+  await axios.post('https://api.brevo.com/v3/smtp/email', {
+    sender: { name: 'BLKmarketplace', email: from }, to: [{ email: to }],
+    subject: 'Ton code de connexion BLKmarketplace',
+    textContent: `Ton code de connexion : ${code}\n\nIl est valable 10 minutes. Ne le partage avec personne, même pas avec BLK.\nSi tu n'as rien demandé, ignore ce message.`
+  }, { headers: { 'api-key': key, 'Content-Type': 'application/json' }, timeout: 15000 });
+}
+async function sendSmsCode(phone, country, code) {
+  const sid = process.env.TWILIO_SID, token = process.env.TWILIO_TOKEN, from = process.env.TWILIO_FROM;
+  if (!sid || !token || !from) throw new Error('SMS non configuré (TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM)');
+  const to = phoneToE164(phone, country);
+  if (!to) throw new Error('Numéro invalide');
+  await axios.post(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+    new URLSearchParams({ To: to, From: from, Body: `BLKmarketplace : ton code est ${code}. Valable 10 min. Ne le partage jamais.` }).toString(),
+    { auth: { username: sid, password: token }, timeout: 15000 });
+}
+const recoverLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 12, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => 'rec:' + String((req.body && req.body.identifier) || '').trim().toLowerCase() + '|' + req.ip,
+  message: { success: false, message: 'Trop de tentatives. Réessaie dans quelques minutes.' }
+});
+async function findUserByIdentifier(identifier) {
+  const raw = String(identifier || '').trim();
+  if (!raw) return null;
+  const tries = raw.includes('@')
+    ? [['email', raw.toLowerCase()], ['email', raw]]
+    : [['phone', raw], ['phone', raw.replace(/\D/g, '')]];
+  for (const [field, val] of tries) {
+    if (!val) continue;
+    const snap = await db.collection('users').where(field, '==', val).limit(1).get();
+    if (!snap.empty && !snap.docs[0].data().deleted) return snap.docs[0];
+  }
+  return null;
+}
+app.post('/api/auth/recover/request', recoverLimiter, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Service indisponible' });
+  const GENERIC = { success: true, message: "Si un compte correspond, un code vient d'être envoyé (valable 10 minutes)." };
+  try {
+    const channel = req.body.channel === 'sms' ? 'sms' : 'email';
+    const userDoc = await findUserByIdentifier(req.body.identifier);
+    if (!userDoc) return res.json(GENERIC);
+    const u = userDoc.data();
+    const ref = db.collection('authCodes').doc(userDoc.id);
+    const prev = await ref.get(); const pd = prev.exists ? prev.data() : {};
+    const now = Date.now();
+    if (pd.lastSentAt && now - pd.lastSentAt < 60000) return res.json(GENERIC);
+    const windowStart = (pd.windowStart && now - pd.windowStart < 3600000) ? pd.windowStart : now;
+    const sentCount = windowStart === pd.windowStart ? (pd.sentCount || 0) : 0;
+    if (sentCount >= 5) return res.json(GENERIC);
+    const code = String(crypto.randomInt(0, 100000000)).padStart(8, '0');
+    if (channel === 'email' && !u.email) return res.json(GENERIC);
+    if (channel === 'sms' && !u.phone) return res.json(GENERIC);
+    try {
+      if (channel === 'email') await sendEmailCode(u.email, code); else await sendSmsCode(u.phone, u.country, code);
+    } catch (e) {
+      console.error('[code] envoi impossible (' + channel + '):', e.response?.data ? JSON.stringify(e.response.data) : e.message);
+      return res.status(503).json({ success: false, message: "L'envoi du code est indisponible pour le moment. Réessaie plus tard." });
+    }
+    await ref.set({ codeHash: hashCode(userDoc.id, code), expiresAt: now + CODE_TTL_MS, attempts: 0, channel, lastSentAt: now, windowStart, sentCount: sentCount + 1 });
+    res.json(GENERIC);
+  } catch (error) { sendServerError(res, 'auth/recover/request', error); }
+});
+app.post('/api/auth/recover/verify', recoverLimiter, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Service indisponible' });
+  const BAD = { success: false, message: 'Code invalide ou expiré' };
+  try {
+    const code = String(req.body.code || '').replace(/\s/g, '');
+    if (!/^\d{8}$/.test(code)) return res.status(401).json(BAD);
+    const userDoc = await findUserByIdentifier(req.body.identifier);
+    if (!userDoc) return res.status(401).json(BAD);
+    const ref = db.collection('authCodes').doc(userDoc.id);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(401).json(BAD);
+    const d = snap.data();
+    if (Date.now() > d.expiresAt || (d.attempts || 0) >= CODE_MAX_TRIES) { await ref.delete(); return res.status(401).json(BAD); }
+    await ref.update({ attempts: admin.firestore.FieldValue.increment(1) });
+    const a = Buffer.from(hashCode(userDoc.id, code)), b = Buffer.from(d.codeHash);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json(BAD);
+    await ref.delete(); // un code ne sert qu'une fois
+    const u = userDoc.data();
+    const lockUntil = Date.now() + NEW_DEVICE_LOCK_MS;
+    await db.collection('users').doc(userDoc.id).set({ withdrawLockedUntil: lockUntil, lastCodeLoginAt: new Date() }, { merge: true });
+    const sid = await newSession(userDoc.id); // l'ancien appareil est déconnecté
+    const token = jwt.sign({ userId: userDoc.id, email: String(u.email || '').toLowerCase(), sid }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: u.name, email: u.email, phone: u.phone || '', photo: u.photo || '', country: u.country || '', city: u.city || '' } });
+  } catch (error) { sendServerError(res, 'auth/recover/verify', error); }
+});
+
 // ==================== ARTICLES ====================
 app.get('/api/articles', async (req, res) => {
   if (!firebaseReady) return res.json({ success: true, data: [] });
@@ -720,6 +827,8 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
     const fromUserId = req.userId;
     if (!toPhone || !amount) return res.status(400).json({ success: false, message: 'toPhone et amount requis' });
     const transferAmount = parseAmount(amount);
+    const lockDoc = await db.collection('users').doc(fromUserId).get();
+    if (Number(lockDoc.data()?.withdrawLockedUntil || 0) > Date.now()) return res.status(403).json({ success: false, message: 'Par sécurité, les transferts sont bloqués 24 h après une connexion sur un nouvel appareil.' });
     const recipientSnapshot = await db.collection('users').where('phone', '==', toPhone).limit(1).get();
     if (recipientSnapshot.empty) return res.status(404).json({ success: false, message: 'Aucun utilisateur BLK trouve avec ce numero' });
     const recipientDoc = recipientSnapshot.docs[0];
@@ -763,6 +872,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
 
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
+    if (Number(doc.data()?.withdrawLockedUntil || 0) > Date.now()) return res.status(403).json({ success: false, message: 'Par sécurité, les retraits sont bloqués 24 h après une connexion sur un nouvel appareil.' });
 
     // 1) On débite AVANT d'appeler Yabetoo, de façon atomique (impossible de retirer deux fois le même solde)
     const reserved = await db.runTransaction(async (t) => {
