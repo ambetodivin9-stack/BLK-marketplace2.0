@@ -21,10 +21,18 @@ const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
 // ==================== CORS ====================
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-app.use(cors({
-  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
-}));
+const DEFAULT_ORIGINS = ['https://blk-marketplace2-0.vercel.app', 'https://blk-marketplace20.vercel.app'];
+const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = envOrigins.length > 0 ? envOrigins : DEFAULT_ORIGINS;
+app.use(cors({ origin: allowedOrigins }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  if (req.method !== 'GET' || /^\/api\/(wallet|orders|auth|users)/.test(req.path)) res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 if (compression) app.use(compression());
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
@@ -427,6 +435,7 @@ app.post('/api/auth/recover/verify', recoverLimiter, async (req, res) => {
     const u = userDoc.data();
     const lockUntil = Date.now() + NEW_DEVICE_LOCK_MS;
     await db.collection('users').doc(userDoc.id).set({ withdrawLockedUntil: lockUntil, lastCodeLoginAt: new Date(), pinHash: admin.firestore.FieldValue.delete(), pinAttempts: 0, pinLockedUntil: 0 }, { merge: true });
+    securityPush(userDoc.id, '🔐 Nouvelle connexion', "Ton compte vient d'être ouvert sur un autre appareil avec un code. Si ce n'est pas toi, contacte-nous tout de suite.");
     const sid = await newSession(userDoc.id); // l'ancien appareil est déconnecté
     const token = jwt.sign({ userId: userDoc.id, email: String(u.email || '').toLowerCase(), sid }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, needsPinSetup: true, token, userId: userDoc.id, user: { id: userDoc.id, name: u.name, email: u.email, phone: u.phone || '', photo: u.photo || '', country: u.country || '', city: u.city || '' } });
@@ -749,7 +758,34 @@ async function reconcilePendingDeposits() {
 }
 setInterval(() => { reconcilePendingDeposits().catch(e => console.error('[reconcile]', e.message)); }, 2 * 60 * 1000);
 
-app.post('/api/payment/initiate', authenticate, async (req, res) => {
+// ==================== SÉCURITÉ ARGENT : limites, code secret, plafond ====================
+const moneyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => 'money:' + (req.userId || req.ip),
+  message: { success: false, message: 'Trop d\'opérations en peu de temps. Réessaie dans quelques minutes.' }
+});
+async function requirePin(req, res) {
+  const ref = db.collection('users').doc(req.userId);
+  const snap = await ref.get(); const d = snap.data() || {};
+  if (!d.pinHash) { res.status(403).json({ success: false, needPin: true, message: "Crée d'abord ton code secret (Profil > Changer mon code secret)." }); return false; }
+  const r = await verifyUserPin(ref, d, req.body.pin);
+  if (!r.ok) { pinFailure(res, r); return false; }
+  return true;
+}
+const DAILY_WITHDRAW_LIMIT = parseInt(process.env.DAILY_WITHDRAW_LIMIT || '500000', 10);
+async function withdrawnLast24h(userId) {
+  const snap = await db.collection('transactions').where('userId', '==', userId).where('type', '==', 'withdraw').get();
+  const since = Date.now() - 24 * 60 * 60 * 1000; let sum = 0;
+  snap.forEach(d => {
+    const x = d.data(); if (x.status === 'failed') return;
+    const t = x.createdAt && x.createdAt.toDate ? x.createdAt.toDate().getTime() : new Date(x.createdAt).getTime();
+    if (t >= since) sum += Number(x.amount) || 0;
+  });
+  return sum;
+}
+function securityPush(userId, title, body) { try { Promise.resolve(sendPushToUser(userId, { title, body, tag: 'blk-security', noBadge: true })).catch(() => {}); } catch (e) {} }
+
+app.post('/api/payment/initiate', authenticate, moneyLimiter, async (req, res) => {
   try {
     const { amount, phone, operator } = req.body;
     const userId = req.userId;
@@ -866,12 +902,13 @@ app.post('/api/payment/callback', async (req, res) => {
   });
 });
 
-app.post('/api/wallet/transfer', authenticate, async (req, res) => {
+app.post('/api/wallet/transfer', authenticate, moneyLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
     const { toPhone, amount } = req.body;
     const fromUserId = req.userId;
     if (!toPhone || !amount) return res.status(400).json({ success: false, message: 'toPhone et amount requis' });
+    if (!(await requirePin(req, res))) return;
     const transferAmount = parseAmount(amount);
     const lockDoc = await db.collection('users').doc(fromUserId).get();
     if (Number(lockDoc.data()?.withdrawLockedUntil || 0) > Date.now()) return res.status(403).json({ success: false, message: 'Par sécurité, les transferts sont bloqués 24 h après une connexion sur un nouvel appareil.' });
@@ -905,7 +942,7 @@ app.post('/api/wallet/transfer', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
+app.post('/api/wallet/withdraw', authenticate, moneyLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   if (!YABETOO_SECRET) return res.status(500).json({ success: false, message: 'Clé Yabetoo manquante' });
   try {
@@ -916,9 +953,13 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
     const formattedPhone = formatPhoneForYabetoo(phone);
     const operatorName = (operator || 'mtn').toLowerCase();
 
+    if (!(await requirePin(req, res))) return;
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
     if (Number(doc.data()?.withdrawLockedUntil || 0) > Date.now()) return res.status(403).json({ success: false, message: 'Par sécurité, les retraits sont bloqués 24 h après une connexion sur un nouvel appareil.' });
+
+    const already24 = await withdrawnLast24h(userId);
+    if (already24 + withdrawAmount > DAILY_WITHDRAW_LIMIT) return res.status(403).json({ success: false, message: `Limite de retrait atteinte : ${DAILY_WITHDRAW_LIMIT} FCFA maximum par 24 h.` });
 
     // 1) On débite AVANT d'appeler Yabetoo, de façon atomique (impossible de retirer deux fois le même solde)
     const reserved = await db.runTransaction(async (t) => {
@@ -955,6 +996,7 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
       description: 'Retrait Yabetoo (execution J+1)', createdAt: new Date()
     });
 
+    securityPush(userId, '💸 Retrait initié', `${withdrawAmount} FCFA vers ${formattedPhone}. Si ce n'est pas toi, change vite ton code secret.`);
     res.json({ success: true, message: "Retrait initie. Yabetoo l'executera automatiquement sous 24h vers ton Mobile Money.", newBalance: reserved });
     await db.collection('transactions').add({
       userId, amount: withdrawAmount, phone: formattedPhone, operator: operatorName,
@@ -970,18 +1012,20 @@ app.post('/api/wallet/withdraw', authenticate, async (req, res) => {
 });
 
 // ==================== ORDRES ====================
-app.post('/api/orders/create', authenticate, async (req, res) => {
+app.post('/api/orders/create', authenticate, moneyLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
   try {
+    if (!(await requirePin(req, res))) return;
     const { articleId, sellerId, amount, buyerPhone } = req.body;
     const buyerId = req.userId;
     if (!articleId || !sellerId || !amount) return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     if (buyerId === sellerId) return res.status(400).json({ success: false, message: 'Vous ne pouvez pas acheter votre propre article' });
 
-    const orderAmount = parseAmount(amount);
     const articleRef = db.collection('products').doc(articleId);
     const articleSnap = await articleRef.get();
     if (!articleSnap.exists) return res.status(404).json({ success: false, message: 'Article introuvable' });
+    if (articleSnap.data().sellerId !== sellerId) return res.status(400).json({ success: false, message: 'Vendeur invalide pour cet article' });
+    const orderAmount = parseAmount(articleSnap.data().price); // le prix vient de la base, jamais du téléphone
     if (articleSnap.data().status !== 'active') return res.status(409).json({ success: false, message: "Cet article vient d'etre reserve par un autre acheteur." });
     if ((articleSnap.data().stock || 0) < 1) return res.status(409).json({ success: false, message: 'Article épuisé' });
 
