@@ -280,7 +280,7 @@ async function verifyUserPin(userRef, userData, pin) {
   return { ok: false, left: PIN_MAX_TRIES - attempts };
 }
 function pinFailure(res, r) {
-  return res.status(r.locked ? 423 : 401).json({ success: false, needPin: true,
+  return res.status(r.locked ? 423 : 403).json({ success: false, needPin: true,
     message: r.locked ? `Trop d'erreurs. Réessaie dans ${r.minutes} min.` : (r.missing ? 'Entre ton code secret à 6 chiffres' : `Code secret incorrect (${r.left} essai(s) restant(s))`) });
 }
 function isWeakPin(pin) { return /^(\d)\1{5}$/.test(pin) || '01234567890123'.includes(pin) || '98765432109876'.includes(pin); }
@@ -765,6 +765,7 @@ const moneyLimiter = rateLimit({
   message: { success: false, message: 'Trop d\'opérations en peu de temps. Réessaie dans quelques minutes.' }
 });
 async function requirePin(req, res) {
+  if (process.env.REQUIRE_PIN_FOR_MONEY === '0') return true; // interrupteur de secours (Render)
   const ref = db.collection('users').doc(req.userId);
   const snap = await ref.get(); const d = snap.data() || {};
   if (!d.pinHash) { res.status(403).json({ success: false, needPin: true, message: "Crée d'abord ton code secret (Profil > Changer mon code secret)." }); return false; }
