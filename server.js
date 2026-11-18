@@ -247,6 +247,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       country: cleanLoc(req.body.country), city: cleanLoc(req.body.city),
       blockedUsers: [], online: true, createdAt: new Date()
     });
+    const regPin = String(req.body.pin || '');
+    if (/^\d{6}$/.test(regPin) && !isWeakPin(regPin)) await userRef.update({ pinHash: await bcrypt.hash(regPin + ':' + userRef.id, 10) });
     const sid = await newSession(userRef.id);
     const token = jwt.sign({ userId: userRef.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name, email, phone, country: cleanLoc(req.body.country), city: cleanLoc(req.body.city) } });
@@ -254,6 +256,26 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     sendServerError(res, 'auth/register', error);
   }
 });
+
+// ==================== CODE SECRET (PIN à 6 chiffres) ====================
+const PIN_MAX_TRIES = 5;
+const PIN_LOCK_MS = 15 * 60 * 1000;
+async function verifyUserPin(userRef, userData, pin) {
+  const lockedUntil = Number(userData.pinLockedUntil || 0);
+  if (lockedUntil > Date.now()) return { ok: false, locked: true, minutes: Math.ceil((lockedUntil - Date.now()) / 60000) };
+  if (!/^\d{6}$/.test(String(pin || ''))) return { ok: false, missing: true };
+  const ok = await bcrypt.compare(String(pin) + ':' + userRef.id, userData.pinHash);
+  if (ok) { if (userData.pinAttempts) await userRef.update({ pinAttempts: 0 }); return { ok: true }; }
+  const attempts = (userData.pinAttempts || 0) + 1;
+  if (attempts >= PIN_MAX_TRIES) { await userRef.update({ pinAttempts: 0, pinLockedUntil: Date.now() + PIN_LOCK_MS }); return { ok: false, locked: true, minutes: 15 }; }
+  await userRef.update({ pinAttempts: attempts });
+  return { ok: false, left: PIN_MAX_TRIES - attempts };
+}
+function pinFailure(res, r) {
+  return res.status(r.locked ? 423 : 401).json({ success: false, needPin: true,
+    message: r.locked ? `Trop d'erreurs. Réessaie dans ${r.minutes} min.` : (r.missing ? 'Entre ton code secret à 6 chiffres' : `Code secret incorrect (${r.left} essai(s) restant(s))`) });
+}
+function isWeakPin(pin) { return /^(\d)\1{5}$/.test(pin) || '01234567890123'.includes(pin) || '98765432109876'.includes(pin); }
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
@@ -275,12 +297,33 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     if (!userData.password || userData.deleted) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
     const valid = await bcrypt.compare(password, userData.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Identifiants invalides' });
+    if (userData.pinHash) {
+      const r = await verifyUserPin(userDoc.ref, userData, req.body.pin);
+      if (!r.ok) return pinFailure(res, r);
+    }
     const sid = await newSession(userDoc.id);
     const token = jwt.sign({ userId: userDoc.id, email, sid }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '', photo: userData.photo || '', country: userData.country || '', city: userData.city || '' } });
+    res.json({ success: true, needsPinSetup: !userData.pinHash, token, userId: userDoc.id, user: { id: userDoc.id, name: userData.name, email: userData.email, phone: userData.phone || '', photo: userData.photo || '', country: userData.country || '', city: userData.city || '' } });
   } catch (error) {
     sendServerError(res, 'auth/login', error);
   }
+});
+
+app.post('/api/auth/pin/set', authLimiter, authenticate, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Service indisponible' });
+  try {
+    const pin = String(req.body.pin || '');
+    if (!/^\d{6}$/.test(pin)) return res.status(400).json({ success: false, message: 'Le code secret doit contenir 6 chiffres.' });
+    if (isWeakPin(pin)) return res.status(400).json({ success: false, message: 'Code trop simple (ex: 123456 ou 000000). Choisis-en un autre.' });
+    const ref = db.collection('users').doc(req.userId);
+    const snap = await ref.get(); const d = snap.data() || {};
+    if (d.pinHash) {
+      const r = await verifyUserPin(ref, d, req.body.currentPin);
+      if (!r.ok) return pinFailure(res, r);
+    }
+    await ref.update({ pinHash: await bcrypt.hash(pin + ':' + req.userId, 10), pinAttempts: 0, pinLockedUntil: 0 });
+    res.json({ success: true });
+  } catch (error) { sendServerError(res, 'auth/pin/set', error); }
 });
 
 // ==================== CONNEXION PAR CODE (nouvel appareil) ====================
@@ -383,10 +426,10 @@ app.post('/api/auth/recover/verify', recoverLimiter, async (req, res) => {
     await ref.delete(); // un code ne sert qu'une fois
     const u = userDoc.data();
     const lockUntil = Date.now() + NEW_DEVICE_LOCK_MS;
-    await db.collection('users').doc(userDoc.id).set({ withdrawLockedUntil: lockUntil, lastCodeLoginAt: new Date() }, { merge: true });
+    await db.collection('users').doc(userDoc.id).set({ withdrawLockedUntil: lockUntil, lastCodeLoginAt: new Date(), pinHash: admin.firestore.FieldValue.delete(), pinAttempts: 0, pinLockedUntil: 0 }, { merge: true });
     const sid = await newSession(userDoc.id); // l'ancien appareil est déconnecté
     const token = jwt.sign({ userId: userDoc.id, email: String(u.email || '').toLowerCase(), sid }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, userId: userDoc.id, user: { id: userDoc.id, name: u.name, email: u.email, phone: u.phone || '', photo: u.photo || '', country: u.country || '', city: u.city || '' } });
+    res.json({ success: true, needsPinSetup: true, token, userId: userDoc.id, user: { id: userDoc.id, name: u.name, email: u.email, phone: u.phone || '', photo: u.photo || '', country: u.country || '', city: u.city || '' } });
   } catch (error) { sendServerError(res, 'auth/recover/verify', error); }
 });
 
@@ -581,7 +624,8 @@ app.get('/api/users/:userId', optionalAuthenticate, async (req, res) => {
     const isOwnProfile = req.userId && req.userId === userId;
 
     const publicData = {
-      name: data.name, photo: data.photo || '', flames: data.flames || 0, online: data.online || false
+      name: data.name, photo: data.photo || '', flames: data.flames || 0, online: data.online || false,
+      city: data.city || '', country: data.country || '', cover: data.cover || ''
     };
     if (isOwnProfile) {
       publicData.email = data.email || '';
@@ -589,6 +633,7 @@ app.get('/api/users/:userId', optionalAuthenticate, async (req, res) => {
       publicData.walletBalance = data.walletBalance || 0;
       publicData.blockedUsers = data.blockedUsers || [];
       publicData.isSeller = data.isSeller || false;
+      publicData.hasPin = !!data.pinHash;
     }
     res.json({ success: true, data: publicData });
   } catch (error) {
@@ -605,6 +650,7 @@ app.put('/api/users/:userId', authenticate, async (req, res) => {
     const updateData = {};
     if (req.body.country !== undefined) updateData.country = cleanLoc(req.body.country);
     if (req.body.city !== undefined) updateData.city = cleanLoc(req.body.city);
+    if (req.body.cover !== undefined) updateData.cover = /^https:\/\//.test(String(req.body.cover)) ? String(req.body.cover).slice(0, 600) : '';
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
