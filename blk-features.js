@@ -796,14 +796,6 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
         registerData.pin = a;
       }, true);
     }
-    // Profil : boutons
-    var lo = $('#btnLogout');
-    if (lo && !$('#blkProfExtra')) {
-      var w = document.createElement('div'); w.id = 'blkProfExtra';
-      w.innerHTML = '<button class="btn btn-outline" id="blkMySP" style="margin-top:10px;">Mon profil vendeur</button>';
-      lo.parentNode.insertBefore(w, lo);
-      $('#blkMySP').addEventListener('click', function () { window.blkShowSellerProfile(currentUserId, (currentUser && currentUser.name) || 'Moi'); });
-    }
     // Code secret obligatoire
     var appOn = $('#appContainer.active') && !$('#blkIntro');
     if (appOn && window.__blkNeedPin && !$('#blkPinOv')) { window.__blkNeedPin = false; openPinSetup({ required: true }); }
@@ -911,10 +903,10 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   var st = document.createElement('style');
   st.textContent =
     '#pageProfile{position:relative}' +
-    '#blkCoverBg{position:absolute;left:-16px;right:-16px;top:-70px;height:340px;background-size:cover;background-position:center;z-index:0;pointer-events:none}' +
-    '#blkCoverBg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.16) 0%,rgba(0,0,0,0) 30%,var(--bg) 93%)}' +
+    '#blkCoverBg{position:absolute;left:-16px;right:-16px;top:-70px;height:300px;background-size:cover;background-position:center;z-index:0;pointer-events:none}' +
+    '#blkCoverBg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.16) 0%,rgba(0,0,0,0) 20%,var(--bg) 68%)}' +
     '#pageProfile.has-cover>*:not(#blkCoverBg){position:relative;z-index:1}' +
-    '#pageProfile.has-cover .profile-header-new{margin-top:70px}' +
+    '#pageProfile.has-cover .profile-header-new{margin-top:56px}body:not(.dark) #pageProfile.has-cover #profileEmailNew,body:not(.dark) #pageProfile.has-cover #profilePhoneNew{color:#4a4a4a!important;font-weight:600}' +
     'body:not(.dark) #pageProfile.has-cover .profile-header-new h2,body:not(.dark) #pageProfile.has-cover .profile-header-new p{text-shadow:0 1px 8px rgba(255,255,255,.85)}' +
     '#pageProfile .follow-buttons,#pageProfile #btnLogout,.blk-hide{display:none!important}' +
     '.blk-sheet-ov{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;animation:blkFade .2s ease}' +
