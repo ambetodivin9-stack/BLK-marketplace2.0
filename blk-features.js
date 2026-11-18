@@ -827,3 +827,67 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     .observe(document.body, { childList: true, subtree: true, characterData: true });
   run();
 })();
+
+
+/* ===================== v5 : code secret sur les opérations d'argent, séparateurs de milliers, clavier ===================== */
+(function () {
+  'use strict';
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+
+  // Clavier : on ne voit plus la page de derrière (liste des contacts, barre d'onglets)
+  var st = document.createElement('style');
+  st.textContent = 'body.blk-chat-open .app, body.blk-chat-open .tab-bar, body.blk-chat-open #msgNotification{visibility:hidden}' +
+    'body.blk-chat-open{background:var(--bg)}';
+  document.head.appendChild(st);
+
+  // 10.000 / 100.000
+  function dots(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function fmtText(root) {
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, list = [];
+    while ((n = w.nextNode())) { if (/\d{4,}\s*FCFA/.test(n.nodeValue)) list.push(n); }
+    list.forEach(function (t) { t.nodeValue = t.nodeValue.replace(/(\d{4,})(\s*FCFA)/g, function (m, d, u) { return dots(d) + u; }); });
+  }
+  function fmtWallet() {
+    var el = $('#walletBalanceNew');
+    if (el && /^\d{4,}$/.test(el.textContent.trim())) el.textContent = dots(el.textContent.trim());
+  }
+
+  // Champ « code secret » dans retrait / transfert / paiement
+  var PIN_STYLE = 'width:100%;padding:12px;margin-bottom:10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--input-bg);color:var(--text);';
+  function addPin(modal, btn) {
+    if (!btn || $('#blkWPin', modal)) return;
+    var i = document.createElement('input');
+    i.type = 'password'; i.id = 'blkWPin'; i.setAttribute('inputmode', 'numeric'); i.maxLength = 6; i.placeholder = 'Code secret (6 chiffres)'; i.autocomplete = 'off'; i.style.cssText = PIN_STYLE;
+    i.addEventListener('input', function () { i.value = i.value.replace(/\D/g, '').slice(0, 6); });
+    btn.parentNode.insertBefore(i, btn);
+  }
+  function pinFields() {
+    $$('.modal-overlay .modal-content').forEach(function (m) {
+      var h = $('h3', m), title = h ? h.textContent : '';
+      if ($('#transferSubmit', m)) addPin(m, $('#transferSubmit', m));
+      else if ($('#confirmPaymentBtn', m)) addPin(m, $('#confirmPaymentBtn', m));
+      else if ($('#moneySubmit', m) && /Retirer/i.test(title)) addPin(m, $('#moneySubmit', m));
+    });
+  }
+
+  var _a5 = window.apiFetch;
+  window.apiFetch = function (url, options) {
+    options = options || {};
+    var m = (options.method || 'GET').toUpperCase();
+    if (m === 'POST' && (url === '/api/wallet/withdraw' || url === '/api/wallet/transfer' || url === '/api/orders/create')) {
+      var f = $('#blkWPin');
+      if (!f || f.value.length !== 6) {
+        return Promise.resolve(new Response(JSON.stringify({ success: false, message: 'Entre ton code secret à 6 chiffres.' }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+      }
+      try { var b = JSON.parse(options.body); b.pin = f.value; options = Object.assign({}, options, { body: JSON.stringify(b) }); } catch (e) {}
+    }
+    return _a5(url, options);
+  };
+
+  var pend = false;
+  function run() { try { pinFields(); fmtWallet(); ['#productFullscreen', '.modal-overlay', '#blkSP', '#pageOrders'].forEach(function (s) { $$(s).forEach(fmtText); }); } catch (e) { console.warn('blk-features v5:', e); } }
+  new MutationObserver(function () { if (!pend) { pend = true; requestAnimationFrame(function () { pend = false; run(); }); } })
+    .observe(document.body, { childList: true, subtree: true, characterData: true });
+  run();
+})();
