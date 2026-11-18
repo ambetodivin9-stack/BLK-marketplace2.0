@@ -216,7 +216,7 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     list.forEach(function (p) {
       var card = document.createElement('div'); card.className = 'article-card';
       var img = p.image || (p.images && p.images[0]) || PLACEHOLDER_IMAGE;
-      card.innerHTML = safeImgTag(img, p.title) + (feat.indexOf(p) >= 0 ? '<span class="blk-card-flame">' + flameImg(p.sellerFlames, true) + formatNumber(p.sellerFlames) + '</span>' : '');
+      card.innerHTML = safeImgTag(img, p.title);
       card.addEventListener('click', function () { openProductFullscreen(p); });
       grid.appendChild(card);
     });
