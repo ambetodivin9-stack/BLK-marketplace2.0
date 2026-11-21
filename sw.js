@@ -1,4 +1,4 @@
-const CACHE = 'blk-v13';
+const CACHE = 'blk-v14';
 const SHELL = [
   './', 'index.html', 'manifest.json', 'logo.png', 'banner.jpg',
   'favicon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',

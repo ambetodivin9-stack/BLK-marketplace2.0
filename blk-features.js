@@ -30,6 +30,8 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     selEl.addEventListener('change', fill); fill();
   }
 
+  window.blkCountryOptions = countryOptions; window.blkBindCities = bindCities;
+
   // ---------------------------------------------------------------- CSS
   var kf = '';
   for (var p = 0; p <= 100; p += 5) {
@@ -1047,4 +1049,125 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   new MutationObserver(function () { if (!pend) { pend = true; requestAnimationFrame(function () { pend = false; try { run(); } catch (e) { console.warn('blk-features v7:', e); } }); } })
     .observe(document.body, { childList: true, subtree: true });
   run();
+})();
+
+
+/* ===================== v8 : Continuer avec Google (Gmail uniquement) ===================== */
+(function () {
+  'use strict';
+  function $(s, r) { return (r || document).querySelector(s); }
+  var st = document.createElement('style');
+  st.textContent =
+    '#blkGWrap{margin:0 0 16px;text-align:center}' +
+    '#blkGBtn{display:flex;justify-content:center;min-height:44px}' +
+    '#blkGWrap .hint{color:rgba(255,255,255,.88);font-size:12.5px;line-height:1.5;margin-top:10px}' +
+    '#blkGWrap .sep{color:rgba(255,255,255,.7);font-size:12px;margin:14px 0 2px;display:flex;align-items:center;gap:10px}' +
+    '#blkGWrap .sep::before,#blkGWrap .sep::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.35)}';
+  document.head.appendChild(st);
+
+  var clientId = '', lastCred = '', rendered = false;
+  function errBox(msg) { var e = $('#loginErrorOnb'); if (e) { e.style.display = 'block'; e.textContent = msg; } }
+  function inputStyle() { return ''; }
+
+  function finish(d) {
+    if (d.needsPinSetup) window.__blkNeedPin = true;
+    commitAuthSuccess(d); doPostLoginInit();
+  }
+  function sendGoogle(pin) {
+    showSpinner(true);
+    apiFetch('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential: lastCred, pin: pin || undefined }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        showSpinner(false);
+        if (d.success) finish(d);
+        else if (d.needSignup) openSignup(d);
+        else if (d.needPin) askPin(d.message);
+        else errBox(d.message || 'Connexion Google impossible.');
+      }).catch(function () { showSpinner(false); errBox('Erreur réseau, réessaie.'); });
+  }
+  function onCredential(resp) { lastCred = resp && resp.credential; if (lastCred) sendGoogle(''); }
+
+  function askPin(msg) {
+    var old = $('#blkGPin'); if (old) old.remove();
+    var ov = document.createElement('div'); ov.className = 'blk-ov'; ov.id = 'blkGPin';
+    ov.innerHTML = '<div class="blk-code-card"><h3>Ton code secret</h3><p class="s">' + (msg || 'Entre ton code secret à 6 chiffres pour te connecter.') + '</p>' +
+      '<input id="gpPin" class="big" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off">' +
+      '<button class="btn btn-primary" id="gpGo">Continuer</button><button class="blk-code-link" id="gpNo">Annuler</button></div>';
+    document.body.appendChild(ov);
+    var i = $('#gpPin', ov); i.focus();
+    i.addEventListener('input', function () { i.value = i.value.replace(/\D/g, '').slice(0, 6); });
+    $('#gpNo', ov).addEventListener('click', function () { ov.remove(); });
+    $('#gpGo', ov).addEventListener('click', function () { if (i.value.length !== 6) return; ov.remove(); sendGoogle(i.value); });
+  }
+
+  function openSignup(d) {
+    var old = $('#blkGSign'); if (old) old.remove();
+    var first = String(d.name || '').split(' ')[0] || '';
+    var ov = document.createElement('div'); ov.className = 'blk-ov'; ov.id = 'blkGSign';
+    ov.innerHTML = '<div class="blk-code-card"><h3>Bienvenue ' + escapeHtml(first) + ' !</h3><p class="s">Compte Google : <strong>' + escapeHtml(d.email) + '</strong><br>Il reste quelques infos pour créer ton compte BLK.</p>' +
+      '<input id="gsPhone" type="tel" placeholder="Numéro de téléphone" autocomplete="off">' +
+      '<select id="gsCountry" style="width:100%;padding:14px;border:1.5px solid var(--border);border-radius:14px;font-size:16px;background:var(--input-bg);color:var(--text);margin-bottom:12px;">' + window.blkCountryOptions('') + '</select>' +
+      '<input id="gsCity" type="text" placeholder="Ville" autocomplete="off">' +
+      '<input id="gsPin" type="password" inputmode="numeric" maxlength="6" placeholder="Crée ton code secret (6 chiffres)" autocomplete="off">' +
+      '<input id="gsPin2" type="password" inputmode="numeric" maxlength="6" placeholder="Confirme le code secret" autocomplete="off">' +
+      '<div class="blk-code-err" id="gsErr"></div><button class="btn btn-primary" id="gsGo">Créer mon compte</button><button class="blk-code-link" id="gsNo">Annuler</button></div>';
+    document.body.appendChild(ov);
+    window.blkBindCities($('#gsCountry', ov), $('#gsCity', ov), 'blkCitiesG');
+    ['gsPin', 'gsPin2'].forEach(function (id) { var i = $('#' + id, ov); i.addEventListener('input', function () { i.value = i.value.replace(/\D/g, '').slice(0, 6); }); });
+    $('#gsNo', ov).addEventListener('click', function () { ov.remove(); });
+    $('#gsGo', ov).addEventListener('click', function () {
+      var err = $('#gsErr', ov), phone = $('#gsPhone', ov).value.trim(), c = $('#gsCountry', ov).value, ci = $('#gsCity', ov).value.trim(), p1 = $('#gsPin', ov).value, p2 = $('#gsPin2', ov).value, msg = '';
+      if (phone.replace(/\D/g, '').length < 8) msg = 'Entre un numéro de téléphone valide.';
+      else if (!c || !ci) msg = 'Choisis ton pays et ta ville.';
+      else if (!/^\d{6}$/.test(p1)) msg = 'Le code secret doit contenir 6 chiffres.';
+      else if (p1 !== p2) msg = 'Les deux codes secrets ne sont pas identiques.';
+      if (msg) { err.textContent = msg; return; }
+      err.style.color = '#999'; err.textContent = 'Création du compte...';
+      apiFetch('/api/auth/google/register', { method: 'POST', body: JSON.stringify({ credential: lastCred, phone: phone, country: c, city: ci, pin: p1 }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (r.success) { ov.remove(); finish(r); }
+          else { err.style.color = '#E74C3C'; err.textContent = r.message || 'Erreur, réessaie.'; }
+        }).catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
+    });
+  }
+
+  function renderButton() {
+    var box = $('#blkGBtn');
+    if (!box || rendered || !window.google || !google.accounts || !google.accounts.id || !clientId) return;
+    rendered = true;
+    google.accounts.id.initialize({ client_id: clientId, callback: onCredential, ux_mode: 'popup', auto_select: false, cancel_on_tap_outside: true });
+    google.accounts.id.renderButton(box, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', logo_alignment: 'left', width: 300, locale: 'fr' });
+  }
+  function loadGsi() {
+    if (window.google && google.accounts) return renderButton();
+    var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true; s.onload = renderButton;
+    document.head.appendChild(s);
+  }
+  function build() {
+    var form = $('#loginFormOnb');
+    if (!clientId || !form || $('#blkGWrap')) return;
+    var w = document.createElement('div'); w.id = 'blkGWrap';
+    w.innerHTML = '<div id="blkGBtn"></div><p class="hint">Nouveau sur BLK ? Ce bouton crée aussi ton compte (adresse Gmail obligatoire).</p><div class="sep">ou, si tu as déjà un compte BLK</div>';
+    form.parentNode.insertBefore(w, form);
+    var reg = $('#onbGoRegisterLink'); if (reg) reg.style.display = 'none';   // l'inscription passe par Google
+    loadGsi();
+  }
+  apiFetch('/api/auth/config').then(function (r) { return r.json(); }).then(function (d) { clientId = (d && d.googleClientId) || ''; build(); }).catch(function () {});
+  new MutationObserver(function () { try { build(); } catch (e) {} }).observe(document.body, { childList: true, subtree: true });
+})();
+
+/* ===================== v9 : plus de barre de couleurs en haut ===================== */
+(function () {
+  'use strict';
+  var st = document.createElement('style');
+  st.textContent = '.kente{display:none!important}' +
+    'html.blk-top{background:linear-gradient(160deg,#FF9A3C 0%,#E74C3C 65%,#C0392B 100%) fixed!important}';
+  document.head.appendChild(st);
+  function check() {
+    var on = !!(document.querySelector('#blkSplash,#blkIntro,.onboard-screen.active,#blkCode,.blk-ov'));
+    document.documentElement.classList.toggle('blk-top', on);
+  }
+  new MutationObserver(check).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  check();
 })();
