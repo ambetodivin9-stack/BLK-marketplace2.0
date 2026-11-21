@@ -239,6 +239,7 @@ app.get('/api/categories', (req, res) => res.json({ success: true, data: ALLOWED
 const cleanLoc = (v) => String(v || '').trim().slice(0, 60);
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   if (!firebaseReady) return res.status(500).json({ success: false, message: 'Firebase non disponible' });
+  if (process.env.GOOGLE_CLIENT_ID && process.env.ALLOW_PASSWORD_SIGNUP !== '1') return res.status(403).json({ success: false, message: 'Pour créer un compte, utilise « Continuer avec Google » (adresse Gmail).' });
   try {
     const { password, name, phone } = req.body;
     const email = String(req.body.email || '').trim().toLowerCase();
@@ -332,6 +333,84 @@ app.post('/api/auth/pin/set', authLimiter, authenticate, async (req, res) => {
     await ref.update({ pinHash: await bcrypt.hash(pin + ':' + req.userId, 10), pinAttempts: 0, pinLockedUntil: 0 });
     res.json({ success: true });
   } catch (error) { sendServerError(res, 'auth/pin/set', error); }
+});
+
+// ==================== CONNEXION / INSCRIPTION AVEC GOOGLE (Gmail uniquement) ====================
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+let googleCerts = { keys: null, at: 0 };
+async function getGoogleKeys() {
+  if (googleCerts.keys && Date.now() - googleCerts.at < 3600000) return googleCerts.keys;
+  const r = await axios.get('https://www.googleapis.com/oauth2/v3/certs', { timeout: 10000 });
+  googleCerts = { keys: r.data.keys || [], at: Date.now() };
+  return googleCerts.keys;
+}
+function b64urlToBuf(x) { return Buffer.from(String(x).replace(/-/g, '+').replace(/_/g, '/'), 'base64'); }
+// Vérifie la signature RS256 de Google, l'audience (ton Client ID), l'émetteur, l'expiration et l'e-mail confirmé.
+async function verifyGoogleCredential(credential) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('GOOGLE_NON_CONFIGURE');
+  const parts = String(credential || '').split('.');
+  if (parts.length !== 3) throw new Error('JETON_INVALIDE');
+  const header = JSON.parse(b64urlToBuf(parts[0]).toString());
+  const payload = JSON.parse(b64urlToBuf(parts[1]).toString());
+  if (header.alg !== 'RS256') throw new Error('JETON_INVALIDE');
+  const keys = await getGoogleKeys();
+  const jwk = keys.find(k => k.kid === header.kid);
+  if (!jwk) throw new Error('JETON_INVALIDE');
+  const pub = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+  if (!crypto.verify('RSA-SHA256', Buffer.from(parts[0] + '.' + parts[1]), pub, b64urlToBuf(parts[2]))) throw new Error('JETON_INVALIDE');
+  if (payload.aud !== GOOGLE_CLIENT_ID) throw new Error('JETON_INVALIDE');
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss)) throw new Error('JETON_INVALIDE');
+  if (!payload.exp || payload.exp * 1000 < Date.now()) throw new Error('JETON_EXPIRE');
+  if (payload.email_verified !== true && payload.email_verified !== 'true') throw new Error('EMAIL_NON_VERIFIE');
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (!/@(gmail|googlemail)\.com$/.test(email)) throw new Error('GMAIL_SEULEMENT');
+  return { email, name: payload.name || email.split('@')[0], picture: payload.picture || '', sub: payload.sub };
+}
+function googleError(res, e) {
+  const m = e && e.message;
+  if (m === 'GOOGLE_NON_CONFIGURE') return res.status(503).json({ success: false, message: 'Connexion Google pas encore configurée.' });
+  if (m === 'GMAIL_SEULEMENT') return res.status(403).json({ success: false, message: 'Utilise une adresse Gmail (@gmail.com).' });
+  if (m === 'JETON_EXPIRE') return res.status(400).json({ success: false, message: 'Connexion expirée, recommence.' });
+  if (m === 'JETON_INVALIDE' || m === 'EMAIL_NON_VERIFIE') return res.status(400).json({ success: false, message: 'Connexion Google refusée, réessaie.' });
+  return sendServerError(res, 'auth/google', e);
+}
+app.get('/api/auth/config', (req, res) => res.json({ googleClientId: GOOGLE_CLIENT_ID }));
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Service indisponible' });
+  try {
+    const g = await verifyGoogleCredential(req.body.credential);
+    const snap = await db.collection('users').where('email', '==', g.email).limit(1).get();
+    if (snap.empty) return res.json({ success: false, needSignup: true, email: g.email, name: g.name, picture: g.picture });
+    const userDoc = snap.docs[0]; const u = userDoc.data();
+    if (u.deleted) return res.status(403).json({ success: false, message: 'Compte introuvable.' });
+    if (u.pinHash) { const r = await verifyUserPin(userDoc.ref, u, req.body.pin); if (!r.ok) return pinFailure(res, r); }
+    const sid = await newSession(userDoc.id);
+    const token = jwt.sign({ userId: userDoc.id, email: g.email, sid }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, needsPinSetup: !u.pinHash, token, userId: userDoc.id, user: { id: userDoc.id, name: u.name, email: u.email, phone: u.phone || '', photo: u.photo || '', country: u.country || '', city: u.city || '' } });
+  } catch (e) { googleError(res, e); }
+});
+app.post('/api/auth/google/register', authLimiter, async (req, res) => {
+  if (!firebaseReady) return res.status(500).json({ success: false, message: 'Service indisponible' });
+  try {
+    const g = await verifyGoogleCredential(req.body.credential);
+    const phone = String(req.body.phone || '').replace(/[^\d+ ]/g, '').trim();
+    const country = cleanLoc(req.body.country), city = cleanLoc(req.body.city), pin = String(req.body.pin || '');
+    if (phone.replace(/\D/g, '').length < 8) return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide.' });
+    if (!country || !city) return res.status(400).json({ success: false, message: 'Indique ton pays et ta ville.' });
+    if (!/^\d{6}$/.test(pin) || isWeakPin(pin)) return res.status(400).json({ success: false, message: 'Choisis un code secret de 6 chiffres pas trop simple.' });
+    const exists = await db.collection('users').where('email', '==', g.email).limit(1).get();
+    if (!exists.empty) return res.status(409).json({ success: false, message: 'Ce compte existe déjà : utilise « Continuer avec Google » pour te connecter.' });
+    const userRef = db.collection('users').doc();
+    await userRef.set({
+      name: g.name, email: g.email, password: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10),
+      phone, photo: g.picture || '', walletBalance: 0, flames: 0, country, city,
+      pinHash: await bcrypt.hash(pin + ':' + userRef.id, 10), emailVerified: true, googleSub: g.sub,
+      blockedUsers: [], online: true, createdAt: new Date()
+    });
+    const sid = await newSession(userRef.id);
+    const token = jwt.sign({ userId: userRef.id, email: g.email, sid }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ success: true, token, userId: userRef.id, user: { id: userRef.id, name: g.name, email: g.email, phone, photo: g.picture || '', country, city } });
+  } catch (e) { googleError(res, e); }
 });
 
 // ==================== CONNEXION PAR CODE (nouvel appareil) ====================
