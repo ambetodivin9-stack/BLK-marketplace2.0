@@ -229,7 +229,7 @@ async function ensureAdminDocument() {
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
-    services: { firebase: firebaseReady, imgbb: !!IMG_BB_KEY, yabetoo: !!YABETOO_SECRET }
+    services: { firebase: firebaseReady, imgbb: !!IMG_BB_KEY, cloudinary: cloudinaryOn(), yabetoo: !!YABETOO_SECRET }
   });
 });
 app.get('/ping', (req, res) => res.send('pong'));
@@ -644,11 +644,28 @@ app.post('/api/articles/view/:id', async (req, res) => {
   }
 });
 
+// ==================== PHOTOS : Cloudinary (ImgBB en secours) ====================
+const CLD = { cloud: process.env.CLOUDINARY_CLOUD_NAME || '', key: process.env.CLOUDINARY_API_KEY || '', secret: process.env.CLOUDINARY_API_SECRET || '' };
+const cloudinaryOn = () => !!(CLD.cloud && CLD.key && CLD.secret);
+// Envoi signé (sans bibliothèque). fileData = data:image/...;base64,... ou une URL
+async function cloudinaryUpload(fileData, publicId) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const params = { folder: 'blk', timestamp };
+  if (publicId) params.public_id = publicId;
+  const toSign = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&') + CLD.secret;
+  const signature = crypto.createHash('sha1').update(toSign).digest('hex');
+  const body = new URLSearchParams({ file: fileData, api_key: CLD.key, signature, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
+  const r = await axios.post(`https://api.cloudinary.com/v1_1/${CLD.cloud}/image/upload`, body.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 30000, maxBodyLength: Infinity, maxContentLength: Infinity
+  });
+  // f_auto,q_auto : Cloudinary choisit le format et la qualité les plus légers pour chaque téléphone
+  return String(r.data.secure_url).replace('/upload/', '/upload/f_auto,q_auto/');
+}
 app.post('/api/upload', authenticate, async (req, res) => {
   try {
     const { base64 } = req.body;
     if (!base64) return res.status(400).json({ success: false, message: 'Aucune image fournie' });
-    if (!IMG_BB_KEY) return res.status(500).json({ success: false, message: 'Cle ImgBB non configuree' });
+    if (!cloudinaryOn() && !IMG_BB_KEY) return res.status(500).json({ success: false, message: 'Hébergeur de photos non configuré' });
     let cleanBase64 = base64;
     if (cleanBase64.includes('base64,')) cleanBase64 = cleanBase64.split('base64,')[1];
     cleanBase64 = cleanBase64.replace(/\s/g, '');
@@ -659,6 +676,13 @@ app.post('/api/upload', authenticate, async (req, res) => {
     if (imageSize > 1.5 * 1024 * 1024) {
       return res.status(400).json({ success: false, message: 'Image trop volumineuse (max 1.5 Mo)' });
     }
+    if (cloudinaryOn()) {
+      try { return res.json({ success: true, url: await cloudinaryUpload('data:image/jpeg;base64,' + cleanBase64) }); }
+      catch (e) {
+        console.error('Cloudinary upload:', e.response?.data ? JSON.stringify(e.response.data) : e.message);
+        if (!IMG_BB_KEY) return res.status(502).json({ success: false, message: "Erreur lors de l'envoi de l'image, réessaie." });
+      }
+    }
     const formData = new FormData();
     formData.append('key', IMG_BB_KEY);
     formData.append('image', cleanBase64);
@@ -668,6 +692,76 @@ app.post('/api/upload', authenticate, async (req, res) => {
   } catch (error) {
     sendServerError(res, 'upload', error);
   }
+});
+
+// ==================== MIGRATION DES ANCIENNES PHOTOS (ImgBB -> Cloudinary) ====================
+const isImgbbUrl = (u) => typeof u === 'string' && /(^https?:\/\/)(i\.)?ibb\.co\/|imgbb\.com/.test(u);
+async function collectImgbbUrls() {
+  const set = new Set();
+  const prods = await db.collection('products').get();
+  prods.forEach(d => { const x = d.data(); [x.image, x.sellerPhoto, ...(Array.isArray(x.images) ? x.images : [])].forEach(u => { if (isImgbbUrl(u)) set.add(u); }); });
+  const users = await db.collection('users').get();
+  users.forEach(d => { const x = d.data(); [x.photo, x.cover].forEach(u => { if (isImgbbUrl(u)) set.add(u); }); });
+  return Array.from(set);
+}
+async function replaceUrlEverywhere(oldUrl, newUrl) {
+  let n = 0;
+  const P = db.collection('products'), U = db.collection('users');
+  for (const d of (await P.where('images', 'array-contains', oldUrl).get()).docs) {
+    const x = d.data(); const upd = { images: (x.images || []).map(u => u === oldUrl ? newUrl : u) };
+    if (x.image === oldUrl) upd.image = newUrl; await d.ref.update(upd); n++;
+  }
+  for (const [col, field] of [[P, 'image'], [P, 'sellerPhoto'], [U, 'photo'], [U, 'cover']]) {
+    for (const d of (await col.where(field, '==', oldUrl).get()).docs) { await d.ref.update({ [field]: newUrl }); n++; }
+  }
+  return n;
+}
+app.get('/api/admin/migrate-images', async (req, res) => {
+  const CRON = process.env.CRON_SECRET || '';
+  const a = Buffer.from(String(req.query.key || '')), b = Buffer.from(CRON);
+  if (!CRON || a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.sendStatus(403);
+  if (!firebaseReady || !cloudinaryOn()) return res.status(503).json({ success: false, message: 'Firebase ou Cloudinary non configuré' });
+  const run = req.query.mode === 'run';
+  const limit = Math.min(parseInt(req.query.limit, 10) || 10, 25);
+  const out = (o) => res.type('json').send(JSON.stringify(o, null, 1));
+  try {
+    const urls = await collectImgbbUrls();
+    const cfgRef = db.collection('config').doc('migration');
+    const cfg = (await cfgRef.get()).data() || {};
+    const bad = new Set(cfg.badHashes || []);
+    const skip = new Set(req.query.retry === '1' ? [] : (cfg.skipUrls || []));
+    const todo = urls.filter(u => !skip.has(u));
+    const batch = todo.slice(0, limit);
+    const fetched = [], counts = {};
+    for (const url of batch) {
+      try {
+        const r = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 8 * 1024 * 1024, validateStatus: () => true });
+        const ct = String(r.headers['content-type'] || '');
+        if (r.status !== 200 || !ct.startsWith('image/')) { fetched.push({ url, error: 'ImgBB répond ' + r.status }); continue; }
+        const hash = crypto.createHash('sha256').update(r.data).digest('hex');
+        counts[hash] = (counts[hash] || 0) + 1;
+        fetched.push({ url, hash, data: Buffer.from(r.data), ct });
+      } catch (e) { fetched.push({ url, error: e.code || e.message }); }
+    }
+    // Une même image reçue 3 fois ou plus = très probablement le message « service unavailable » d'ImgBB : on ne la migre pas.
+    Object.keys(counts).forEach(h => { if (counts[h] >= 3) bad.add(h); });
+    const report = { migrated: 0, replacedInDocs: 0, skippedPlaceholder: 0, failed: 0, errors: [] };
+    for (const f of fetched) {
+      if (f.error) { report.failed++; report.errors.push(f.error); if (run) skip.add(f.url); continue; }
+      if (bad.has(f.hash)) { report.skippedPlaceholder++; if (run) skip.add(f.url); continue; }
+      if (!run) { report.migrated++; continue; }
+      try {
+        const id = 'mig_' + crypto.createHash('sha1').update(f.url).digest('hex').slice(0, 16);
+        const newUrl = await cloudinaryUpload(`data:${f.ct};base64,${f.data.toString('base64')}`, id);
+        report.replacedInDocs += await replaceUrlEverywhere(f.url, newUrl);
+        report.migrated++;
+      } catch (e) { report.failed++; report.errors.push((e.response?.data?.error?.message) || e.message); skip.add(f.url); }
+    }
+    await cfgRef.set({ badHashes: Array.from(bad), skipUrls: Array.from(skip), lastRun: new Date() }, { merge: true });
+    if (run) invalidateArticlesCache();
+    out({ success: true, mode: run ? 'run' : 'dry', imgbbUrlsAtStart: urls.length, handledNow: batch.length, remainingAfterThis: Math.max(0, todo.length - batch.length), putAside: skip.size, ...report,
+      suivant: todo.length > batch.length ? 'Relance le même lien pour continuer' : (skip.size ? 'Terminé. Les photos mises de côté (ImgBB indisponible) peuvent être retentées plus tard avec &retry=1' : 'Terminé : toutes les photos sont migrées') });
+  } catch (e) { console.error('migrate-images:', e.message); out({ success: false, message: e.message }); }
 });
 
 // ==================== UTILISATEURS ====================
