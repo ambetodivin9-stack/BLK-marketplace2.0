@@ -1225,6 +1225,16 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     '.bl-host .nm{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}' +
     '.bl-chip{background:#ff3b30;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:900;letter-spacing:.6px}.bl-eye{background:rgba(0,0,0,.45);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700}' +
     '.bl-x{margin-left:auto;background:rgba(0,0,0,.45);border:none;color:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer}.bl-x.end{background:#ff3b30}' +
+    '.bl-shelf{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 64px);bottom:calc(34% + 76px + env(safe-area-inset-bottom,0px));width:118px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;z-index:3;pointer-events:none;scrollbar-width:none}' +
+    '.bl-shelf::-webkit-scrollbar{display:none}' +
+    '.bl-sh{pointer-events:auto;flex-shrink:0;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:7px 9px;color:#fff}' +
+    '.bl-sh .n{font-size:12px;font-weight:700;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '.bl-sh .p{font-size:12px;font-weight:800;color:#FFC070;margin-top:2px}' +
+    '.bl-sh .q{display:inline-block;margin-top:4px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.22)}' +
+    '.bl-sh.low .q{background:#ff3b30}' +
+    '.bl-sh.out{opacity:.5}.bl-sh.out .q{background:rgba(255,255,255,.12)}' +
+    '.bl-sh.bump{animation:blShBump .6s ease}' +
+    '@keyframes blShBump{0%{transform:scale(1)}40%{transform:scale(1.08);background:rgba(231,76,60,.75)}100%{transform:scale(1)}}' +
     '.bl-side{position:absolute;right:12px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;align-items:center;z-index:3}' +
     '.bl-add{background:#fff;color:#222;border:none;border-radius:999px;padding:11px 16px;font-size:13px;font-weight:800;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer;max-width:150px;line-height:1.2}' +
     '.bl-flame{width:56px;height:56px;border-radius:50%;border:none;background:rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;cursor:pointer}' +
@@ -1312,13 +1322,13 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
         '<div class="bl-top"><div class="bl-host" id="blHost"><span class="av" id="blAv"></span><span class="nm" id="blNm"></span></div>' +
           '<span class="bl-chip">EN DIRECT</span><span class="bl-eye" id="blEye">0</span>' +
           '<button class="bl-x' + (isHost ? ' end' : '') + '" id="blClose">' + (isHost ? 'Terminer' : 'Quitter') + '</button></div>' +
-        '<div class="bl-side">' + (isHost ? '<button class="bl-add" id="blAdd">Ajouter l’article à réserver</button>' : '') +
+        '<div class="bl-shelf" id="blShelf"></div><div class="bl-side">' + (isHost ? '<button class="bl-add" id="blAdd">Ajouter l’article en live</button>' : '') +
           '<button class="bl-flame" id="blFlame"><span id="blFlameImg"></span><span id="blFlameN">0</span></button></div>' +
         '<div class="bl-comments" id="blComments"></div>' +
         '<div class="bl-hint">Fais défiler vers le bas pour voir les articles</div>' +
         '<div class="bl-bottom"><input id="blInput" type="text" maxlength="200" placeholder="Écris un commentaire…" autocomplete="off"><button class="bl-send" id="blSend">Envoyer</button></div>' +
       '</section>' +
-      '<section class="bl-items"><h3>Articles du live</h3>' + (isHost ? '<button class="btn btn-primary" id="blAdd2" style="margin-bottom:14px;">Ajouter l’article à réserver</button>' : '') + '<div id="blList"><p class="empty">Aucun article pour le moment.</p></div></section></div>';
+      '<section class="bl-items"><h3>Articles du live</h3>' + (isHost ? '<button class="btn btn-primary" id="blAdd2" style="margin-bottom:14px;">Ajouter l’article en live</button>' : '') + '<div id="blList"><p class="empty">Aucun article pour le moment.</p></div></section></div>';
     document.body.appendChild(el); document.body.classList.add('blk-live-open');
     $('#blFlameImg', el).innerHTML = window.blkFlameImg ? window.blkFlameImg(0, true) : '🔥';
     return el;
@@ -1351,19 +1361,33 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     document.body.classList.remove('blk-live-open');
   }
 
+  function renderShelf(items) {
+    var sh = $('#blShelf'); if (!sh) return;
+    var prev = live.prevLeft = live.prevLeft || {};
+    sh.innerHTML = '';
+    items.forEach(function (it) {
+      var out = !(it.left > 0), low = !out && it.left <= 2;
+      var changed = prev[it.id] !== undefined && prev[it.id] !== it.left;
+      var d = document.createElement('div'); d.className = 'bl-sh' + (out ? ' out' : '') + (low ? ' low' : '') + (changed ? ' bump' : '');
+      d.innerHTML = '<div class="n">' + escapeHtml(it.name) + '</div><div class="p">' + dots(it.price) + ' FCFA</div><div class="q">' + (out ? 'Épuisé' : (low ? 'Plus que ' + it.left : 'Reste ' + it.left)) + '</div>';
+      if (!out && !live.isHost) d.addEventListener('click', function () { openReserve(it); });
+      prev[it.id] = it.left; sh.appendChild(d);
+    });
+  }
   function renderItems(items) {
     var b = $('#blList'); if (!b) return;
-    var sig = JSON.stringify(items.map(function (i) { return [i.id, i.status]; }));
+    var sig = JSON.stringify(items.map(function (i) { return [i.id, i.status, i.left, i.qty, i.price, i.name]; }));
     if (live.itemSig === sig) return; live.itemSig = sig; live.items = items;
+    renderShelf(items);
     if (!items.length) { b.innerHTML = '<p class="empty">Aucun article pour le moment.</p>'; return; }
     b.innerHTML = '';
     items.forEach(function (it) {
       var row = document.createElement('div'); row.className = 'bl-item';
       var cat = (CATS.filter(function (c) { return c[0] === it.category; })[0] || [0, it.category])[1];
-      var right = it.status === 'available'
-        ? (live.isHost ? '<span class="bl-taken">Disponible</span>' : '<button class="bl-res">Réserver</button>')
-        : '<span class="bl-taken">Réservé' + (it.reservedBy ? ' · ' + escapeHtml(it.reservedBy) : '') + '</span>';
-      row.innerHTML = '<div class="t"><b>' + escapeHtml(it.name) + '</b><span>' + escapeHtml(cat) + '</span></div><div class="p">' + dots(it.price) + ' FCFA</div>' + right;
+      var right = it.left > 0
+        ? (live.isHost ? '<span class="bl-taken">Reste ' + it.left + '</span>' : '<button class="bl-res">Réserver</button>')
+        : '<span class="bl-taken">Épuisé</span>';
+      row.innerHTML = '<div class="t"><b>' + escapeHtml(it.name) + '</b><span>' + escapeHtml(cat) + ' · ' + it.left + ' sur ' + (it.qty || 1) + '</span></div><div class="p">' + dots(it.price) + ' FCFA</div>' + right;
       var rb = $('.bl-res', row); if (rb) rb.addEventListener('click', function () { openReserve(it); });
       b.appendChild(row);
     });
@@ -1494,18 +1518,21 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     return ov;
   }
   function openAddItem(id) {
-    var ov = sheet('<div class="blk-sheet-h"><strong>Ajouter l’article à réserver</strong><button class="blk-x" id="aiX">✕</button></div>' +
+    var ov = sheet('<div class="blk-sheet-h"><strong>Ajouter l’article en live</strong><button class="blk-x" id="aiX">✕</button></div>' +
       '<input class="fld" id="aiName" type="text" maxlength="60" placeholder="Nom de l’article" autocomplete="off">' +
-      '<input class="fld" id="aiPrice" type="tel" inputmode="numeric" placeholder="Prix (FCFA)" autocomplete="off">' +
       '<select id="aiCat">' + CATS.map(function (c) { return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join('') + '</select>' +
+      '<input class="fld" id="aiQty" type="tel" inputmode="numeric" placeholder="Quantité disponible" value="1" autocomplete="off">' +
+      '<input class="fld" id="aiPrice" type="tel" inputmode="numeric" placeholder="Prix (FCFA)" autocomplete="off">' +
       '<div class="err" id="aiErr"></div><button class="btn btn-primary" id="aiGo">Publier dans le live</button>');
     $('#aiX', ov).addEventListener('click', function () { ov.remove(); });
     $('#aiPrice', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 8); });
+    $('#aiQty', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 2); });
     $('#aiGo', ov).addEventListener('click', function () {
-      var n = $('#aiName', ov).value.trim(), p = $('#aiPrice', ov).value, c = $('#aiCat', ov).value, err = $('#aiErr', ov);
+      var n = $('#aiName', ov).value.trim(), p = $('#aiPrice', ov).value, c = $('#aiCat', ov).value, q = parseInt($('#aiQty', ov).value, 10), err = $('#aiErr', ov);
       if (n.length < 2 || !p) { err.textContent = 'Écris le nom et le prix.'; return; }
+      if (!q || q < 1) { err.textContent = 'Indique la quantité disponible (1 minimum).'; return; }
       err.textContent = 'Publication…';
-      apiFetch('/api/lives/' + id + '/items', { method: 'POST', body: JSON.stringify({ name: n, price: parseInt(p, 10), category: c }) })
+      apiFetch('/api/lives/' + id + '/items', { method: 'POST', body: JSON.stringify({ name: n, price: parseInt(p, 10), category: c, quantity: q }) })
         .then(function (r) { return r.json(); })
         .then(function (d) { if (d.success) { ov.remove(); showAlert('Article publié dans le live.', 'success'); poll(); } else err.textContent = d.message || 'Erreur, réessaie.'; })
         .catch(function () { err.textContent = 'Erreur réseau.'; });
@@ -1520,17 +1547,26 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
       ? 'Choisis ton arrondissement, puis écris un repère précis (près de quel arrêt, école, marché ou église) pour que le vendeur te trouve facilement.'
       : 'Écris ton quartier et un repère précis (rue, école, marché…) pour que le vendeur te trouve facilement' + (u.city ? ' à ' + escapeHtml(u.city) : '') + '.';
     var ov = sheet('<div class="blk-sheet-h"><strong>Réserver</strong><button class="blk-x" id="rsX">✕</button></div>' +
-      '<div style="background:var(--input-bg);border-radius:16px;padding:12px 14px;margin-bottom:12px;"><b>' + escapeHtml(it.name) + '</b>' +
+      '<div style="background:var(--input-bg);border-radius:16px;padding:12px 14px;margin-bottom:12px;"><b>' + escapeHtml(it.name) + '</b>' + (it.left ? '<span style="float:right;font-size:12px;color:#999;">Il en reste ' + it.left + '</span>' : '') +
         '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px;"><span>Prix</span><span>' + dots(it.price) + ' FCFA</span></div>' +
         '<div style="display:flex;justify-content:space-between;font-size:14px;"><span>Commission BLK (3%)</span><span>' + dots(fee) + ' FCFA</span></div>' +
         '<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:4px;"><span>Total</span><span style="color:var(--accent);">' + dots(total) + ' FCFA</span></div></div>' +
       (Q ? '<select id="rsQ"><option value="">Mon arrondissement</option>' + Q.map(function (q) { return '<option>' + q + '</option>'; }).join('') + '</select>' : '<input class="fld" id="rsQ" type="text" maxlength="80" placeholder="Mon quartier" autocomplete="off">') +
       '<textarea id="rsD" rows="2" maxlength="200" placeholder="Repère précis, numéro de téléphone pour te joindre…"></textarea>' +
       '<p class="note">' + help + '</p>' +
+      '<p class="note" id="rsBal" style="font-weight:700;">Vérification de ton solde…</p>' +
       '<input class="fld" id="rsPin" type="password" inputmode="numeric" maxlength="6" placeholder="Code secret (6 chiffres)" autocomplete="off">' +
       '<p class="note">Le paiement est pris sur ton Wallet BLK et gardé par l’application. À la fin du live, le chrono de 6 h démarre. Si tu ne reçois pas ton article, tu es remboursé.</p>' +
       '<div class="err" id="rsErr"></div><button class="btn btn-primary" id="rsGo">Réserver et payer</button>');
     $('#rsX', ov).addEventListener('click', function () { ov.remove(); });
+    apiFetch('/api/wallet/' + currentUserId).then(function (r) { return r.json(); }).then(function (w) {
+      var bal = Number(w && w.balance) || 0, be = $('#rsBal', ov); if (!be) return;
+      if (bal >= total) { be.style.color = '#2ECC71'; be.textContent = 'Ton solde : ' + dots(bal) + ' FCFA. Entre ton code secret pour payer.'; }
+      else {
+        be.style.color = '#E74C3C'; be.textContent = 'Solde insuffisant : il te manque ' + dots(total - bal) + ' FCFA. Dépose de l’argent dans ton Wallet (Profil, Déposer).';
+        $('#rsPin', ov).style.display = 'none'; var g = $('#rsGo', ov); g.disabled = true; g.style.opacity = '.5';
+      }
+    }).catch(function () { var be = $('#rsBal', ov); if (be) be.style.display = 'none'; });
     $('#rsPin', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 6); });
     $('#rsGo', ov).addEventListener('click', function () {
       var q = $('#rsQ', ov).value.trim(), d = $('#rsD', ov).value.trim(), pin = $('#rsPin', ov).value, err = $('#rsErr', ov);
