@@ -10,6 +10,7 @@ module.exports = function setupLive(app, ctx) {
   const LIVE_MAX_MS = 3 * 60 * 60 * 1000;      // un live dure 3 h au maximum
   const HOST_TIMEOUT_MS = 90 * 1000;           // si le vendeur disparaît 90 s, le live se termine
   const MAX_ITEMS = 30;
+  const INFLIGHT = new Set();
   const LIVES = new Map();                     // id -> état en mémoire (lecture sans Firestore)
 
   // ---------------------------------------------------------------- utilitaires
@@ -47,6 +48,12 @@ module.exports = function setupLive(app, ctx) {
     const clean = (v) => String(v || '').replace(/[\s"']/g, '');
     const appId = clean(process.env.AGORA_APP_ID || process.env.AGORA_APPID);
     const cert = clean(process.env.AGORA_APP_CERTIFICATE || process.env.AGORA_CERTIFICATE);
+    const hex32 = /^[0-9a-fA-F]{32}$/;
+    if (appId && cert && (!hex32.test(appId) || !hex32.test(cert) || appId === cert)) {
+      const bad = [!hex32.test(appId) && ('AGORA_APP_ID (' + appId.length + ' caractères au lieu de 32)'), !hex32.test(cert) && ('AGORA_APP_CERTIFICATE (' + cert.length + ' caractères au lieu de 32)'), appId === cert && 'les deux valeurs sont identiques'].filter(Boolean).join(', ');
+      console.error('[live] clés Agora invalides : ' + bad);
+      const err = new Error('AGORA_FORMAT'); err.detail = bad; throw err;
+    }
     if (!appId || !cert) {
       const missing = [!appId && 'AGORA_APP_ID', !cert && 'AGORA_APP_CERTIFICATE'].filter(Boolean).join(' et ');
       console.error('[live] variable(s) manquante(s) sur le serveur : ' + missing);
@@ -64,15 +71,16 @@ module.exports = function setupLive(app, ctx) {
   }
   function agoraError(res, e) {
     if (e.message === 'AGORA_NON_CONFIGURE') return res.status(503).json({ success: false, message: "La vidéo en direct n'est pas encore configurée" + (e.missing ? ' (il manque ' + e.missing + ' sur le serveur).' : '.') });
+    if (e.message === 'AGORA_FORMAT') return res.status(503).json({ success: false, message: 'Clés Agora incorrectes : ' + e.detail + '. Recopie-les depuis la console Agora.' });
     if (e.message === 'AGORA_MODULE_MANQUANT') return res.status(503).json({ success: false, message: "Module vidéo manquant sur le serveur (agora-token)." });
     console.error('[live] agora:', e.message);
     return res.status(500).json({ success: false, message: 'Erreur vidéo, réessaie.' });
   }
-  const publicItem = (it) => ({ id: it.id, name: it.name, price: it.price, category: it.category, status: it.status, reservedBy: it.reservedByName || '' });
+  const publicItem = (it) => ({ id: it.id, name: it.name, price: it.price, category: it.category, status: it.left > 0 ? 'available' : 'sold', qty: it.qty || 1, left: it.left, reservedBy: it.reservedByName || '' });
   const publicLive = (st) => ({
     id: st.meta.id, sellerId: st.meta.sellerId, sellerName: st.meta.sellerName, sellerPhoto: st.meta.sellerPhoto,
     coverUrl: st.meta.coverUrl || '', city: st.meta.city || '', startedAt: st.meta.startedAt, viewers: countViewers(st),
-    itemCount: Array.from(st.items.values()).filter(i => i.status === 'available').length
+    itemCount: Array.from(st.items.values()).filter(i => i.left > 0).length
   });
   function countViewers(st) {
     const now = Date.now();
@@ -236,15 +244,17 @@ module.exports = function setupLive(app, ctx) {
       const category = categories.includes(req.body.category) ? req.body.category : 'accessoires';
       if (name.length < 2) return res.status(400).json({ success: false, message: "Donne un nom à l'article." });
       if (price < 100 || price > 5000000) return res.status(400).json({ success: false, message: 'Prix invalide.' });
+      const qty = parseInt(req.body.quantity, 10);
+      if (!qty || qty < 1 || qty > 99) return res.status(400).json({ success: false, message: 'Quantité entre 1 et 99.' });
       if (st.items.size >= MAX_ITEMS) return res.status(400).json({ success: false, message: `Maximum ${MAX_ITEMS} articles par live.` });
       const u = await userInfo(req.userId);
       const ref = await db().collection('products').add({
         title: name, price, category, targetGender: 'unisexe', condition: 'neuf', description: 'Article proposé pendant un live', size: '', hashtags: [],
-        images: [], image: '', sellerId: req.userId, sellerName: u.name, sellerPhoto: u.photo, sellerFlames: u.flames || 0, stock: 1, status: 'live', isLive: true,
+        images: [], image: '', sellerId: req.userId, sellerName: u.name, sellerPhoto: u.photo, sellerFlames: u.flames || 0, stock: qty, liveQty: qty, liveLeft: qty, status: 'live', isLive: true,
         liveId: st.meta.id, views: 0, favorites: 0, country: u.country, city: u.city, createdAt: new Date()
       });
-      st.items.set(ref.id, { id: ref.id, name, price, category, status: 'available' });
-      addComment(st, { system: true, text: `Nouvel article : ${name} — ${price} FCFA` });
+      st.items.set(ref.id, { id: ref.id, name, price, category, qty, left: qty, status: 'available' });
+      addComment(st, { system: true, text: `Nouvel article : ${name} — ${price} FCFA (${qty} disponible${qty > 1 ? 's' : ''})` });
       res.json({ success: true, item: publicItem(st.items.get(ref.id)) });
     } catch (e) { console.error('[live] ajout article:', e.message); res.status(500).json({ success: false, message: 'Erreur, réessaie.' }); }
   });
@@ -260,12 +270,14 @@ module.exports = function setupLive(app, ctx) {
       if (!it) return res.status(404).json({ success: false, message: 'Article introuvable.' });
       const buyerId = req.userId, sellerId = st.meta.sellerId;
       if (buyerId === sellerId) return res.status(400).json({ success: false, message: 'Tu ne peux pas réserver ton propre article.' });
-      if (it.status !== 'available' || it.locking) return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par quelqu'un d'autre." });
+      if (!(it.left > 0)) return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par quelqu'un d'autre." });
       const quartier = String(req.body.quartier || '').replace(/\s+/g, ' ').trim().slice(0, 80);
       const details = String(req.body.details || '').replace(/\s+/g, ' ').trim().slice(0, 200);
       if (!quartier) return res.status(400).json({ success: false, message: 'Indique ton quartier.' });
 
-      it.locking = true;
+      const flightKey = buyerId + ':' + it.id;
+      if (INFLIGHT.has(flightKey)) return res.status(429).json({ success: false, message: 'Doucement, ta réservation est en cours.' });
+      INFLIGHT.add(flightKey);
       try {
         const buyerDoc = await db().collection('users').doc(buyerId).get();
         const bd = buyerDoc.data() || {};
@@ -273,13 +285,17 @@ module.exports = function setupLive(app, ctx) {
         const price = it.price, buyerCommission = Math.round(price * commissionBuyer), totalAmount = price + buyerCommission;
         if ((bd.walletBalance || 0) < totalAmount) return res.status(400).json({ success: false, message: 'Solde insuffisant', required: totalAmount, balance: bd.walletBalance || 0 });
         const prodRef = db().collection('products').doc(it.id), buyerRef = db().collection('users').doc(buyerId);
+        let newLeft = 0;
         await db().runTransaction(async (t) => {
           const fb = await t.get(buyerRef), fp = await t.get(prodRef);
-          if (!fp.exists || fp.data().status !== 'live') throw new Error('DEJA_RESERVE');
+          const fd = fp.exists ? fp.data() : null;
+          const left0 = fd ? (fd.liveLeft != null ? fd.liveLeft : (fd.status === 'live' ? 1 : 0)) : 0;
+          if (!fd || left0 < 1) throw new Error('DEJA_RESERVE');
+          newLeft = left0 - 1;
           const bal = fb.data().walletBalance || 0;
           if (bal < totalAmount) throw new Error('SOLDE');
           t.update(buyerRef, { walletBalance: bal - totalAmount });
-          t.update(prodRef, { status: 'reserved', reservedAt: new Date(), reservedBy: buyerId, stock: FV.increment(-1) });
+          t.update(prodRef, { status: newLeft === 0 ? 'reserved' : 'live', liveLeft: newLeft, reservedAt: new Date(), reservedBy: buyerId, stock: FV.increment(-1) });
         });
         const order = {
           articleId: it.id, buyerId, sellerId, buyerPhone: bd.phone || '', amount: price, buyerCommission, totalAmount,
@@ -288,8 +304,8 @@ module.exports = function setupLive(app, ctx) {
           expiresAt: new Date(Date.now() + LIVE_MAX_MS + orderDelayMs), createdAt: new Date()    // le vrai chrono de 6 h démarre à la fin du live
         };
         const oref = await db().collection('orders').add(order);
-        it.status = 'reserved'; it.reservedByName = firstName(bd.name); it.orderId = oref.id; it.buyerId = buyerId;
-        addComment(st, { system: true, text: `${firstName(bd.name)} a réservé « ${it.name} »` });
+        it.left = newLeft; it.status = newLeft > 0 ? 'available' : 'sold'; it.reservedByName = firstName(bd.name); it.orderId = oref.id; it.buyerId = buyerId;
+        addComment(st, { system: true, text: `${firstName(bd.name)} a réservé « ${it.name} »` + (newLeft > 0 ? ` (il en reste ${newLeft})` : ' (épuisé)') });
         const seller = await userInfo(sellerId);
         const msgText = `Réservation live : « ${it.name} » — ${price} FCFA. Quartier : ${quartier}${details ? '. Précisions : ' + details : ''}.`;
         await db().collection('messages').add({ senderId: buyerId, receiverId: sellerId, text: msgText, audioUrl: '', audioDuration: 0, senderName: bd.name || 'Acheteur', senderPhoto: bd.photo || '',
@@ -298,7 +314,7 @@ module.exports = function setupLive(app, ctx) {
         Promise.resolve(push(sellerId, { title: '🛍️ Réservation live', body: `${firstName(bd.name)} a réservé « ${it.name} » — ${quartier}`, tag: 'live-res-' + oref.id })).catch(() => {});
         if (typeof invalidateCache === 'function') invalidateCache();
         res.json({ success: true, orderId: oref.id, totalAmount, message: 'Réservé ! Ton argent est gardé par BLK. Le chrono de 6 h démarre à la fin du live.' });
-      } finally { it.locking = false; }
+      } finally { INFLIGHT.delete(flightKey); }
     } catch (e) {
       if (e.message === 'DEJA_RESERVE') return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par quelqu'un d'autre." });
       if (e.message === 'SOLDE') return res.status(400).json({ success: false, message: 'Solde insuffisant' });
@@ -316,7 +332,8 @@ module.exports = function setupLive(app, ctx) {
     let reserved = 0;
     try {
       for (const it of st.items.values()) {   // les articles non réservés sont supprimés
-        if (it.status === 'available') await db().collection('products').doc(it.id).delete().catch(() => {});
+        if (it.left >= (it.qty || 1)) await db().collection('products').doc(it.id).delete().catch(() => {});
+        else if (it.left > 0) await db().collection('products').doc(it.id).update({ status: 'live_closed', liveLeft: 0 }).catch(() => {});
       }
       const snap = await db().collection('orders').where('liveId', '==', id).get();
       for (const d of snap.docs) {             // le chrono de 6 h démarre maintenant
@@ -359,7 +376,7 @@ module.exports = function setupLive(app, ctx) {
         const x = d.data();
         const st = newState({ id: d.id, sellerId: x.sellerId, sellerName: x.sellerName, sellerPhoto: x.sellerPhoto || '', city: x.city || '', country: x.country || '', coverUrl: x.coverUrl || '', status: 'live', startedAt: x.startedAt.toDate ? x.startedAt.toDate().getTime() : Date.now() });
         const items = await db().collection('products').where('liveId', '==', d.id).get();
-        items.forEach(p => { const y = p.data(); if (y.status === 'live' || y.status === 'reserved') st.items.set(p.id, { id: p.id, name: y.title, price: y.price, category: y.category, status: y.status === 'live' ? 'available' : 'reserved' }); });
+        items.forEach(p => { const y = p.data(); if (y.status === 'live' || y.status === 'reserved') { const q = y.liveQty || 1, l = y.liveLeft != null ? y.liveLeft : (y.status === 'live' ? 1 : 0); st.items.set(p.id, { id: p.id, name: y.title, price: y.price, category: y.category, qty: q, left: l, status: l > 0 ? 'available' : 'sold' }); } });
         LIVES.set(d.id, st);
       }
     } catch (e) { console.error('[live] reprise après redémarrage:', e.message); }
