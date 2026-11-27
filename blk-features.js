@@ -222,13 +222,8 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     list.forEach(function (p) {
       var card = document.createElement('div'); card.className = 'article-card';
       var img = p.image || (p.images && p.images[0]) || PLACEHOLDER_IMAGE;
-      var nm = p.sellerName || 'Vendeur';
-      var av = p.sellerPhoto ? safeImgTag(p.sellerPhoto, nm, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(nm.charAt(0).toUpperCase());
-      card.innerHTML = safeImgTag(img, p.title) + '<div class="blk-seller"><span class="blk-seller-av">' + av + '</span><span class="blk-seller-nm">' + escapeHtml(nm) + '</span></div>';
+      card.innerHTML = safeImgTag(img, p.title);
       card.addEventListener('click', function () { openProductFullscreen(p); });
-      // Toucher le nom ou la photo du vendeur ouvre son profil
-      var sb = card.querySelector('.blk-seller');
-      if (sb && p.sellerId) sb.addEventListener('click', function (e) { e.stopPropagation(); if (window.blkShowSellerProfile) window.blkShowSellerProfile(p.sellerId, nm); });
       grid.appendChild(card);
     });
   };
