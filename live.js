@@ -25,13 +25,34 @@ module.exports = function setupLive(app, ctx) {
   }
   const firstName = (n) => String(n || 'Quelqu\'un').split(' ')[0];
   function uidFor(userId) { return (crypto.createHash('sha256').update(String(userId)).digest().readUInt32BE(0) % 2000000000) + 1; }
+
+  // ---- Jeton Agora « AccessToken2 » de secours (utilisé seulement si le module officiel agora-token n'est pas installé)
+  function manualToken(appId, cert, channel, uid, isHost, expire) {
+    const zlib = require('zlib');
+    const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
+    const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
+    const str = (x) => { const b = Buffer.from(String(x)); return Buffer.concat([u16(b.length), b]); };
+    const hmac = (k, m) => crypto.createHmac('sha256', k).update(m).digest();
+    const issueTs = Math.floor(Date.now() / 1000), salt = Math.floor(Math.random() * 0xFFFFFFFF);
+    const privs = isHost ? { 1: expire, 2: expire, 3: expire, 4: expire } : { 1: expire };
+    const keys = Object.keys(privs).map(Number).sort((a, b) => a - b);
+    const service = Buffer.concat([u16(1), u16(keys.length), ...keys.map(k => Buffer.concat([u16(k), u32(privs[k])])), str(channel), str(uid)]);
+    const signing = hmac(u32(salt), hmac(u32(issueTs), cert));
+    const info = Buffer.concat([str(appId), u32(issueTs), u32(expire), u32(salt), u16(1), service]);
+    const signature = hmac(signing, info);
+    return '007' + zlib.deflateSync(Buffer.concat([str(signature), info])).toString('base64');
+  }
   function agoraCreds(userId, liveId, isHost) {
     const appId = process.env.AGORA_APP_ID, cert = process.env.AGORA_APP_CERTIFICATE;
     if (!appId || !cert) throw new Error('AGORA_NON_CONFIGURE');
-    if (!AgoraToken) throw new Error('AGORA_MODULE_MANQUANT');
     const exp = 4 * 3600;
-    const role = isHost ? AgoraToken.RtcRole.PUBLISHER : AgoraToken.RtcRole.SUBSCRIBER;
-    const token = AgoraToken.RtcTokenBuilder.buildTokenWithUid(appId, cert, liveId, uidFor(userId), role, exp, exp);
+    let token;
+    if (AgoraToken) {
+      const role = isHost ? AgoraToken.RtcRole.PUBLISHER : AgoraToken.RtcRole.SUBSCRIBER;
+      token = AgoraToken.RtcTokenBuilder.buildTokenWithUid(appId, cert, liveId, uidFor(userId), role, exp, exp);
+    } else {
+      token = manualToken(appId, cert, liveId, uidFor(userId), isHost, exp);
+    }
     return { appId, token, uid: uidFor(userId), channel: liveId, role: isHost ? 'host' : 'audience' };
   }
   function agoraError(res, e) {

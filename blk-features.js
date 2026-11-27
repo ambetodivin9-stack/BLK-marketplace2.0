@@ -74,6 +74,10 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   '.blk-flame-label{display:inline-flex!important;align-items:flex-end;gap:3px;vertical-align:middle;margin-left:4px}.blk-flame-label .blk-info{font-size:12px;color:#999;margin-bottom:2px}' +
   '#profileFlamesNew{animation:none!important;text-shadow:none!important}' +
   '.article-card{position:relative}' +
+  '.blk-seller{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);display:flex;align-items:center;gap:7px;padding:3px 11px 3px 3px;border-radius:999px;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;font-size:12px;font-weight:700;line-height:1}' +
+  '.blk-seller-av{width:26px;height:26px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}' +
+  '.blk-seller-av img{width:100%!important;height:100%!important;aspect-ratio:auto!important;border-radius:50%}' +
+  '.blk-seller-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
   '.blk-card-flame{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:3px;background:rgba(255,255,255,.93);border-radius:999px;padding:2px 9px 2px 5px;font-size:11px;font-weight:800;color:#222;box-shadow:0 2px 8px rgba(0,0,0,.2)}' +
   /* images des fenêtres (colis / connexion) */
   '.blk-modal-art{display:block;margin:-4px auto 8px;width:58%;max-width:220px;height:auto;background:transparent;pointer-events:none;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 12px 14px rgba(0,0,0,.18));animation:blkArtIn .8s cubic-bezier(.34,1.56,.64,1),blkFloat 3.4s ease-in-out .8s infinite}' +
@@ -218,8 +222,13 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     list.forEach(function (p) {
       var card = document.createElement('div'); card.className = 'article-card';
       var img = p.image || (p.images && p.images[0]) || PLACEHOLDER_IMAGE;
-      card.innerHTML = safeImgTag(img, p.title);
+      var nm = p.sellerName || 'Vendeur';
+      var av = p.sellerPhoto ? safeImgTag(p.sellerPhoto, nm, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(nm.charAt(0).toUpperCase());
+      card.innerHTML = safeImgTag(img, p.title) + '<div class="blk-seller"><span class="blk-seller-av">' + av + '</span><span class="blk-seller-nm">' + escapeHtml(nm) + '</span></div>';
       card.addEventListener('click', function () { openProductFullscreen(p); });
+      // Toucher le nom ou la photo du vendeur ouvre son profil
+      var sb = card.querySelector('.blk-seller');
+      if (sb && p.sellerId) sb.addEventListener('click', function (e) { e.stopPropagation(); if (window.blkShowSellerProfile) window.blkShowSellerProfile(p.sellerId, nm); });
       grid.appendChild(card);
     });
   };
@@ -573,14 +582,22 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
       card.innerHTML =
         (mine ? '<div class="blk-sp-edit"><button class="blk-sp-pill" id="blkSPcov">📷 Arrière-plan</button>' + (cov ? '<button class="blk-sp-pill" id="blkSPcovx">✕</button>' : '') + '</div><input type="file" id="blkSPfile" accept="image/*" style="display:none;">' : '') +
         '<div class="blk-sp-avatar">' + avatar + '</div>' +
-        '<div class="blk-sp-row"><div><div class="blk-sp-name">' + escapeHtml(nm) + '</div><div class="blk-sp-sub">' + escapeHtml(where || 'Vendeur BLK') + '</div></div>' +
+        '<div class="blk-sp-row"><div><div class="blk-sp-name">' + escapeHtml(nm) + '</div><div class="blk-sp-sub">' + escapeHtml(where || 'Vendeur BLK') + (state.follow && state.follow.followers != null ? ' · ' + state.follow.followers + ' abonné(s)' : '') + '</div></div>' +
         '<div class="blk-sp-pill"><span class="blk-sp-dot' + (u.online ? '' : ' off') + '"></span>' + (u.online ? 'En ligne' : 'Hors ligne') + '</div></div>' +
         '<div class="blk-sp-stats">' +
           '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : fl + '<span>' + flames + '</span>') + '</div><div class="l">Flammes</div></div>' +
           '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : statIcon('doc') + '<span>' + list.length + '</span>') + '</div><div class="l">Articles</div></div>' +
           '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : '<span>' + (flames >= 100 ? 'Top' : (flames >= 10 ? 'Fiable' : 'Nouveau')) + '</span>') + '</div><div class="l">Niveau</div></div>' +
-        '</div>';
+        '</div>' + (!mine && !loading ? '<button class="blk-follow" id="blkFollowBtn">' + (state.follow && state.follow.following ? 'Abonné' : 'Suivre') + '</button>' : '');
       if (mine) bindEdit();
+      var fb = $('#blkFollowBtn', pg);
+      if (fb) fb.addEventListener('click', function () {
+        var was = state.follow && state.follow.following; fb.disabled = true;
+        apiFetch(was ? '/api/follow/' + id : '/api/follow', was ? { method: 'DELETE' } : { method: 'POST', body: JSON.stringify({ sellerId: id }) })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d.success) { state.follow = { following: d.following, followers: d.followers }; paint(); } else { fb.disabled = false; showAlert(d.message || 'Impossible pour le moment.', 'error'); } })
+          .catch(function () { fb.disabled = false; showAlert('Erreur réseau.', 'error'); });
+      });
     }
     function bindEdit() {
       var file = $('#blkSPfile', pg), b = $('#blkSPcov', pg), x = $('#blkSPcovx', pg);
@@ -604,8 +621,10 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     paint();
     Promise.all([
       apiFetch('/api/users/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; }),
-      apiFetch('/api/articles/seller/' + id).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
+      apiFetch('/api/articles/seller/' + id).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
+      apiFetch('/api/follow/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; })
     ]).then(function (res) {
+      state.follow = res[2] || {};
       if (res[0] && res[0].success && res[0].data) state.u = res[0].data;
       state.list = ((res[1] && res[1].data) || []).filter(function (a) { return a.status === 'active'; });
       paint();
@@ -1170,4 +1189,395 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   }
   new MutationObserver(check).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   check();
+})();
+
+/* ===================== v10 : Lives (vidéo Agora, articles à réserver, commentaires, flammes) ===================== */
+(function () {
+  'use strict';
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function dots(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
+  function loader(n, c) { return window.blkOrbit ? window.blkOrbit(n, 0, c || 'var(--accent)') : ''; }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.blk-livebtn{margin-left:auto;width:62px;height:62px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff3b30,#ff8c00);color:#fff;font-weight:900;font-size:13px;letter-spacing:.6px;position:relative;box-shadow:0 8px 20px rgba(255,59,48,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;animation:blkPulse 2.2s ease-in-out infinite}' +
+    '@keyframes blkPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}' +
+    '.blk-livebtn .d{width:8px;height:8px;border-radius:50%;background:#fff}' +
+    '.blk-livebtn .n{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#fff;color:#ff3b30;font-size:11px;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2)}' +
+    '.blk-startlive{margin-right:auto;width:64px;height:64px;border-radius:50%;border:none;background:linear-gradient(135deg,#C0392B,#ff3b30);color:#fff;font-weight:800;font-size:9.5px;line-height:1.15;text-align:center;padding:6px;box-shadow:0 8px 20px rgba(192,57,43,.4);cursor:pointer;flex-shrink:0}' +
+    '.blk-livelist{position:fixed;inset:0;z-index:1700;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 40px;animation:blkSpIn .3s ease}' +
+    '.bll-top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 18px) 0 12px;font-size:17px}' +
+    '.bll-card{position:relative;border-radius:22px;overflow:hidden;margin-bottom:14px;aspect-ratio:3/4;background:#222 center/cover no-repeat;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.18)}' +
+    '.bll-card::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.25),rgba(0,0,0,0) 30%,rgba(0,0,0,.55))}' +
+    '.bll-card>*{z-index:2}' +
+    '.bll-live{position:absolute;top:12px;left:12px;background:#ff3b30;color:#fff;font-size:11px;font-weight:900;letter-spacing:.8px;padding:5px 10px;border-radius:8px;display:flex;align-items:center;gap:6px}' +
+    '.bll-live::before{content:"";width:7px;height:7px;border-radius:50%;background:#fff;animation:blkPulse 1.2s infinite}' +
+    '.bll-views{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.5);color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}' +
+    '.bll-card .blk-seller{left:12px;bottom:12px;font-size:13px}.bll-card .blk-seller-av{width:30px;height:30px}' +
+    '.bll-cnt{position:absolute;right:12px;bottom:14px;background:rgba(255,255,255,.92);color:#222;font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px}' +
+    /* salle de live */
+    '.blk-live{position:fixed;left:0;right:0;top:0;height:100%;z-index:2500;background:#000;color:#fff}' +
+    '.bl-scroll{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:y proximity}' +
+    '.bl-stage{position:relative;height:100%;scroll-snap-align:start;background:#101010;overflow:hidden}' +
+    '#blVideo{position:absolute;inset:0}#blVideo video{object-fit:cover!important}' +
+    '.bl-novid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:rgba(255,255,255,.8);font-size:14px}' +
+    '.bl-top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px 30px;display:flex;align-items:center;gap:8px;background:linear-gradient(to bottom,rgba(0,0,0,.55),rgba(0,0,0,0));z-index:3}' +
+    '.bl-host{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.4);border-radius:999px;padding:3px 12px 3px 3px;min-width:0;cursor:pointer}' +
+    '.bl-host .av{width:34px;height:34px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}.bl-host .av img{width:100%!important;height:100%!important;aspect-ratio:auto!important;object-fit:cover}' +
+    '.bl-host .nm{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}' +
+    '.bl-chip{background:#ff3b30;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:900;letter-spacing:.6px}.bl-eye{background:rgba(0,0,0,.45);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700}' +
+    '.bl-x{margin-left:auto;background:rgba(0,0,0,.45);border:none;color:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer}.bl-x.end{background:#ff3b30}' +
+    '.bl-side{position:absolute;right:12px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;align-items:center;z-index:3}' +
+    '.bl-add{background:#fff;color:#222;border:none;border-radius:999px;padding:11px 16px;font-size:13px;font-weight:800;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer;max-width:150px;line-height:1.2}' +
+    '.bl-flame{width:56px;height:56px;border-radius:50%;border:none;background:rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;cursor:pointer}' +
+    '.bl-comments{position:absolute;left:0;right:70px;bottom:calc(66px + env(safe-area-inset-bottom,0px));max-height:34%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:0 12px;z-index:3;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 35%);mask-image:linear-gradient(to bottom,transparent,#000 35%)}' +
+    '.bl-c{font-size:14px;line-height:1.35;margin-top:5px;text-shadow:0 1px 4px rgba(0,0,0,.8);word-break:break-word}.bl-c b{margin-right:6px;color:#ffd9a8}.bl-c.sys{color:#9fffb4;font-style:italic}' +
+    '.bl-bottom{position:absolute;left:0;right:0;bottom:0;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;background:linear-gradient(to top,rgba(0,0,0,.6),rgba(0,0,0,0));z-index:4}' +
+    '.bl-bottom input{flex:1;min-width:0;padding:12px 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.4);background:rgba(0,0,0,.35);color:#fff;font-size:16px;outline:none}.bl-bottom input::placeholder{color:rgba(255,255,255,.7)}' +
+    '.bl-send{border:none;background:var(--accent);color:#fff;border-radius:999px;padding:12px 16px;font-weight:800;font-size:14px;cursor:pointer}' +
+    '.bl-hint{position:absolute;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));text-align:center;font-size:11.5px;color:rgba(255,255,255,.75);z-index:2;pointer-events:none}' +
+    '.bl-items{background:var(--bg);color:var(--text);min-height:100%;padding:22px 16px calc(40px + env(safe-area-inset-bottom,0px));border-radius:26px 26px 0 0;margin-top:-14px;position:relative;scroll-snap-align:start}' +
+    '.bl-items h3{font-size:17px;margin-bottom:12px}' +
+    '.bl-item{display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:10px}' +
+    '.bl-item .t{flex:1;min-width:0}.bl-item .t b{display:block;font-size:15px}.bl-item .t span{font-size:12px;color:#999}.bl-item .p{font-weight:900;color:var(--accent);white-space:nowrap}' +
+    '.bl-res{border:none;background:var(--accent);color:#fff;border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer}.bl-taken{font-size:12px;font-weight:800;color:#999;background:var(--input-bg);border-radius:999px;padding:8px 12px;white-space:nowrap}' +
+    '.bl-ended{position:absolute;inset:0;z-index:6;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px}' +
+    '.bl-fly{position:absolute;right:26px;bottom:200px;pointer-events:none;z-index:5;animation:blFly 1.8s ease-out forwards}' +
+    '@keyframes blFly{0%{transform:translate(0,0) scale(.6);opacity:1}100%{transform:translate(var(--dx,0),-260px) scale(1.2);opacity:0}}' +
+    'body.blk-live-open #alertBox{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;z-index:9900;box-shadow:0 8px 24px rgba(0,0,0,.3)}' +
+    '.blk-follow{width:100%;margin-top:14px;border:2px solid rgba(255,255,255,.9);background:transparent;color:#fff;border-radius:999px;padding:12px;font-weight:800;font-size:15px;cursor:pointer}' +
+    '.blk-sheet select,.blk-sheet textarea{width:100%;padding:13px;border:1.5px solid var(--border);border-radius:14px;font-size:16px;background:var(--input-bg);color:var(--text);margin-bottom:10px;font-family:inherit}' +
+    '.blk-sheet input.fld{width:100%;padding:13px;border:1.5px solid var(--border);border-radius:14px;font-size:16px;background:var(--input-bg);color:var(--text);margin-bottom:10px}' +
+    '.blk-sheet .note{font-size:12.5px;color:#888;line-height:1.5;margin:4px 0 12px}.blk-sheet .err{color:#E74C3C;font-size:13px;min-height:18px;text-align:center;margin:2px 0 8px}';
+  document.head.appendChild(st);
+
+  // ---------------------------------------------------------------- Agora
+  var AGORA_URLS = ['https://download.agora.io/sdk/release/AgoraRTC_N-4.24.8.js', 'https://unpkg.com/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-production.js'];
+  var agoraPromise = null;
+  function loadAgora() {
+    if (window.AgoraRTC) return Promise.resolve();
+    if (agoraPromise) return agoraPromise;
+    agoraPromise = new Promise(function (res, rej) {
+      var i = 0;
+      (function next() {
+        if (i >= AGORA_URLS.length) { agoraPromise = null; return rej(new Error('SDK_INDISPONIBLE')); }
+        var s = document.createElement('script'); s.src = AGORA_URLS[i++];
+        s.onload = function () { window.AgoraRTC ? res() : next(); }; s.onerror = next; document.head.appendChild(s);
+      })();
+    });
+    return agoraPromise;
+  }
+
+  // ---------------------------------------------------------------- liste des lives
+  function seller(l) {
+    var nm = l.sellerName || 'Vendeur';
+    var av = l.sellerPhoto ? safeImgTag(l.sellerPhoto, nm, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(nm.charAt(0).toUpperCase());
+    return '<div class="blk-seller"><span class="blk-seller-av">' + av + '</span><span class="blk-seller-nm">' + escapeHtml(nm) + '</span></div>';
+  }
+  function openLiveList() {
+    if ($('#blkLiveList')) return;
+    var ov = document.createElement('div'); ov.id = 'blkLiveList'; ov.className = 'blk-livelist';
+    ov.innerHTML = '<div class="bll-top"><button class="blk-sp-back" id="bllBack">‹</button><strong>Lives en direct</strong></div><div id="bllBody"><div class="blk-load-row">' + loader(40) + '</div></div>';
+    document.body.appendChild(ov);
+    var timer = null;
+    function close() { clearInterval(timer); ov.remove(); }
+    $('#bllBack', ov).addEventListener('click', close);
+    function render(list) {
+      var b = $('#bllBody', ov); if (!b) return;
+      if (!list.length) { b.innerHTML = '<p class="empty" style="margin-top:40px;">Aucun live en ce moment.<br>Reviens plus tard, ou abonne-toi à tes vendeurs préférés pour être prévenu.</p>'; return; }
+      b.innerHTML = '';
+      list.forEach(function (l) {
+        var c = document.createElement('div'); c.className = 'bll-card';
+        if (l.coverUrl || l.sellerPhoto) c.style.backgroundImage = 'url("' + String(l.coverUrl || l.sellerPhoto).replace(/"/g, '%22') + '")';
+        c.innerHTML = '<span class="bll-live">EN DIRECT</span><span class="bll-views">' + l.viewers + ' spectateur(s)</span>' + seller(l) + (l.itemCount ? '<span class="bll-cnt">' + l.itemCount + ' article(s) à réserver</span>' : '');
+        c.addEventListener('click', function () { close(); watchLive(l.id); });
+        b.appendChild(c);
+      });
+    }
+    function load() { apiFetch('/api/lives').then(function (r) { return r.json(); }).then(function (d) { render((d && d.data) || []); }).catch(function () {}); }
+    load(); timer = setInterval(load, 6000);
+  }
+
+  // ---------------------------------------------------------------- salle de live
+  var live = null;
+  var CATS = [['robes', 'Robes'], ['hauts', 'Hauts'], ['bas', 'Bas'], ['chaussures', 'Chaussures'], ['sacs', 'Sacs'], ['perruques', 'Perruques'], ['bijoux', 'Bijoux'], ['cosmetiques', 'Cosmétiques'], ['accessoires', 'Accessoires']];
+  var QUARTIERS = {
+    brazzaville: ['Makélékélé', 'Bacongo', 'Poto-Poto', 'Moungali', 'Ouenzé', 'Talangaï', 'Mfilou', 'Madibou', 'Djiri'],
+    pointenoire: ['Lumumba', 'Mvou-Mvou', 'Tié-Tié', 'Loandjili', 'Mongo-Mpoukou', 'Ngoyo']
+  };
+
+  function buildRoom(isHost) {
+    var el = document.createElement('div'); el.id = 'blkLive'; el.className = 'blk-live';
+    el.innerHTML =
+      '<div class="bl-scroll" id="blScroll"><section class="bl-stage">' +
+        '<div id="blVideo"></div><div class="bl-novid" id="blNoVid">' + loader(46, '#fff') + '<span>Connexion au live…</span></div>' +
+        '<div class="bl-top"><div class="bl-host" id="blHost"><span class="av" id="blAv"></span><span class="nm" id="blNm"></span></div>' +
+          '<span class="bl-chip">EN DIRECT</span><span class="bl-eye" id="blEye">0</span>' +
+          '<button class="bl-x' + (isHost ? ' end' : '') + '" id="blClose">' + (isHost ? 'Terminer' : 'Quitter') + '</button></div>' +
+        '<div class="bl-side">' + (isHost ? '<button class="bl-add" id="blAdd">Ajouter l’article à réserver</button>' : '') +
+          '<button class="bl-flame" id="blFlame"><span id="blFlameImg"></span><span id="blFlameN">0</span></button></div>' +
+        '<div class="bl-comments" id="blComments"></div>' +
+        '<div class="bl-hint">Fais défiler vers le bas pour voir les articles</div>' +
+        '<div class="bl-bottom"><input id="blInput" type="text" maxlength="200" placeholder="Écris un commentaire…" autocomplete="off"><button class="bl-send" id="blSend">Envoyer</button></div>' +
+      '</section>' +
+      '<section class="bl-items"><h3>Articles du live</h3>' + (isHost ? '<button class="btn btn-primary" id="blAdd2" style="margin-bottom:14px;">Ajouter l’article à réserver</button>' : '') + '<div id="blList"><p class="empty">Aucun article pour le moment.</p></div></section></div>';
+    document.body.appendChild(el); document.body.classList.add('blk-live-open');
+    $('#blFlameImg', el).innerHTML = window.blkFlameImg ? window.blkFlameImg(0, true) : '🔥';
+    return el;
+  }
+  function fitLive() {
+    var el = $('#blkLive'), vv = window.visualViewport; if (!el) return;
+    if (vv) { el.style.top = vv.offsetTop + 'px'; el.style.height = vv.height + 'px'; }
+  }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', fitLive); visualViewport.addEventListener('scroll', fitLive); }
+
+  function ended(msg) {
+    if (!live || live.over) return;
+    live.over = true;
+    var stg = $('#blkLive .bl-stage'); if (!stg) return;
+    var d = document.createElement('div'); d.className = 'bl-ended';
+    d.innerHTML = '<div style="font-size:20px;font-weight:900;">Le live est terminé</div><div style="font-size:14px;opacity:.85;max-width:300px;">' + (msg || (live.isHost ? 'Les articles non réservés ont été supprimés. Le chrono de 6 h a démarré pour les réservations.' : 'Si tu as réservé un article, le chrono de 6 h démarre maintenant : retrouve-le dans « Commandes ».')) + '</div><button class="btn btn-primary" id="blOk" style="width:auto;padding:12px 28px;">Fermer</button>';
+    stg.appendChild(d);
+    $('#blOk', d).addEventListener('click', function () { closeRoom(true); });
+    try { loadWallet(); loadOrders(); } catch (e) {}
+  }
+
+  function closeRoom(skipEnd) {
+    if (!live) return;
+    var L = live; live = null;
+    L.timers.forEach(clearInterval);
+    if (L.isHost && !skipEnd) apiFetch('/api/lives/' + L.id + '/end', { method: 'POST', body: '{}' }).catch(function () {});
+    try { (L.tracks || []).forEach(function (t) { t.stop(); t.close(); }); } catch (e) {}
+    try { if (L.client) L.client.leave(); } catch (e) {}
+    var el = $('#blkLive'); if (el) el.remove();
+    document.body.classList.remove('blk-live-open');
+  }
+
+  function renderItems(items) {
+    var b = $('#blList'); if (!b) return;
+    var sig = JSON.stringify(items.map(function (i) { return [i.id, i.status]; }));
+    if (live.itemSig === sig) return; live.itemSig = sig; live.items = items;
+    if (!items.length) { b.innerHTML = '<p class="empty">Aucun article pour le moment.</p>'; return; }
+    b.innerHTML = '';
+    items.forEach(function (it) {
+      var row = document.createElement('div'); row.className = 'bl-item';
+      var cat = (CATS.filter(function (c) { return c[0] === it.category; })[0] || [0, it.category])[1];
+      var right = it.status === 'available'
+        ? (live.isHost ? '<span class="bl-taken">Disponible</span>' : '<button class="bl-res">Réserver</button>')
+        : '<span class="bl-taken">Réservé' + (it.reservedBy ? ' · ' + escapeHtml(it.reservedBy) : '') + '</span>';
+      row.innerHTML = '<div class="t"><b>' + escapeHtml(it.name) + '</b><span>' + escapeHtml(cat) + '</span></div><div class="p">' + dots(it.price) + ' FCFA</div>' + right;
+      var rb = $('.bl-res', row); if (rb) rb.addEventListener('click', function () { openReserve(it); });
+      b.appendChild(row);
+    });
+  }
+  function addComments(list) {
+    var box = $('#blComments'); if (!box || !list.length) return;
+    list.forEach(function (c) {
+      var d = document.createElement('div'); d.className = 'bl-c' + (c.system ? ' sys' : '');
+      d.innerHTML = c.system ? escapeHtml(c.text) : '<b>' + escapeHtml((c.name || '').split(' ')[0]) + '</b>' + escapeHtml(c.text);
+      box.appendChild(d);
+    });
+    while (box.children.length > 40) box.removeChild(box.firstChild);
+  }
+  function flyFlames(n) {
+    var stg = $('#blkLive .bl-stage'); if (!stg) return;
+    for (var i = 0; i < Math.min(n, 5); i++) {
+      (function (k) { setTimeout(function () {
+        var f = document.createElement('div'); f.className = 'bl-fly'; f.style.setProperty('--dx', (Math.random() * 60 - 40) + 'px');
+        f.innerHTML = window.blkFlameImg ? window.blkFlameImg(0) : '🔥'; stg.appendChild(f); setTimeout(function () { f.remove(); }, 1900);
+      }, k * 140); })(i);
+    }
+  }
+  function poll() {
+    if (!live || live.over) return;
+    apiFetch('/api/lives/' + live.id + '/state?since=' + live.since).then(function (r) { return r.json(); }).then(function (d) {
+      if (!live) return;
+      if (!d.success || d.status === 'ended') return ended();
+      live.since = d.seq;
+      var eye = $('#blEye'); if (eye) eye.textContent = d.viewers + ' en direct';
+      if (d.flames > live.flames) flyFlames(d.flames - live.flames);
+      live.flames = d.flames; var fn = $('#blFlameN'); if (fn) fn.textContent = d.flames;
+      var av = $('#blAv'), nm = $('#blNm');
+      if (nm && !nm.textContent) { nm.textContent = d.host.name; av.innerHTML = d.host.photo ? safeImgTag(d.host.photo, d.host.name, 'width:100%;height:100%;object-fit:cover;') : escapeHtml((d.host.name || '?').charAt(0).toUpperCase()); live.hostId = d.host.id; live.hostName = d.host.name; }
+      addComments(d.comments || []); renderItems(d.items || []);
+    }).catch(function () {});
+  }
+
+  function wireRoom(id, isHost) {
+    $('#blClose').addEventListener('click', function () {
+      if (!isHost) return closeRoom(true);
+      var ov = document.createElement('div'); ov.className = 'blk-sheet-ov'; ov.style.zIndex = 9800;
+      ov.innerHTML = '<div class="blk-sheet"><div class="blk-sheet-h"><strong>Terminer le live ?</strong></div><p class="note">Les articles non réservés seront supprimés. Pour chaque réservation, l’argent reste gardé par BLK et le chrono de 6 h démarre.</p><button class="btn btn-danger" id="blYes">Terminer le live</button><button class="btn btn-outline" id="blNo" style="margin-top:8px;">Continuer le live</button></div>';
+      document.body.appendChild(ov);
+      $('#blNo', ov).addEventListener('click', function () { ov.remove(); });
+      $('#blYes', ov).addEventListener('click', function () { ov.remove(); ended(); apiFetch('/api/lives/' + id + '/end', { method: 'POST', body: '{}' }).catch(function () {}); live && (live.isHost = true); });
+    });
+    $('#blHost').addEventListener('click', function () { if (live && live.hostId && !isHost && window.blkShowSellerProfile) window.blkShowSellerProfile(live.hostId, live.hostName || 'Vendeur'); });
+    function send() {
+      var i = $('#blInput'), t = i.value.trim(); if (!t) return; i.value = '';
+      apiFetch('/api/lives/' + id + '/comment', { method: 'POST', body: JSON.stringify({ text: t }) }).then(function () { poll(); }).catch(function () {});
+    }
+    $('#blSend').addEventListener('click', send);
+    $('#blInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') send(); });
+    $('#blFlame').addEventListener('click', function () { flyFlames(1); apiFetch('/api/lives/' + id + '/flame', { method: 'POST', body: '{}' }).catch(function () {}); });
+    $$('#blAdd,#blAdd2').forEach(function (b) { b.addEventListener('click', function () { openAddItem(id); }); });
+    $('#blInput').addEventListener('focus', function () { [60, 250, 600].forEach(function (t) { setTimeout(function () { window.scrollTo(0, 0); fitLive(); }, t); }); });
+    fitLive();
+  }
+
+  function setNoVid(show, text) { var n = $('#blNoVid'); if (!n) return; n.style.display = show ? 'flex' : 'none'; if (text) n.innerHTML = '<span style="padding:0 30px;text-align:center;">' + text + '</span>'; }
+
+  function enterRoom(id, isHost, creds, tracks) {
+    var el = buildRoom(isHost); wireRoom(id, isHost);
+    live = { id: id, isHost: isHost, since: 0, timers: [], client: null, tracks: tracks || [], flames: 0, items: [] };
+    return loadAgora().then(function () {
+      var client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' }); live.client = client;
+      client.on('user-published', function (user, mt) {
+        client.subscribe(user, mt).then(function () {
+          if (mt === 'video') { setNoVid(false); user.videoTrack.play('blVideo'); }
+          if (mt === 'audio') user.audioTrack.play();
+        }).catch(function () {});
+      });
+      client.on('user-unpublished', function (user, mt) { if (mt === 'video') setNoVid(true, 'Le vendeur a coupé sa caméra…'); });
+      return client.setClientRole(isHost ? 'host' : 'audience', isHost ? undefined : { level: 1 }).then(function () { return client.join(creds.appId, creds.channel, creds.token, creds.uid); });
+    }).then(function () {
+      if (isHost) {
+        live.tracks[1].play('blVideo'); setNoVid(false);
+        return live.client.publish(live.tracks).then(captureCover);
+      }
+      setTimeout(function () { var n = $('#blNoVid'); if (n && n.style.display !== 'none') setNoVid(true, 'En attente de la vidéo du vendeur…'); }, 4000);
+    }).then(function () { live.timers.push(setInterval(poll, 2000)); poll(); })
+      .catch(function (e) { console.error('live:', e); closeRoom(isHost ? false : true); throw e; });
+  }
+
+  function captureCover() {
+    setTimeout(function () {
+      try {
+        var img = live && live.tracks[1] && live.tracks[1].getCurrentFrameData(); if (!img) return;
+        var c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').putImageData(img, 0, 0);
+        var k = Math.min(1, 480 / img.width), c2 = document.createElement('canvas'); c2.width = Math.round(img.width * k); c2.height = Math.round(img.height * k);
+        c2.getContext('2d').drawImage(c, 0, 0, c2.width, c2.height);
+        var data = c2.toDataURL('image/jpeg', 0.7).split(',')[1], id = live.id;
+        uploadToImgbb(data).then(function (r) { if (r.url) apiFetch('/api/lives/' + id + '/cover', { method: 'POST', body: JSON.stringify({ url: r.url }) }).catch(function () {}); });
+      } catch (e) { console.warn('cover live:', e); }
+    }, 3000);
+  }
+
+  function liveError(e) {
+    var m = String((e && e.message) || e || '');
+    if (/Permission|NotAllowed|NotFound|denied/i.test(m)) return "Autorise la caméra et le micro pour BLK (Réglages du téléphone), puis réessaie.";
+    if (/SDK_INDISPONIBLE/.test(m)) return 'Impossible de charger la vidéo. Vérifie ta connexion et réessaie.';
+    return m && m.length < 140 ? m : 'Impossible de lancer le live pour le moment.';
+  }
+
+  function startLive() {
+    if (live) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showAlert("Ton téléphone ne permet pas la vidéo ici. Ouvre BLK dans Safari ou installe l'app.", 'error'); return; }
+    showSpinner(true);
+    var tracks = null;
+    loadAgora().then(function () { return AgoraRTC.createMicrophoneAndCameraTracks({}, { encoderConfig: { width: 640, height: 480, frameRate: 24, bitrateMax: 900 } }); })
+      .then(function (t) { tracks = t; return apiFetch('/api/lives', { method: 'POST', body: '{}' }).then(function (r) { return r.json(); }); })
+      .then(function (d) { if (!d.success) throw new Error(d.message || 'Impossible de lancer le live.'); showSpinner(false); return enterRoom(d.liveId, true, d.agora, tracks); })
+      .catch(function (e) { showSpinner(false); try { (tracks || []).forEach(function (t) { t.stop(); t.close(); }); } catch (x) {} showAlert(liveError(e), 'error'); });
+  }
+  function watchLive(id) {
+    if (live) return;
+    showSpinner(true);
+    apiFetch('/api/lives/' + id + '/token', { method: 'POST', body: '{}' }).then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.success) throw new Error(d.message || 'Ce live est terminé.'); showSpinner(false); return enterRoom(id, false, d.agora, null); })
+      .catch(function (e) { showSpinner(false); showAlert(liveError(e), 'error'); });
+  }
+
+  // ---------------------------------------------------------------- vendeur : ajouter un article
+  function sheet(html) {
+    var ov = document.createElement('div'); ov.className = 'blk-sheet-ov'; ov.style.zIndex = 9800;
+    ov.innerHTML = '<div class="blk-sheet">' + html + '</div>'; document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+    return ov;
+  }
+  function openAddItem(id) {
+    var ov = sheet('<div class="blk-sheet-h"><strong>Ajouter l’article à réserver</strong><button class="blk-x" id="aiX">✕</button></div>' +
+      '<input class="fld" id="aiName" type="text" maxlength="60" placeholder="Nom de l’article" autocomplete="off">' +
+      '<input class="fld" id="aiPrice" type="tel" inputmode="numeric" placeholder="Prix (FCFA)" autocomplete="off">' +
+      '<select id="aiCat">' + CATS.map(function (c) { return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join('') + '</select>' +
+      '<div class="err" id="aiErr"></div><button class="btn btn-primary" id="aiGo">Publier dans le live</button>');
+    $('#aiX', ov).addEventListener('click', function () { ov.remove(); });
+    $('#aiPrice', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 8); });
+    $('#aiGo', ov).addEventListener('click', function () {
+      var n = $('#aiName', ov).value.trim(), p = $('#aiPrice', ov).value, c = $('#aiCat', ov).value, err = $('#aiErr', ov);
+      if (n.length < 2 || !p) { err.textContent = 'Écris le nom et le prix.'; return; }
+      err.textContent = 'Publication…';
+      apiFetch('/api/lives/' + id + '/items', { method: 'POST', body: JSON.stringify({ name: n, price: parseInt(p, 10), category: c }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d.success) { ov.remove(); showAlert('Article publié dans le live.', 'success'); poll(); } else err.textContent = d.message || 'Erreur, réessaie.'; })
+        .catch(function () { err.textContent = 'Erreur réseau.'; });
+    });
+  }
+
+  // ---------------------------------------------------------------- acheteur : réserver
+  function openReserve(it) {
+    var u = (typeof currentUser !== 'undefined' && currentUser) || {}, city = norm(u.city), Q = QUARTIERS[city];
+    var fee = Math.round(it.price * 0.03), total = it.price + fee;
+    var help = Q
+      ? 'Choisis ton arrondissement, puis écris un repère précis (près de quel arrêt, école, marché ou église) pour que le vendeur te trouve facilement.'
+      : 'Écris ton quartier et un repère précis (rue, école, marché…) pour que le vendeur te trouve facilement' + (u.city ? ' à ' + escapeHtml(u.city) : '') + '.';
+    var ov = sheet('<div class="blk-sheet-h"><strong>Réserver</strong><button class="blk-x" id="rsX">✕</button></div>' +
+      '<div style="background:var(--input-bg);border-radius:16px;padding:12px 14px;margin-bottom:12px;"><b>' + escapeHtml(it.name) + '</b>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px;"><span>Prix</span><span>' + dots(it.price) + ' FCFA</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:14px;"><span>Commission BLK (3%)</span><span>' + dots(fee) + ' FCFA</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:4px;"><span>Total</span><span style="color:var(--accent);">' + dots(total) + ' FCFA</span></div></div>' +
+      (Q ? '<select id="rsQ"><option value="">Mon arrondissement</option>' + Q.map(function (q) { return '<option>' + q + '</option>'; }).join('') + '</select>' : '<input class="fld" id="rsQ" type="text" maxlength="80" placeholder="Mon quartier" autocomplete="off">') +
+      '<textarea id="rsD" rows="2" maxlength="200" placeholder="Repère précis, numéro de téléphone pour te joindre…"></textarea>' +
+      '<p class="note">' + help + '</p>' +
+      '<input class="fld" id="rsPin" type="password" inputmode="numeric" maxlength="6" placeholder="Code secret (6 chiffres)" autocomplete="off">' +
+      '<p class="note">Le paiement est pris sur ton Wallet BLK et gardé par l’application. À la fin du live, le chrono de 6 h démarre. Si tu ne reçois pas ton article, tu es remboursé.</p>' +
+      '<div class="err" id="rsErr"></div><button class="btn btn-primary" id="rsGo">Réserver et payer</button>');
+    $('#rsX', ov).addEventListener('click', function () { ov.remove(); });
+    $('#rsPin', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 6); });
+    $('#rsGo', ov).addEventListener('click', function () {
+      var q = $('#rsQ', ov).value.trim(), d = $('#rsD', ov).value.trim(), pin = $('#rsPin', ov).value, err = $('#rsErr', ov);
+      if (!q) { err.textContent = 'Indique ton quartier.'; return; }
+      if (pin.length !== 6) { err.textContent = 'Entre ton code secret à 6 chiffres.'; return; }
+      err.style.color = '#999'; err.textContent = 'Réservation…';
+      apiFetch('/api/lives/' + live.id + '/items/' + it.id + '/reserve', { method: 'POST', body: JSON.stringify({ quartier: q, details: d, pin: pin }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (r.success) { ov.remove(); showAlert(r.message || 'Réservé !', 'success'); try { loadWallet(); } catch (e) {} poll(); }
+          else { err.style.color = '#E74C3C'; err.textContent = r.message || 'Erreur, réessaie.'; if (/insuffisant/i.test(r.message || '')) err.textContent += ' Ajoute de l’argent dans ton Wallet (Profil, Déposer).'; poll(); }
+        }).catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
+    });
+  }
+
+  // ---------------------------------------------------------------- boutons dans l'application
+  var preloaded = false, countTimer = null;
+  function refreshCount() {
+    var b = $('#blkLiveBtn .n'); if (!b || document.hidden) return;
+    apiFetch('/api/lives').then(function (r) { return r.json(); }).then(function (d) { var n = (d && d.data ? d.data.length : 0); b.textContent = n; b.style.display = n ? 'flex' : 'none'; }).catch(function () {});
+  }
+  function run() {
+    var appOn = $('#appContainer.active') && !$('#blkIntro');
+    var brand = $('#pageHome .brand-row');
+    if (brand && !$('#blkLiveBtn')) {
+      var b = document.createElement('button'); b.id = 'blkLiveBtn'; b.className = 'blk-livebtn'; b.title = 'Lives en direct';
+      b.innerHTML = '<span class="d"></span>LIVE<span class="n"></span>';
+      b.addEventListener('click', openLiveList); brand.appendChild(b);
+    }
+    var row = $('#pageProfile .icon-btn-row');
+    if (row && !$('#blkStartLive')) {
+      var s = document.createElement('button'); s.id = 'blkStartLive'; s.className = 'blk-startlive'; s.textContent = 'Commencer le live';
+      s.addEventListener('click', startLive); row.insertBefore(s, row.firstChild);
+    }
+    if (appOn && !preloaded) {
+      preloaded = true;
+      setTimeout(function () { loadAgora().catch(function () {}); }, 4000);   // la vidéo est chargée d'avance pour que la caméra démarre tout de suite
+      refreshCount(); countTimer = setInterval(refreshCount, 20000);
+    }
+  }
+  var pend = false;
+  new MutationObserver(function () { if (!pend) { pend = true; requestAnimationFrame(function () { pend = false; try { run(); } catch (e) { console.warn('blk-features v10:', e); } }); } })
+    .observe(document.body, { childList: true, subtree: true });
+  run();
+  window.blkWatchLive = watchLive;
 })();

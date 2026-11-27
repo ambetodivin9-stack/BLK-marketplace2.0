@@ -109,6 +109,8 @@ if (!JWT_SECRET) {
 const COMMISSION_BUYER = 0.03;
 const COMMISSION_SELLER = 0.03;
 const ORDER_DELAY_MS = 6 * 60 * 60 * 1000;
+let AgoraToken = null;
+try { AgoraToken = require('agora-token'); } catch (e) { console.warn('[live] module agora-token non installé : jeton de secours utilisé'); }
 const ALLOWED_CATEGORIES = ['perruques', 'robes', 'hauts', 'bas', 'chaussures', 'sacs', 'bijoux', 'cosmetiques', 'accessoires'];
 const ALLOWED_GENDERS = ['homme', 'femme', 'enfant', 'unisexe'];
 const MAX_TITLE_LEN = 100;
@@ -229,7 +231,7 @@ async function ensureAdminDocument() {
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'OK', message: 'BLK Marketplace API', mode: firebaseReady ? '100% REEL' : 'SIMULATION',
-    services: { firebase: firebaseReady, imgbb: !!IMG_BB_KEY, cloudinary: cloudinaryOn(), yabetoo: !!YABETOO_SECRET }
+    services: { firebase: firebaseReady, imgbb: !!IMG_BB_KEY, cloudinary: cloudinaryOn(), yabetoo: !!YABETOO_SECRET, agora: !!(process.env.AGORA_APP_ID && process.env.AGORA_APP_CERTIFICATE), agoraModule: !!AgoraToken }
   });
 });
 app.get('/ping', (req, res) => res.send('pong'));
@@ -1418,7 +1420,7 @@ app.post('/api/orders/cancel/:orderId', authenticate, async (req, res) => {
       const buyerDoc = await t.get(buyerRef);
       const buyerBalance = buyerDoc.data()?.walletBalance || 0;
       t.update(buyerRef, { walletBalance: buyerBalance + order.totalAmount });
-      t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
+      t.update(db.collection('products').doc(order.articleId), order.isLive ? { status: 'live_closed', reservedAt: null, reservedBy: null } : { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
       t.update(orderRef, { status: 'annulé', cancelledAt: new Date(), cancelledBy: userId });
     });
 
@@ -1446,7 +1448,7 @@ async function autoExpireOrders() {
           const buyerDoc = await t.get(buyerRef);
           const buyerBalance = buyerDoc.data()?.walletBalance || 0;
           t.update(buyerRef, { walletBalance: buyerBalance + order.totalAmount });
-          t.update(db.collection('products').doc(order.articleId), { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
+          t.update(db.collection('products').doc(order.articleId), order.isLive ? { status: 'live_closed', reservedAt: null, reservedBy: null } : { status: 'active', reservedAt: null, reservedBy: null, stock: admin.firestore.FieldValue.increment(1) });
           t.update(doc.ref, { status: 'expiré', expiredAt: new Date() });
         });
         invalidateArticlesCache();
@@ -1974,6 +1976,13 @@ if (firebaseReady) {
 
 process.on('unhandledRejection', (reason) => {
   console.error('Promesse rejetée non gérée (ignorée, le serveur continue de tourner):', reason);
+});
+
+// ==================== LIVES ====================
+require('./live')(app, {
+  admin, getDb: () => db, isReady: () => firebaseReady, authenticate, requirePin, push: (uid, p) => sendPushToUser(uid, p),
+  parseAmount, commissionBuyer: COMMISSION_BUYER, commissionSeller: COMMISSION_SELLER, orderDelayMs: ORDER_DELAY_MS,
+  categories: ALLOWED_CATEGORIES, invalidateCache: invalidateArticlesCache, rateLimit, AgoraToken
 });
 
 app.listen(PORT, () => {
