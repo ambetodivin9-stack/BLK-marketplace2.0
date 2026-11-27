@@ -43,8 +43,15 @@ module.exports = function setupLive(app, ctx) {
     return '007' + zlib.deflateSync(Buffer.concat([str(signature), info])).toString('base64');
   }
   function agoraCreds(userId, liveId, isHost) {
-    const appId = process.env.AGORA_APP_ID, cert = process.env.AGORA_APP_CERTIFICATE;
-    if (!appId || !cert) throw new Error('AGORA_NON_CONFIGURE');
+    // On enlève les espaces / retours à la ligne collés par erreur dans Render, et on accepte quelques noms alternatifs
+    const clean = (v) => String(v || '').replace(/[\s"']/g, '');
+    const appId = clean(process.env.AGORA_APP_ID || process.env.AGORA_APPID);
+    const cert = clean(process.env.AGORA_APP_CERTIFICATE || process.env.AGORA_CERTIFICATE);
+    if (!appId || !cert) {
+      const missing = [!appId && 'AGORA_APP_ID', !cert && 'AGORA_APP_CERTIFICATE'].filter(Boolean).join(' et ');
+      console.error('[live] variable(s) manquante(s) sur le serveur : ' + missing);
+      const err = new Error('AGORA_NON_CONFIGURE'); err.missing = missing; throw err;
+    }
     const exp = 4 * 3600;
     let token;
     if (AgoraToken) {
@@ -56,7 +63,7 @@ module.exports = function setupLive(app, ctx) {
     return { appId, token, uid: uidFor(userId), channel: liveId, role: isHost ? 'host' : 'audience' };
   }
   function agoraError(res, e) {
-    if (e.message === 'AGORA_NON_CONFIGURE') return res.status(503).json({ success: false, message: "La vidéo en direct n'est pas encore configurée." });
+    if (e.message === 'AGORA_NON_CONFIGURE') return res.status(503).json({ success: false, message: "La vidéo en direct n'est pas encore configurée" + (e.missing ? ' (il manque ' + e.missing + ' sur le serveur).' : '.') });
     if (e.message === 'AGORA_MODULE_MANQUANT') return res.status(503).json({ success: false, message: "Module vidéo manquant sur le serveur (agora-token)." });
     console.error('[live] agora:', e.message);
     return res.status(500).json({ success: false, message: 'Erreur vidéo, réessaie.' });
