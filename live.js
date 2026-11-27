@@ -1,367 +1,407 @@
-// live.js - Lives BLK : abonnements, salle de live, articles à réserver, réservations (argent bloqué), vidéo Agora
-const crypto = require('crypto');
+/* BLK - Lives v2 : défilement vidéo par vidéo (style TikTok) + libellé "Live" sous les boutons
+   À charger APRÈS blk-features.js :  <script src="blk-live2.js"></script> */
+(function () {
+  'use strict';
+  function $(s, r) { return (r || document).querySelector(s); }
+  function dots(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
+  function loader(n, c) { return window.blkOrbit ? window.blkOrbit(n, 0, c || '#fff') : ''; }
+  function noop() {}
 
-module.exports = function setupLive(app, ctx) {
-  const { admin, getDb, isReady, authenticate, requirePin, push, parseAmount, commissionBuyer, commissionSeller,
-    orderDelayMs, categories, invalidateCache, rateLimit, AgoraToken } = ctx;
-  const db = () => getDb();
-  const FV = admin.firestore.FieldValue;
+  var CATS = { robes: 'Robes', hauts: 'Hauts', bas: 'Bas', chaussures: 'Chaussures', sacs: 'Sacs', perruques: 'Perruques', bijoux: 'Bijoux', cosmetiques: 'Cosmétiques', accessoires: 'Accessoires' };
+  var QUARTIERS = {
+    brazzaville: ['Makélékélé', 'Bacongo', 'Poto-Poto', 'Moungali', 'Ouenzé', 'Talangaï', 'Mfilou', 'Madibou', 'Djiri'],
+    pointenoire: ['Lumumba', 'Mvou-Mvou', 'Tié-Tié', 'Loandjili', 'Mongo-Mpoukou', 'Ngoyo']
+  };
 
-  const LIVE_MAX_MS = 3 * 60 * 60 * 1000;      // un live dure 3 h au maximum
-  const HOST_TIMEOUT_MS = 90 * 1000;           // si le vendeur disparaît 90 s, le live se termine
-  const MAX_ITEMS = 30;
-  const LIVES = new Map();                     // id -> état en mémoire (lecture sans Firestore)
+  var st = document.createElement('style');
+  st.textContent =
+    /* libellé sous les boutons */
+    '.blk-lw{display:flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;flex-shrink:0}' +
+    '.blk-lw.nm{margin-left:0}.blk-lw .blk-livebtn{margin-left:0}' +
+    '.blk-lw span.lb{font-size:11px;font-weight:800;color:var(--accent);line-height:1}' +
+    /* flux vertical */
+    '.bf{position:fixed;left:0;right:0;top:0;height:100%;z-index:2500;background:#000;color:#fff}' +
+    '.bf-scroll{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}' +
+    '.bf-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;background:#111 center/cover no-repeat;overflow:hidden}' +
+    '.bf-slide::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55)}' +
+    '.bf-vid{position:absolute;inset:0}.bf-vid video{object-fit:cover!important}' +
+    '.bf-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 34px;font-size:14px;color:rgba(255,255,255,.9);pointer-events:none}' +
+    '.bf-ui{position:absolute;inset:0;z-index:5;pointer-events:none}.bf-ui>*{pointer-events:auto}' +
+    '.bf-top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px 30px;display:flex;align-items:center;gap:8px;background:linear-gradient(to bottom,rgba(0,0,0,.55),rgba(0,0,0,0))}' +
+    '.bf-host{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.4);border-radius:999px;padding:3px 12px 3px 3px;min-width:0;cursor:pointer}' +
+    '.bf-host .av{width:34px;height:34px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}' +
+    '.bf-host .av img{width:100%!important;height:100%!important;aspect-ratio:auto!important;object-fit:cover}' +
+    '.bf-host .nm{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}' +
+    '.bf-chip{background:#ff3b30;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:900;letter-spacing:.6px}' +
+    '.bf-eye{background:rgba(0,0,0,.45);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700}' +
+    '.bf-x{margin-left:auto;background:rgba(0,0,0,.45);border:none;color:#fff;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer}' +
+    '.bf-side{position:absolute;right:12px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;align-items:center}' +
+    '.bf-btn{position:relative;width:56px;height:56px;border-radius:50%;border:none;background:rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;cursor:pointer}' +
+    '.bf-btn svg{width:24px;height:24px}' +
+    '.bf-btn .n{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff3b30;font-size:11px;display:none;align-items:center;justify-content:center}' +
+    '.bf-comments{position:absolute;left:0;right:76px;bottom:calc(66px + env(safe-area-inset-bottom,0px));max-height:34%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:0 12px;pointer-events:none!important;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 35%);mask-image:linear-gradient(to bottom,transparent,#000 35%)}' +
+    '.bf-c{font-size:14px;line-height:1.35;margin-top:5px;text-shadow:0 1px 4px rgba(0,0,0,.8);word-break:break-word}.bf-c b{margin-right:6px;color:#ffd9a8}.bf-c.sys{color:#9fffb4;font-style:italic}' +
+    '.bf-bottom{position:absolute;left:0;right:0;bottom:0;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;background:linear-gradient(to top,rgba(0,0,0,.6),rgba(0,0,0,0))}' +
+    '.bf-bottom input{flex:1;min-width:0;padding:12px 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.4);background:rgba(0,0,0,.35);color:#fff;font-size:16px;outline:none}.bf-bottom input::placeholder{color:rgba(255,255,255,.7)}' +
+    '.bf-send{border:none;background:var(--accent);color:#fff;border-radius:999px;padding:12px 16px;font-weight:800;font-size:14px;cursor:pointer}' +
+    '.bf-swipe{position:absolute;left:0;right:0;bottom:calc(112px + env(safe-area-inset-bottom,0px));text-align:center;font-size:12px;color:rgba(255,255,255,.85);pointer-events:none!important;animation:bfUp 1.4s ease-in-out infinite;transition:opacity .5s}' +
+    '@keyframes bfUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}' +
+    '.bf-end{position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px}' +
+    '.bf-fly{position:absolute;right:26px;bottom:200px;pointer-events:none;z-index:7;animation:bfFly 1.8s ease-out forwards}' +
+    '@keyframes bfFly{0%{transform:translate(0,0) scale(.6);opacity:1}100%{transform:translate(var(--dx,0),-260px) scale(1.2);opacity:0}}' +
+    '.bf-item{display:flex;align-items:center;gap:12px;background:var(--input-bg);border-radius:16px;padding:13px;margin-bottom:8px}' +
+    '.bf-item .t{flex:1;min-width:0}.bf-item .t b{display:block;font-size:15px}.bf-item .t span{font-size:12px;color:#999}.bf-item .p{font-weight:900;color:var(--accent);white-space:nowrap}' +
+    '.bf-res{border:none;background:var(--accent);color:#fff;border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer}' +
+    '.bf-taken{font-size:12px;font-weight:800;color:#999;background:var(--card-bg);border-radius:999px;padding:8px 12px;white-space:nowrap}';
+  document.head.appendChild(st);
 
-  // ---------------------------------------------------------------- utilitaires
-  const ucache = new Map();
-  async function userInfo(uid) {
-    const c = ucache.get(uid);
-    if (c && Date.now() - c.t < 600000) return c;
-    const s = await db().collection('users').doc(uid).get();
-    const x = s.data() || {};
-    const v = { name: x.name || 'Utilisateur', photo: x.photo || '', phone: x.phone || '', city: x.city || '', country: x.country || '', flames: x.flames || 0, t: Date.now() };
-    ucache.set(uid, v);
-    return v;
-  }
-  const firstName = (n) => String(n || 'Quelqu\'un').split(' ')[0];
-  function uidFor(userId) { return (crypto.createHash('sha256').update(String(userId)).digest().readUInt32BE(0) % 2000000000) + 1; }
-
-  // ---- Jeton Agora « AccessToken2 » de secours (utilisé seulement si le module officiel agora-token n'est pas installé)
-  function manualToken(appId, cert, channel, uid, isHost, expire) {
-    const zlib = require('zlib');
-    const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
-    const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
-    const str = (x) => { const b = Buffer.from(String(x)); return Buffer.concat([u16(b.length), b]); };
-    const hmac = (k, m) => crypto.createHmac('sha256', k).update(m).digest();
-    const issueTs = Math.floor(Date.now() / 1000), salt = Math.floor(Math.random() * 0xFFFFFFFF);
-    const privs = isHost ? { 1: expire, 2: expire, 3: expire, 4: expire } : { 1: expire };
-    const keys = Object.keys(privs).map(Number).sort((a, b) => a - b);
-    const service = Buffer.concat([u16(1), u16(keys.length), ...keys.map(k => Buffer.concat([u16(k), u32(privs[k])])), str(channel), str(uid)]);
-    const signing = hmac(u32(salt), hmac(u32(issueTs), cert));
-    const info = Buffer.concat([str(appId), u32(issueTs), u32(expire), u32(salt), u16(1), service]);
-    const signature = hmac(signing, info);
-    return '007' + zlib.deflateSync(Buffer.concat([str(signature), info])).toString('base64');
-  }
-  function agoraCreds(userId, liveId, isHost) {
-    // On enlève les espaces / retours à la ligne collés par erreur dans Render, et on accepte quelques noms alternatifs
-    const clean = (v) => String(v || '').replace(/[\s"']/g, '');
-    const appId = clean(process.env.AGORA_APP_ID || process.env.AGORA_APPID);
-    const cert = clean(process.env.AGORA_APP_CERTIFICATE || process.env.AGORA_CERTIFICATE);
-    if (!appId || !cert) {
-      const missing = [!appId && 'AGORA_APP_ID', !cert && 'AGORA_APP_CERTIFICATE'].filter(Boolean).join(' et ');
-      console.error('[live] variable(s) manquante(s) sur le serveur : ' + missing);
-      const err = new Error('AGORA_NON_CONFIGURE'); err.missing = missing; throw err;
-    }
-    const exp = 4 * 3600;
-    let token;
-    if (AgoraToken) {
-      const role = isHost ? AgoraToken.RtcRole.PUBLISHER : AgoraToken.RtcRole.SUBSCRIBER;
-      token = AgoraToken.RtcTokenBuilder.buildTokenWithUid(appId, cert, liveId, uidFor(userId), role, exp, exp);
-    } else {
-      token = manualToken(appId, cert, liveId, uidFor(userId), isHost, exp);
-    }
-    return { appId, token, uid: uidFor(userId), channel: liveId, role: isHost ? 'host' : 'audience' };
-  }
-  function agoraError(res, e) {
-    if (e.message === 'AGORA_NON_CONFIGURE') return res.status(503).json({ success: false, message: "La vidéo en direct n'est pas encore configurée" + (e.missing ? ' (il manque ' + e.missing + ' sur le serveur).' : '.') });
-    if (e.message === 'AGORA_MODULE_MANQUANT') return res.status(503).json({ success: false, message: "Module vidéo manquant sur le serveur (agora-token)." });
-    console.error('[live] agora:', e.message);
-    return res.status(500).json({ success: false, message: 'Erreur vidéo, réessaie.' });
-  }
-  const publicItem = (it) => ({ id: it.id, name: it.name, price: it.price, category: it.category, status: it.status, reservedBy: it.reservedByName || '' });
-  const publicLive = (st) => ({
-    id: st.meta.id, sellerId: st.meta.sellerId, sellerName: st.meta.sellerName, sellerPhoto: st.meta.sellerPhoto,
-    coverUrl: st.meta.coverUrl || '', city: st.meta.city || '', startedAt: st.meta.startedAt, viewers: countViewers(st),
-    itemCount: Array.from(st.items.values()).filter(i => i.status === 'available').length
-  });
-  function countViewers(st) {
-    const now = Date.now();
-    for (const [k, t] of st.viewers) if (now - t > 12000) st.viewers.delete(k);
-    return st.viewers.size;
-  }
-  function newState(meta) { return { meta, items: new Map(), comments: [], seq: 0, flames: 0, viewers: new Map(), hostSeen: Date.now(), lastComment: new Map(), flameRate: new Map() }; }
-  function addComment(st, c) {
-    st.seq += 1; st.comments.push({ seq: st.seq, ...c, at: Date.now() });
-    if (st.comments.length > 150) st.comments.splice(0, st.comments.length - 150);
-  }
-
-  // ---------------------------------------------------------------- abonnements
-  app.get('/api/follow/:sellerId', authenticate, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false });
-    try {
-      const sid = req.params.sellerId;
-      const f = await db().collection('follows').doc(`${req.userId}_${sid}`).get();
-      const u = await db().collection('users').doc(sid).get();
-      res.json({ success: true, following: f.exists, followers: (u.data() && u.data().followersCount) || 0 });
-    } catch (e) { res.status(500).json({ success: false }); }
-  });
-  app.post('/api/follow', authenticate, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false });
-    try {
-      const sid = String(req.body.sellerId || '');
-      if (!sid || sid === req.userId) return res.status(400).json({ success: false, message: 'Impossible de te suivre toi-même.' });
-      const fref = db().collection('follows').doc(`${req.userId}_${sid}`), uref = db().collection('users').doc(sid);
-      const followers = await db().runTransaction(async (t) => {
-        const f = await t.get(fref), u = await t.get(uref);
-        if (!u.exists) throw new Error('INTROUVABLE');
-        const cur = u.data().followersCount || 0;
-        if (f.exists) return cur;
-        t.set(fref, { followerId: req.userId, sellerId: sid, createdAt: new Date() });
-        t.update(uref, { followersCount: cur + 1 });
-        return cur + 1;
-      });
-      res.json({ success: true, following: true, followers });
-    } catch (e) { res.status(e.message === 'INTROUVABLE' ? 404 : 500).json({ success: false, message: 'Impossible pour le moment.' }); }
-  });
-  app.delete('/api/follow/:sellerId', authenticate, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false });
-    try {
-      const sid = req.params.sellerId;
-      const fref = db().collection('follows').doc(`${req.userId}_${sid}`), uref = db().collection('users').doc(sid);
-      const followers = await db().runTransaction(async (t) => {
-        const f = await t.get(fref), u = await t.get(uref);
-        const cur = (u.exists && u.data().followersCount) || 0;
-        if (!f.exists) return cur;
-        t.delete(fref);
-        if (u.exists) t.update(uref, { followersCount: Math.max(0, cur - 1) });
-        return Math.max(0, cur - 1);
-      });
-      res.json({ success: true, following: false, followers });
-    } catch (e) { res.status(500).json({ success: false }); }
-  });
-
-  // ---------------------------------------------------------------- lives
-  const liveLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 8, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => 'live:' + (req.userId || req.ip), message: { success: false, message: 'Trop de tentatives. Réessaie dans quelques minutes.' } });
-
-  async function notifyFollowers(st) {
-    try {
-      const snap = await db().collection('follows').where('sellerId', '==', st.meta.sellerId).limit(500).get();
-      const ids = snap.docs.map(d => d.data().followerId);
-      for (let i = 0; i < ids.length; i += 10) {
-        await Promise.all(ids.slice(i, i + 10).map(id => Promise.resolve(push(id, { title: `🔴 ${st.meta.sellerName} est en direct`, body: 'Rejoins le live maintenant !', tag: 'live-' + st.meta.id })).catch(() => {})));
-      }
-    } catch (e) { console.error('[live] notif abonnés:', e.message); }
-  }
-
-  app.get('/api/lives', authenticate, (req, res) => {
-    const list = Array.from(LIVES.values()).filter(st => st.meta.status === 'live').map(publicLive).sort((a, b) => b.startedAt - a.startedAt);
-    res.json({ success: true, data: list });
-  });
-
-  app.post('/api/lives', authenticate, liveLimiter, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false, message: 'Service indisponible' });
-    try {
-      for (const st of LIVES.values()) {
-        if (st.meta.sellerId === req.userId && st.meta.status === 'live') {   // reprise de son propre live
-          st.hostSeen = Date.now();
-          return res.json({ success: true, liveId: st.meta.id, resumed: true, agora: agoraCreds(req.userId, st.meta.id, true) });
-        }
-      }
-      const u = await userInfo(req.userId);
-      const ref = db().collection('lives').doc();
-      const creds = agoraCreds(req.userId, ref.id, true);   // échoue avant de créer le live si la vidéo n'est pas configurée
-      const meta = { id: ref.id, sellerId: req.userId, sellerName: u.name, sellerPhoto: u.photo, city: u.city, country: u.country, coverUrl: '', status: 'live', startedAt: Date.now() };
-      await ref.set({ ...meta, startedAt: new Date(meta.startedAt) });
-      const st = newState(meta); LIVES.set(ref.id, st);
-      addComment(st, { system: true, text: `${firstName(u.name)} a lancé le live` });
-      notifyFollowers(st);
-      res.json({ success: true, liveId: ref.id, agora: creds });
-    } catch (e) { agoraError(res, e); }
-  });
-
-  app.post('/api/lives/:id/token', authenticate, async (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(404).json({ success: false, message: 'Ce live est terminé.' });
-    try { res.json({ success: true, agora: agoraCreds(req.userId, st.meta.id, req.userId === st.meta.sellerId) }); } catch (e) { agoraError(res, e); }
-  });
-
-  app.post('/api/lives/:id/cover', authenticate, async (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.sellerId !== req.userId) return res.status(403).json({ success: false });
-    const url = String(req.body.url || '');
-    if (!/^https:\/\//.test(url)) return res.status(400).json({ success: false });
-    st.meta.coverUrl = url.slice(0, 600);
-    db().collection('lives').doc(st.meta.id).update({ coverUrl: st.meta.coverUrl }).catch(() => {});
-    res.json({ success: true });
-  });
-
-  app.get('/api/lives/:id/state', authenticate, async (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st) {
-      try { const d = await db().collection('lives').doc(req.params.id).get(); if (d.exists) return res.json({ success: true, status: 'ended' }); } catch (e) {}
-      return res.status(404).json({ success: false, message: 'Live introuvable' });
-    }
-    const isHost = req.userId === st.meta.sellerId;
-    if (isHost) st.hostSeen = Date.now(); else st.viewers.set(req.userId, Date.now());
-    const since = parseInt(req.query.since, 10) || 0;
-    res.json({
-      success: true, status: st.meta.status, viewers: countViewers(st), flames: st.flames,
-      host: { id: st.meta.sellerId, name: st.meta.sellerName, photo: st.meta.sellerPhoto },
-      items: Array.from(st.items.values()).map(publicItem),
-      comments: st.comments.filter(c => c.seq > since), seq: st.seq, isHost
+  // ------------------------------------------------------------ Agora
+  var URLS = ['https://download.agora.io/sdk/release/AgoraRTC_N-4.24.8.js', 'https://unpkg.com/agora-rtc-sdk-ng@4.24.8/AgoraRTC_N-production.js'];
+  var agoraP = null;
+  function loadAgora() {
+    if (window.AgoraRTC) return Promise.resolve();
+    if (agoraP) return agoraP;
+    agoraP = new Promise(function (res, rej) {
+      var i = 0;
+      (function next() {
+        if (i >= URLS.length) { agoraP = null; return rej(new Error('SDK_INDISPONIBLE')); }
+        var s = document.createElement('script'); s.src = URLS[i++];
+        s.onload = function () { window.AgoraRTC ? res() : next(); }; s.onerror = next; document.head.appendChild(s);
+      })();
     });
-  });
-
-  app.post('/api/lives/:id/comment', authenticate, async (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
-    const text = String(req.body.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-    if (!text) return res.status(400).json({ success: false });
-    const last = st.lastComment.get(req.userId) || 0;
-    if (Date.now() - last < 1200) return res.status(429).json({ success: false, message: 'Doucement 🙂' });
-    st.lastComment.set(req.userId, Date.now());
-    try { const u = await userInfo(req.userId); addComment(st, { userId: req.userId, name: u.name, photo: u.photo, text }); res.json({ success: true }); }
-    catch (e) { res.status(500).json({ success: false }); }
-  });
-
-  app.post('/api/lives/:id/flame', authenticate, (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false });
-    const now = Date.now(), r = st.flameRate.get(req.userId) || { t: now, n: 0 };
-    if (now - r.t > 60000) { r.t = now; r.n = 0; }
-    if (r.n >= 60) return res.json({ success: true, flames: st.flames });
-    r.n++; st.flameRate.set(req.userId, r); st.flames++;
-    res.json({ success: true, flames: st.flames });
-  });
-
-  // Le vendeur ajoute un article à réserver
-  app.post('/api/lives/:id/items', authenticate, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false });
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
-    if (st.meta.sellerId !== req.userId) return res.status(403).json({ success: false, message: 'Seul le vendeur peut ajouter des articles.' });
-    try {
-      const name = String(req.body.name || '').replace(/\s+/g, ' ').trim().slice(0, 60);
-      let price; try { price = parseAmount(req.body.price); } catch (e) { return res.status(400).json({ success: false, message: 'Prix invalide.' }); }
-      const category = categories.includes(req.body.category) ? req.body.category : 'accessoires';
-      if (name.length < 2) return res.status(400).json({ success: false, message: "Donne un nom à l'article." });
-      if (price < 100 || price > 5000000) return res.status(400).json({ success: false, message: 'Prix invalide.' });
-      if (st.items.size >= MAX_ITEMS) return res.status(400).json({ success: false, message: `Maximum ${MAX_ITEMS} articles par live.` });
-      const u = await userInfo(req.userId);
-      const ref = await db().collection('products').add({
-        title: name, price, category, targetGender: 'unisexe', condition: 'neuf', description: 'Article proposé pendant un live', size: '', hashtags: [],
-        images: [], image: '', sellerId: req.userId, sellerName: u.name, sellerPhoto: u.photo, sellerFlames: u.flames || 0, stock: 1, status: 'live', isLive: true,
-        liveId: st.meta.id, views: 0, favorites: 0, country: u.country, city: u.city, createdAt: new Date()
-      });
-      st.items.set(ref.id, { id: ref.id, name, price, category, status: 'available' });
-      addComment(st, { system: true, text: `Nouvel article : ${name} — ${price} FCFA` });
-      res.json({ success: true, item: publicItem(st.items.get(ref.id)) });
-    } catch (e) { console.error('[live] ajout article:', e.message); res.status(500).json({ success: false, message: 'Erreur, réessaie.' }); }
-  });
-
-  // Un spectateur réserve : argent bloqué, article réservé pour lui seul
-  app.post('/api/lives/:id/items/:itemId/reserve', authenticate, async (req, res) => {
-    if (!isReady()) return res.status(500).json({ success: false });
-    try {
-      if (!(await requirePin(req, res))) return;
-      const st = LIVES.get(req.params.id);
-      if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Ce live est terminé.' });
-      const it = st.items.get(req.params.itemId);
-      if (!it) return res.status(404).json({ success: false, message: 'Article introuvable.' });
-      const buyerId = req.userId, sellerId = st.meta.sellerId;
-      if (buyerId === sellerId) return res.status(400).json({ success: false, message: 'Tu ne peux pas réserver ton propre article.' });
-      if (it.status !== 'available' || it.locking) return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par quelqu'un d'autre." });
-      const quartier = String(req.body.quartier || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-      const details = String(req.body.details || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-      if (!quartier) return res.status(400).json({ success: false, message: 'Indique ton quartier.' });
-
-      it.locking = true;
-      try {
-        const buyerDoc = await db().collection('users').doc(buyerId).get();
-        const bd = buyerDoc.data() || {};
-        if ((bd.blockedUsers || []).includes(sellerId)) return res.status(403).json({ success: false, message: 'Tu as bloqué ce vendeur.' });
-        const price = it.price, buyerCommission = Math.round(price * commissionBuyer), totalAmount = price + buyerCommission;
-        if ((bd.walletBalance || 0) < totalAmount) return res.status(400).json({ success: false, message: 'Solde insuffisant', required: totalAmount, balance: bd.walletBalance || 0 });
-        const prodRef = db().collection('products').doc(it.id), buyerRef = db().collection('users').doc(buyerId);
-        await db().runTransaction(async (t) => {
-          const fb = await t.get(buyerRef), fp = await t.get(prodRef);
-          if (!fp.exists || fp.data().status !== 'live') throw new Error('DEJA_RESERVE');
-          const bal = fb.data().walletBalance || 0;
-          if (bal < totalAmount) throw new Error('SOLDE');
-          t.update(buyerRef, { walletBalance: bal - totalAmount });
-          t.update(prodRef, { status: 'reserved', reservedAt: new Date(), reservedBy: buyerId, stock: FV.increment(-1) });
-        });
-        const order = {
-          articleId: it.id, buyerId, sellerId, buyerPhone: bd.phone || '', amount: price, buyerCommission, totalAmount,
-          sellerCommission: Math.round(price * commissionSeller), status: 'en attente de confirmation', buyerConfirmed: false, buyerConfirmedAt: null, flamesGiven: false,
-          isLive: true, liveId: st.meta.id, quartier, deliveryDetails: details, liveHold: true,
-          expiresAt: new Date(Date.now() + LIVE_MAX_MS + orderDelayMs), createdAt: new Date()    // le vrai chrono de 6 h démarre à la fin du live
-        };
-        const oref = await db().collection('orders').add(order);
-        it.status = 'reserved'; it.reservedByName = firstName(bd.name); it.orderId = oref.id; it.buyerId = buyerId;
-        addComment(st, { system: true, text: `${firstName(bd.name)} a réservé « ${it.name} »` });
-        const seller = await userInfo(sellerId);
-        const msgText = `Réservation live : « ${it.name} » — ${price} FCFA. Quartier : ${quartier}${details ? '. Précisions : ' + details : ''}.`;
-        await db().collection('messages').add({ senderId: buyerId, receiverId: sellerId, text: msgText, audioUrl: '', audioDuration: 0, senderName: bd.name || 'Acheteur', senderPhoto: bd.photo || '',
-          receiverName: seller.name, receiverPhoto: seller.photo, participants: [buyerId, sellerId], read: false, createdAt: new Date() });
-        db().collection('notifications').add({ userId: sellerId, message: `Réservation live #${oref.id.slice(0, 8)} - ${price} FCFA`, type: 'new_order', read: false, orderId: oref.id, createdAt: new Date() }).catch(() => {});
-        Promise.resolve(push(sellerId, { title: '🛍️ Réservation live', body: `${firstName(bd.name)} a réservé « ${it.name} » — ${quartier}`, tag: 'live-res-' + oref.id })).catch(() => {});
-        if (typeof invalidateCache === 'function') invalidateCache();
-        res.json({ success: true, orderId: oref.id, totalAmount, message: 'Réservé ! Ton argent est gardé par BLK. Le chrono de 6 h démarre à la fin du live.' });
-      } finally { it.locking = false; }
-    } catch (e) {
-      if (e.message === 'DEJA_RESERVE') return res.status(409).json({ success: false, message: "Cet article vient d'être réservé par quelqu'un d'autre." });
-      if (e.message === 'SOLDE') return res.status(400).json({ success: false, message: 'Solde insuffisant' });
-      console.error('[live] réservation:', e.message);
-      res.status(500).json({ success: false, message: 'Erreur, réessaie.' });
-    }
-  });
-
-  // ---------------------------------------------------------------- fin du live
-  async function endLive(id) {
-    const st = LIVES.get(id);
-    if (!st || st.meta.status !== 'live') return null;
-    st.meta.status = 'ended'; st.meta.endedAt = Date.now();
-    const endTs = new Date(st.meta.endedAt);
-    let reserved = 0;
-    try {
-      for (const it of st.items.values()) {   // les articles non réservés sont supprimés
-        if (it.status === 'available') await db().collection('products').doc(it.id).delete().catch(() => {});
-      }
-      const snap = await db().collection('orders').where('liveId', '==', id).get();
-      for (const d of snap.docs) {             // le chrono de 6 h démarre maintenant
-        if (d.data().status === 'en attente de confirmation') {
-          await d.ref.update({ createdAt: endTs, expiresAt: new Date(endTs.getTime() + orderDelayMs), liveHold: false });
-          reserved++;
-          Promise.resolve(push(d.data().buyerId, { title: 'Live terminé', body: 'Le chrono de 6 h a démarré pour ta réservation. Confirme quand tu reçois ton article.', tag: 'live-end-' + d.id })).catch(() => {});
-        }
-      }
-      await db().collection('lives').doc(id).update({ status: 'ended', endedAt: endTs, reservedCount: reserved });
-    } catch (e) { console.error('[live] fin du live:', e.message); }
-    Promise.resolve(push(st.meta.sellerId, { title: 'Live terminé', body: `${reserved} réservation(s). Prépare tes articles : livraison sous 6 h.`, tag: 'live-end-seller-' + id })).catch(() => {});
-    setTimeout(() => LIVES.delete(id), 3 * 60 * 1000);
-    return { reserved };
+    return agoraP;
   }
-  app.post('/api/lives/:id/end', authenticate, async (req, res) => {
-    const st = LIVES.get(req.params.id);
-    if (!st) return res.json({ success: true, reserved: 0 });
-    if (st.meta.sellerId !== req.userId) return res.status(403).json({ success: false });
-    const r = await endLive(req.params.id);
-    res.json({ success: true, reserved: r ? r.reserved : 0 });
-  });
-  setInterval(() => {
-    const now = Date.now();
-    for (const st of LIVES.values()) {
-      if (st.meta.status !== 'live') continue;
-      if (now - st.meta.startedAt > LIVE_MAX_MS || now - st.hostSeen > HOST_TIMEOUT_MS) endLive(st.meta.id).catch(e => console.error('[live] auto-fin:', e.message));
-    }
-  }, 20000);
 
-  // Après un redémarrage du serveur : on retrouve les lives en cours
-  let tries = 0;
-  const boot = setInterval(async () => {
-    if (++tries > 60) return clearInterval(boot);
-    if (!isReady()) return;
-    clearInterval(boot);
-    try {
-      const snap = await db().collection('lives').where('status', '==', 'live').get();
-      for (const d of snap.docs) {
-        const x = d.data();
-        const st = newState({ id: d.id, sellerId: x.sellerId, sellerName: x.sellerName, sellerPhoto: x.sellerPhoto || '', city: x.city || '', country: x.country || '', coverUrl: x.coverUrl || '', status: 'live', startedAt: x.startedAt.toDate ? x.startedAt.toDate().getTime() : Date.now() });
-        const items = await db().collection('products').where('liveId', '==', d.id).get();
-        items.forEach(p => { const y = p.data(); if (y.status === 'live' || y.status === 'reserved') st.items.set(p.id, { id: p.id, name: y.title, price: y.price, category: y.category, status: y.status === 'live' ? 'available' : 'reserved' }); });
-        LIVES.set(d.id, st);
-      }
-    } catch (e) { console.error('[live] reprise après redémarrage:', e.message); }
-  }, 2000);
-};
+  // ------------------------------------------------------------ flux
+  var F = null;
+  var ICON_BAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
+
+  function slideHtml(l) {
+    var bg = l.coverUrl || l.sellerPhoto || '';
+    return '<div class="bf-vid"></div><div class="bf-msg"></div>';
+  }
+  function addSlide(l) {
+    var s = document.createElement('section'); s.className = 'bf-slide'; s.dataset.id = l.id;
+    var bg = l.coverUrl || l.sellerPhoto || '';
+    if (bg) s.style.backgroundImage = 'url("' + String(bg).replace(/"/g, '%22') + '")';
+    s.innerHTML = slideHtml(l);
+    $('.bf-scroll', F.el).appendChild(s);
+    F.slides.push(s);
+  }
+  function msg(i, html) { var s = F && F.slides[i]; if (!s) return; var m = $('.bf-msg', s); m.innerHTML = html || ''; }
+  function fit() {
+    if (!F) return;
+    var vv = window.visualViewport;
+    if (vv) { F.el.style.top = vv.offsetTop + 'px'; F.el.style.height = vv.height + 'px'; }
+    var sc = $('.bf-scroll', F.el); if (sc && F.idx >= 0) sc.scrollTop = F.idx * sc.clientHeight;
+  }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
+
+  function buildUI() {
+    var el = document.createElement('div'); el.className = 'bf'; el.id = 'blkFeed';
+    el.innerHTML =
+      '<div class="bf-scroll"></div>' +
+      '<div class="bf-ui">' +
+        '<div class="bf-top"><div class="bf-host" id="bfHost"><span class="av" id="bfAv"></span><span class="nm" id="bfNm"></span></div>' +
+          '<span class="bf-chip">EN DIRECT</span><span class="bf-eye" id="bfEye">0</span><button class="bf-x" id="bfClose" aria-label="Fermer">✕</button></div>' +
+        '<div class="bf-side">' +
+          '<button class="bf-btn" id="bfBag">' + ICON_BAG + '<span>Articles</span><span class="n" id="bfBagN"></span></button>' +
+          '<button class="bf-btn" id="bfFlame"><span id="bfFlameImg"></span><span id="bfFlameN">0</span></button></div>' +
+        '<div class="bf-comments" id="bfComments"></div>' +
+        '<div class="bf-swipe" id="bfSwipe" style="display:none">⌃<br>Glisse vers le haut pour le live suivant</div>' +
+        '<div class="bf-bottom"><input id="bfInput" type="text" maxlength="200" placeholder="Écris un commentaire…" autocomplete="off"><button class="bf-send" id="bfSend">Envoyer</button></div>' +
+      '</div>';
+    document.body.appendChild(el);
+    document.body.classList.add('blk-live-open');
+    $('#bfFlameImg', el).innerHTML = window.blkFlameImg ? window.blkFlameImg(0, true) : '🔥';
+    return el;
+  }
+
+  function openFeed(startId) {
+    if (F || document.getElementById('blkLive')) return;
+    if (typeof showSpinner === 'function') showSpinner(true);
+    apiFetch('/api/lives').then(function (r) { return r.json(); }).then(function (d) {
+      if (typeof showSpinner === 'function') showSpinner(false);
+      var me = (typeof currentUserId !== 'undefined') ? currentUserId : null;
+      var list = ((d && d.data) || []).filter(function (l) { return l.sellerId !== me; });
+      if (!list.length) { showAlert('Aucun live en ce moment. Reviens plus tard !', 'info'); return; }
+      start(list, startId);
+    }).catch(function () { if (typeof showSpinner === 'function') showSpinner(false); showAlert('Erreur réseau.', 'error'); });
+  }
+
+  function start(list, startId) {
+    F = { el: buildUI(), lives: [], slides: [], idx: -1, gen: 0, chain: Promise.resolve(), client: null, since: 0, flames: 0, items: [], itemSig: '', pollT: null, listT: null, seenSwipe: false };
+    list.forEach(function (l) { F.lives.push(l); addSlide(l); });
+    var sc = $('.bf-scroll', F.el), first = 0;
+    if (startId) list.forEach(function (l, i) { if (l.id === startId) first = i; });
+    fit();
+    sc.scrollTop = first * sc.clientHeight;
+    var tm = null;
+    sc.addEventListener('scroll', function () {
+      clearTimeout(tm);
+      tm = setTimeout(function () {
+        if (!F) return;
+        var i = Math.round(sc.scrollTop / sc.clientHeight);
+        if (i !== F.idx) switchTo(i);
+      }, 140);
+    }, { passive: true });
+    wire();
+    switchTo(first);
+    F.listT = setInterval(refreshList, 12000);
+  }
+
+  function refreshList() {
+    if (!F) return;
+    apiFetch('/api/lives').then(function (r) { return r.json(); }).then(function (d) {
+      if (!F) return;
+      var me = (typeof currentUserId !== 'undefined') ? currentUserId : null;
+      ((d && d.data) || []).forEach(function (l) {
+        if (l.sellerId === me) return;
+        if (!F.lives.some(function (x) { return x.id === l.id; })) { F.lives.push(l); addSlide(l); }
+      });
+    }).catch(noop);
+  }
+
+  function leave() {
+    var c = F && F.client; if (!c) return Promise.resolve();
+    try { return Promise.resolve(c.leave()).catch(noop); } catch (e) { return Promise.resolve(); }
+  }
+
+  function switchTo(i) {
+    if (!F || i < 0 || i >= F.lives.length) return;
+    var gen = ++F.gen; F.idx = i;
+    var l = F.lives[i];
+    // remise à zéro de l'écran partagé
+    F.since = 0; F.flames = 0; F.items = []; F.itemSig = '';
+    var cm = $('#bfComments'); if (cm) cm.innerHTML = '';
+    $('#bfFlameN').textContent = '0'; $('#bfEye').textContent = '0'; $('#bfBagN').style.display = 'none';
+    var nm = l.sellerName || 'Vendeur';
+    $('#bfNm').textContent = nm;
+    $('#bfAv').innerHTML = l.sellerPhoto ? safeImgTag(l.sellerPhoto, nm, 'width:100%;height:100%;object-fit:cover;') : escapeHtml(nm.charAt(0).toUpperCase());
+    F.slides.forEach(function (s, k) { if (k !== i) { var v = $('.bf-vid', s); if (v) v.innerHTML = ''; var m = $('.bf-msg', s); if (m) m.innerHTML = ''; } });
+    var old = $('.bf-end', F.el); if (old) old.remove();
+    msg(i, loader(44) + '<span>Connexion au live…</span>');
+    clearInterval(F.pollT); F.pollT = null;
+
+    // hint de défilement (une seule fois)
+    var sw = $('#bfSwipe');
+    if (sw && !F.seenSwipe && F.lives.length > 1) { F.seenSwipe = true; sw.style.display = 'block'; setTimeout(function () { sw.style.opacity = 0; setTimeout(function () { sw.style.display = 'none'; }, 600); }, 4500); }
+
+    F.chain = F.chain.then(function () { if (!F || gen !== F.gen) return; return connect(i, gen); }).catch(noop);
+  }
+
+  function connect(i, gen) {
+    var l = F.lives[i];
+    return leave().then(function () {
+      if (!F || gen !== F.gen) return;
+      return apiFetch('/api/lives/' + l.id + '/token', { method: 'POST', body: '{}' }).then(function (r) { return r.json(); });
+    }).then(function (d) {
+      if (!F || gen !== F.gen || !d) return;
+      if (!d.success) { liveEnded(i, d.message); return; }
+      return loadAgora().then(function () {
+        if (!F || gen !== F.gen) return;
+        if (!F.client) {
+          F.client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+          F.client.on('user-published', function (user, mt) {
+            F.client.subscribe(user, mt).then(function () {
+              if (!F) return;
+              if (mt === 'video') { var s = F.slides[F.idx]; if (s) { msg(F.idx, ''); user.videoTrack.play($('.bf-vid', s)); } }
+              if (mt === 'audio') user.audioTrack.play();
+            }).catch(noop);
+          });
+          F.client.on('user-unpublished', function (user, mt) { if (F && mt === 'video') msg(F.idx, '<span>Le vendeur a coupé sa caméra…</span>'); });
+        }
+        var a = d.agora;
+        return F.client.setClientRole('audience', { level: 1 }).then(function () { return F.client.join(a.appId, a.channel, a.token, a.uid); }).then(function () {
+          if (!F || gen !== F.gen) return;
+          (F.client.remoteUsers || []).forEach(function (u) {
+            if (u.hasVideo) F.client.subscribe(u, 'video').then(function () { var s = F && F.slides[F.idx]; if (s) { msg(F.idx, ''); u.videoTrack.play($('.bf-vid', s)); } }).catch(noop);
+            if (u.hasAudio) F.client.subscribe(u, 'audio').then(function () { u.audioTrack.play(); }).catch(noop);
+          });
+          setTimeout(function () { if (F && gen === F.gen && $('.bf-msg', F.slides[i]).innerHTML.indexOf('Connexion') > -1) msg(i, '<span>En attente de la vidéo du vendeur…</span>'); }, 4000);
+          F.pollT = setInterval(poll, 2000); poll();
+        });
+      });
+    }).catch(function (e) {
+      if (!F || gen !== F.gen) return;
+      console.error('live feed:', e);
+      var m = String((e && (e.message || e.code)) || '');
+      msg(i, '<span>' + (/SDK_INDISPONIBLE/.test(m) ? 'Impossible de charger la vidéo. Vérifie ta connexion.' : 'Connexion au live impossible. Glisse vers le haut ou réessaie plus tard.') + '</span>');
+    });
+  }
+
+  function liveEnded(i, text) {
+    if (!F || F.over === F.gen) return;
+    F.over = F.gen;
+    clearInterval(F.pollT); F.pollT = null;
+    var s = F.slides[i]; if (!s) return;
+    var more = F.idx < F.lives.length - 1;
+    var d = document.createElement('div'); d.className = 'bf-end';
+    d.innerHTML = '<div style="font-size:20px;font-weight:900;">Le live est terminé</div><div style="font-size:14px;opacity:.85;max-width:300px;">' +
+      (text || 'Si tu as réservé un article, le chrono de 6 h démarre maintenant : retrouve-le dans « Commandes ».') + '</div>' +
+      '<button class="btn btn-primary" id="bfNext" style="width:auto;padding:12px 28px;">' + (more ? 'Live suivant' : 'Fermer') + '</button>';
+    F.el.appendChild(d);
+    $('#bfNext', d).addEventListener('click', function () {
+      if (more) { var sc = $('.bf-scroll', F.el); sc.scrollTo({ top: (F.idx + 1) * sc.clientHeight, behavior: 'smooth' }); d.remove(); }
+      else close();
+    });
+    try { loadWallet(); loadOrders(); } catch (e) {}
+  }
+
+  function addComments(list) {
+    var box = $('#bfComments'); if (!box || !list.length) return;
+    list.forEach(function (c) {
+      var d = document.createElement('div'); d.className = 'bf-c' + (c.system ? ' sys' : '');
+      d.innerHTML = c.system ? escapeHtml(c.text) : '<b>' + escapeHtml((c.name || '').split(' ')[0]) + '</b>' + escapeHtml(c.text);
+      box.appendChild(d);
+    });
+    while (box.children.length > 40) box.removeChild(box.firstChild);
+  }
+  function fly(n) {
+    if (!F) return;
+    for (var i = 0; i < Math.min(n, 5); i++) {
+      (function (k) { setTimeout(function () {
+        if (!F) return;
+        var f = document.createElement('div'); f.className = 'bf-fly'; f.style.setProperty('--dx', (Math.random() * 60 - 40) + 'px');
+        f.innerHTML = window.blkFlameImg ? window.blkFlameImg(0) : '🔥'; F.el.appendChild(f); setTimeout(function () { f.remove(); }, 1900);
+      }, k * 140); })(i);
+    }
+  }
+
+  function poll() {
+    if (!F) return;
+    var gen = F.gen, l = F.lives[F.idx]; if (!l) return;
+    apiFetch('/api/lives/' + l.id + '/state?since=' + F.since).then(function (r) { return r.json(); }).then(function (d) {
+      if (!F || gen !== F.gen) return;
+      if (!d.success || d.status === 'ended') return liveEnded(F.idx);
+      F.since = d.seq;
+      $('#bfEye').textContent = d.viewers + ' en direct';
+      if (d.flames > F.flames) fly(d.flames - F.flames);
+      F.flames = d.flames; $('#bfFlameN').textContent = d.flames;
+      addComments(d.comments || []);
+      F.items = d.items || [];
+      var av = F.items.filter(function (x) { return x.status === 'available'; }).length, bn = $('#bfBagN');
+      bn.textContent = av; bn.style.display = av ? 'flex' : 'none';
+      if (F.sheet && F.sheet.isConnected) renderSheet();
+    }).catch(noop);
+  }
+
+  function close() {
+    if (!F) return;
+    var f = F; F = null;
+    clearInterval(f.pollT); clearInterval(f.listT);
+    try { if (f.client) f.client.leave(); } catch (e) {}
+    f.el.remove();
+    var e2 = $('.bf-end'); if (e2) e2.remove();
+    document.body.classList.remove('blk-live-open');
+  }
+
+  // ------------------------------------------------------------ interactions
+  function sheet(html) {
+    var ov = document.createElement('div'); ov.className = 'blk-sheet-ov'; ov.style.zIndex = 9800;
+    ov.innerHTML = '<div class="blk-sheet">' + html + '</div>'; document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+    return ov;
+  }
+  function renderSheet() {
+    var box = $('#bfList', F.sheet); if (!box) return;
+    var sig = JSON.stringify(F.items.map(function (i) { return [i.id, i.status]; }));
+    if (F.itemSig === sig) return; F.itemSig = sig;
+    if (!F.items.length) { box.innerHTML = '<p class="empty">Aucun article pour le moment.</p>'; return; }
+    box.innerHTML = '';
+    F.items.forEach(function (it) {
+      var row = document.createElement('div'); row.className = 'bf-item';
+      var right = it.status === 'available' ? '<button class="bf-res">Réserver</button>' : '<span class="bf-taken">Réservé' + (it.reservedBy ? ' · ' + escapeHtml(it.reservedBy) : '') + '</span>';
+      row.innerHTML = '<div class="t"><b>' + escapeHtml(it.name) + '</b><span>' + escapeHtml(CATS[it.category] || it.category || '') + '</span></div><div class="p">' + dots(it.price) + ' FCFA</div>' + right;
+      var b = $('.bf-res', row); if (b) b.addEventListener('click', function () { openReserve(it); });
+      box.appendChild(row);
+    });
+  }
+  function openBag() {
+    F.itemSig = '';
+    F.sheet = sheet('<div class="blk-sheet-h"><strong>Articles du live</strong><button class="blk-x" id="bgX">✕</button></div><div id="bfList"></div>');
+    $('#bgX', F.sheet).addEventListener('click', function () { F.sheet.remove(); });
+    renderSheet();
+  }
+
+  function openReserve(it) {
+    if (!F) return;
+    var liveId = F.lives[F.idx].id;
+    var u = (typeof currentUser !== 'undefined' && currentUser) || {}, Q = QUARTIERS[norm(u.city)];
+    var fee = Math.round(it.price * 0.03), total = it.price + fee;
+    var help = Q ? 'Choisis ton arrondissement, puis écris un repère précis (arrêt, école, marché, église…) pour que le vendeur te trouve.'
+      : 'Écris ton quartier et un repère précis (rue, école, marché…) pour que le vendeur te trouve' + (u.city ? ' à ' + escapeHtml(u.city) : '') + '.';
+    var ov = sheet('<div class="blk-sheet-h"><strong>Réserver</strong><button class="blk-x" id="rsX">✕</button></div>' +
+      '<div style="background:var(--input-bg);border-radius:16px;padding:12px 14px;margin-bottom:12px;"><b>' + escapeHtml(it.name) + '</b>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px;"><span>Prix</span><span>' + dots(it.price) + ' FCFA</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:14px;"><span>Commission BLK (3%)</span><span>' + dots(fee) + ' FCFA</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:4px;"><span>Total</span><span style="color:var(--accent);">' + dots(total) + ' FCFA</span></div></div>' +
+      (Q ? '<select id="rsQ"><option value="">Mon arrondissement</option>' + Q.map(function (q) { return '<option>' + q + '</option>'; }).join('') + '</select>' : '<input class="fld" id="rsQ" type="text" maxlength="80" placeholder="Mon quartier" autocomplete="off">') +
+      '<textarea id="rsD" rows="2" maxlength="200" placeholder="Repère précis, numéro de téléphone pour te joindre…"></textarea>' +
+      '<p class="note">' + help + '</p>' +
+      '<input class="fld" id="rsPin" type="password" inputmode="numeric" maxlength="6" placeholder="Code secret (6 chiffres)" autocomplete="off">' +
+      '<p class="note">Le paiement est pris sur ton Wallet BLK et gardé par l’application. À la fin du live, le chrono de 6 h démarre. Si tu ne reçois pas ton article, tu es remboursé.</p>' +
+      '<div class="err" id="rsErr"></div><button class="btn btn-primary" id="rsGo">Réserver et payer</button>');
+    $('#rsX', ov).addEventListener('click', function () { ov.remove(); });
+    $('#rsPin', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 6); });
+    $('#rsGo', ov).addEventListener('click', function () {
+      var q = $('#rsQ', ov).value.trim(), d = $('#rsD', ov).value.trim(), pin = $('#rsPin', ov).value, err = $('#rsErr', ov);
+      if (!q) { err.textContent = 'Indique ton quartier.'; return; }
+      if (pin.length !== 6) { err.textContent = 'Entre ton code secret à 6 chiffres.'; return; }
+      err.style.color = '#999'; err.textContent = 'Réservation…';
+      apiFetch('/api/lives/' + liveId + '/items/' + it.id + '/reserve', { method: 'POST', body: JSON.stringify({ quartier: q, details: d, pin: pin }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (r.success) { ov.remove(); if (F && F.sheet) F.sheet.remove(); showAlert(r.message || 'Réservé !', 'success'); try { loadWallet(); } catch (e) {} poll(); }
+          else { err.style.color = '#E74C3C'; err.textContent = r.message || 'Erreur, réessaie.'; if (/insuffisant/i.test(r.message || '')) err.textContent += ' Ajoute de l’argent dans ton Wallet (Profil, Déposer).'; poll(); }
+        }).catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
+    });
+  }
+
+  function wire() {
+    $('#bfClose').addEventListener('click', close);
+    $('#bfBag').addEventListener('click', openBag);
+    $('#bfHost').addEventListener('click', function () {
+      if (!F || !window.blkShowSellerProfile) return;
+      var l = F.lives[F.idx];
+      window.blkShowSellerProfile(l.sellerId, l.sellerName || 'Vendeur');
+      var p = document.getElementById('blkSP'); if (p) p.style.zIndex = 9600;   // au-dessus du live
+    });
+    function send() {
+      var i = $('#bfInput'), t = i.value.trim(); if (!t || !F) return; i.value = '';
+      apiFetch('/api/lives/' + F.lives[F.idx].id + '/comment', { method: 'POST', body: JSON.stringify({ text: t }) }).then(poll).catch(noop);
+    }
+    $('#bfSend').addEventListener('click', send);
+    $('#bfInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') send(); });
+    $('#bfInput').addEventListener('focus', function () { [60, 250, 600].forEach(function (t) { setTimeout(function () { window.scrollTo(0, 0); fit(); }, t); }); });
+    $('#bfFlame').addEventListener('click', function () {
+      if (!F) return; fly(1);
+      apiFetch('/api/lives/' + F.lives[F.idx].id + '/flame', { method: 'POST', body: '{}' }).catch(noop);
+    });
+  }
+
+  // ------------------------------------------------------------ libellé "Live" + remplacement du bouton
+  function decorate() {
+    var b = document.getElementById('blkLiveBtn');
+    if (b && !b.dataset.l2) {
+      var nb = b.cloneNode(true); nb.dataset.l2 = '1';   // le clone n'a plus l'ancien comportement
+      var w = document.createElement('div'); w.className = 'blk-lw';
+      b.parentNode.replaceChild(w, b); w.appendChild(nb);
+      w.insertAdjacentHTML('beforeend', '<span class="lb">Live</span>');
+      nb.addEventListener('click', function () { openFeed(); });
+    }
+    var s = document.getElementById('blkStartLive');
+    if (s && !s.dataset.l2) {
+      s.dataset.l2 = '1';
+      var w2 = document.createElement('div'); w2.className = 'blk-lw nm';
+      s.parentNode.insertBefore(w2, s); w2.appendChild(s);
+      w2.insertAdjacentHTML('beforeend', '<span class="lb">Live</span>');
+    }
+  }
+  var pend = false;
+  new MutationObserver(function () { if (!pend) { pend = true; requestAnimationFrame(function () { pend = false; try { decorate(); } catch (e) {} }); } })
+    .observe(document.body, { childList: true, subtree: true });
+  decorate();
+  window.blkWatchLive = function (id) { openFeed(id); };
+})();
