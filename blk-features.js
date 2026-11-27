@@ -1202,11 +1202,12 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
 
   var st = document.createElement('style');
   st.textContent =
-    '.blk-livebtn{margin-left:auto;width:62px;height:62px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff3b30,#ff8c00);color:#fff;font-weight:900;font-size:13px;letter-spacing:.6px;position:relative;box-shadow:0 8px 20px rgba(255,59,48,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;animation:blkPulse 2.2s ease-in-out infinite}' +
+    '.blk-livebtn{margin-left:auto;position:relative;width:42px;height:42px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);box-shadow:0 2px 8px var(--shadow);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}' +
+    '.blk-livebtn:active,.blk-startlive:active{transform:scale(.94)}' +
+    '.blk-livebtn svg,.blk-startlive svg{width:20px;height:20px}' +
     '@keyframes blkPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}' +
-    '.blk-livebtn .d{width:8px;height:8px;border-radius:50%;background:#fff}' +
-    '.blk-livebtn .n{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#fff;color:#ff3b30;font-size:11px;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2)}' +
-    '.blk-startlive{margin-right:auto;width:64px;height:64px;border-radius:50%;border:none;background:linear-gradient(135deg,#C0392B,#ff3b30);color:#fff;font-weight:800;font-size:9.5px;line-height:1.15;text-align:center;padding:6px;box-shadow:0 8px 20px rgba(192,57,43,.4);cursor:pointer;flex-shrink:0}' +
+        '.blk-livebtn .n{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ff3b30;color:#fff;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg)}' +
+    '.blk-startlive{width:42px;height:42px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);box-shadow:0 2px 8px var(--shadow);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}' +
     '.blk-livelist{position:fixed;inset:0;z-index:1700;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 40px;animation:blkSpIn .3s ease}' +
     '.bll-top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 18px) 0 12px;font-size:17px}' +
     '.bll-card{position:relative;border-radius:22px;overflow:hidden;margin-bottom:14px;aspect-ratio:3/4;background:#222 center/cover no-repeat;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.18)}' +
@@ -1551,6 +1552,7 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   }
 
   // ---------------------------------------------------------------- boutons dans l'application
+  var CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>';
   var preloaded = false, countTimer = null;
   function refreshCount() {
     var b = $('#blkLiveBtn .n'); if (!b || document.hidden) return;
@@ -1561,12 +1563,12 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     var brand = $('#pageHome .brand-row');
     if (brand && !$('#blkLiveBtn')) {
       var b = document.createElement('button'); b.id = 'blkLiveBtn'; b.className = 'blk-livebtn'; b.title = 'Lives en direct';
-      b.innerHTML = '<span class="d"></span>LIVE<span class="n"></span>';
+      b.setAttribute('aria-label', 'Lives en direct'); b.innerHTML = CAM + '<span class="n"></span>';
       b.addEventListener('click', openLiveList); brand.appendChild(b);
     }
     var row = $('#pageProfile .icon-btn-row');
     if (row && !$('#blkStartLive')) {
-      var s = document.createElement('button'); s.id = 'blkStartLive'; s.className = 'blk-startlive'; s.textContent = 'Commencer le live';
+      var s = document.createElement('button'); s.id = 'blkStartLive'; s.className = 'blk-startlive'; s.title = 'Commencer un live'; s.setAttribute('aria-label', 'Commencer un live'); s.innerHTML = CAM;
       s.addEventListener('click', startLive); row.insertBefore(s, row.firstChild);
     }
     if (appOn && !preloaded) {
