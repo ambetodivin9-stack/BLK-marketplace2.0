@@ -212,8 +212,9 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
       f = f.map(function (p, i) {
         var s = (p.country && norm(p.country) === norm(u.country)) ? ((p.city && u.city && norm(p.city) === norm(u.city)) ? 2 : 1) : 0;
         return { p: p, i: i, s: s };
-      }).sort(function (a, b) { return b.s - a.s || a.i - b.i; }).map(function (x) { return x.p; });
+      }).sort(function (a, b) { return b.s - a.s || ((b.p.sellerFlames || 0) - (a.p.sellerFlames || 0)) || a.i - b.i; }).map(function (x) { return x.p; });
     }
+    if (!u.country) f = f.map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) { return ((b.p.sellerFlames || 0) - (a.p.sellerFlames || 0)) || a.i - b.i; }).map(function (x) { return x.p; });
     var feat = (selectedCategory === 'all' && !q) ? pickFeatured(f) : [];
     var list = feat.concat(f.filter(function (p) { return feat.indexOf(p) < 0; }));
     grid.innerHTML = '';
@@ -582,7 +583,8 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
         '<div class="blk-sp-stats">' +
           '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : fl + '<span>' + flames + '</span>') + '</div><div class="l">Flammes</div></div>' +
           '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : statIcon('doc') + '<span>' + list.length + '</span>') + '</div><div class="l">Articles</div></div>' +
-          '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : '<span>' + (flames >= 100 ? 'Top' : (flames >= 10 ? 'Fiable' : 'Nouveau')) + '</span>') + '</div><div class="l">Niveau</div></div>' +
+          '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : '<span>' + ((state.fstats && state.fstats.followers != null) ? state.fstats.followers : ((state.follow && state.follow.followers) || 0)) + '</span>') + '</div><div class="l">Abonnés</div></div>' +
+          '<div class="blk-sp-stat"><div class="v">' + (loading ? whiteLoader : '<span>' + ((state.fstats && state.fstats.following) || 0) + '</span>') + '</div><div class="l">Abonnements</div></div>' +
         '</div>' + (!mine && !loading ? '<button class="blk-follow" id="blkFollowBtn">' + (state.follow && state.follow.following ? 'Abonné' : 'Suivre') + '</button>' : '');
       if (mine) bindEdit();
       var fb = $('#blkFollowBtn', pg);
@@ -617,9 +619,10 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     Promise.all([
       apiFetch('/api/users/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; }),
       apiFetch('/api/articles/seller/' + id).then(function (r) { return r.json(); }).catch(function () { return { data: [] }; }),
-      apiFetch('/api/follow/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; })
+      apiFetch('/api/follow/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; }),
+      apiFetch('/api/follow/stats/' + id).then(function (r) { return r.json(); }).catch(function () { return {}; })
     ]).then(function (res) {
-      state.follow = res[2] || {};
+      state.follow = res[2] || {}; state.fstats = (res[3] && res[3].success) ? res[3] : null;
       if (res[0] && res[0].success && res[0].data) state.u = res[0].data;
       state.list = ((res[1] && res[1].data) || []).filter(function (a) { return a.status === 'active'; });
       paint();
@@ -1283,6 +1286,10 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     'body.blk-live-open{overflow:hidden}' +
     'body.blk-live-open .blk-sp{z-index:3000}' +
     'body.blk-live-open .modal-overlay{z-index:3100}' +
+    '.bps{display:flex;gap:8px;margin:10px 0}' +
+    '.bps-i{flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:12px 6px;text-align:center}' +
+    '.bps-i b{display:block;font-size:20px;color:var(--accent)}.bps-i span{font-size:11px;color:#999}' +
+    '.bl-buy{border:none;border-radius:999px;background:rgba(255,255,255,.92);color:#E74C3C;font-weight:800;font-size:11px;padding:6px 11px;cursor:pointer;margin-top:2px}' +
     'body.blk-live-open #alertBox{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;right:12px;z-index:9900;box-shadow:0 8px 24px rgba(0,0,0,.3)}' +
     '.blk-follow{width:100%;margin-top:14px;border:2px solid rgba(255,255,255,.9);background:transparent;color:#fff;border-radius:999px;padding:12px;font-weight:800;font-size:15px;cursor:pointer}' +
     '.blk-sheet select,.blk-sheet textarea{width:100%;padding:13px;border:1.5px solid var(--border);border-radius:14px;font-size:16px;background:var(--input-bg);color:var(--text);margin-bottom:10px;font-family:inherit}' +
@@ -1355,7 +1362,7 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
           '<button class="bl-x' + (isHost ? ' end' : '') + '" id="blClose">' + (isHost ? 'Terminer' : 'Quitter') + '</button>' +
           '<div class="bl-row2"><span class="bl-chip">EN DIRECT</span><span class="bl-eye" id="blEye">0 spectateur</span></div></div>' +
         '<div class="bl-shelf" id="blShelf"></div><div class="bl-side">' + (isHost ? '<button class="bl-add" id="blAdd">Ajouter l’article en live</button>' : '') +
-          '<button class="bl-flame' + (isHost ? ' host' : '') + '" id="blFlame" type="button"><span class="in"><span id="blFlameImg"></span><span id="blFlameN">0</span></span></button><div class="bl-fl-lab" id="blFlLab"></div></div>' +
+          '<button class="bl-flame' + (isHost ? ' host' : '') + '" id="blFlame" type="button"><span class="in"><span id="blFlameImg"></span><span id="blFlameN">0</span></span></button><div class="bl-fl-lab" id="blFlLab"></div>' + (isHost ? '' : '<button class="bl-buy" id="blBuy" type="button">+ Flammes</button>') + '</div>' +
         '<div class="bl-comments" id="blComments"></div>' +
         '<div class="bl-hint" id="blHint">Glisse vers la gauche pour voir les articles</div>' +
         (isHost ? '' : '<div class="bl-bottom"><input id="blInput" type="text" maxlength="200" placeholder="Écris un commentaire…" autocomplete="off"><button class="bl-send" id="blSend">Envoyer</button></div>') +
@@ -1469,7 +1476,7 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   function paintFlLabel() {
     var l = $('#blFlLab'); if (!l || !live) return;
     if (live.isHost) { l.textContent = ''; return; }
-    l.textContent = live.freeLeft > 0 ? ('Gratuit : ' + live.freeLeft + '/' + FREE_FLAMES) : (live.credit > 0 ? (live.credit + ' flamme' + (live.credit > 1 ? 's' : '') + ' achetée' + (live.credit > 1 ? 's' : '')) : '10 flammes = 100 FCFA');
+    l.textContent = live.freeLeft > 0 ? ('Gratuit : ' + live.freeLeft + '/' + FREE_FLAMES) : (live.credit > 0 ? (live.credit + ' flamme' + (live.credit > 1 ? 's' : '') + ' achetée' + (live.credit > 1 ? 's' : '')) : '10 flammes = 1 000 FCFA');
   }
   function setFlameTotal(n) { if (!live) return; live.flames = n; var fn = $('#blFlameN'); if (fn) fn.textContent = n; }
   function tapFlame() {
@@ -1490,27 +1497,27 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
       }).catch(function () { if (live) live.sending = false; });
   }
   function openFlamePack() {
-    if (!live || live.isHost || $('#blPack')) return; var id = live.id;
-    var ov = sheet('<div id="blPack"></div><div class="blk-sheet-h"><strong>Envoyer plus de flammes</strong><button class="blk-x" id="fpX">✕</button></div>' +
-      '<p class="note">Tu as utilisé tes ' + FREE_FLAMES + ' flammes gratuites. Pack : <b>10 flammes pour 100 FCFA</b>, pris sur ton Wallet.</p>' +
+    if ((live && live.isHost) || $('#blPack')) return; var inLive = !!live, id = inLive ? live.id : null;
+    var ov = sheet('<div id="blPack"></div><div class="blk-sheet-h"><strong>Acheter des flammes</strong><button class="blk-x" id="fpX">✕</button></div>' +
+      '<p class="note">' + (inLive ? 'Tu as utilisé tes ' + FREE_FLAMES + ' flammes gratuites. ' : 'Les flammes achetées servent à envoyer des flammes pendant les lives. ') + 'Pack : <b>10 flammes pour 1 000 FCFA</b>, pris sur ton Wallet.</p>' +
       '<p class="note" id="fpBal" style="font-weight:700;">Vérification de ton solde…</p>' +
       '<input class="fld" id="fpPin" type="password" inputmode="numeric" maxlength="6" placeholder="Code secret (6 chiffres)" autocomplete="off">' +
-      '<div class="err" id="fpErr"></div><button class="btn btn-primary" id="fpGo">Acheter 10 flammes (100 FCFA)</button>');
+      '<div class="err" id="fpErr"></div><button class="btn btn-primary" id="fpGo">Acheter 10 flammes (1 000 FCFA)</button>');
     $('#fpX', ov).addEventListener('click', function () { ov.remove(); });
     $('#fpPin', ov).addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 6); });
     apiFetch('/api/wallet/' + currentUserId).then(function (r) { return r.json(); }).then(function (w) {
       var bal = Number(w && w.balance) || 0, be = $('#fpBal', ov); if (!be) return;
-      if (bal >= 100) { be.style.color = '#2ECC71'; be.textContent = 'Ton solde : ' + dots(bal) + ' FCFA. Entre ton code secret.'; }
-      else { be.style.color = '#E74C3C'; be.textContent = 'Solde insuffisant : il te manque ' + dots(100 - bal) + ' FCFA. Dépose de l’argent dans ton Wallet (Profil, Déposer).'; $('#fpPin', ov).style.display = 'none'; var g = $('#fpGo', ov); g.disabled = true; g.style.opacity = '.5'; }
+      if (bal >= 1000) { be.style.color = '#2ECC71'; be.textContent = 'Ton solde : ' + dots(bal) + ' FCFA. Entre ton code secret.'; }
+      else { be.style.color = '#E74C3C'; be.textContent = 'Solde insuffisant : il te manque ' + dots(1000 - bal) + ' FCFA. Dépose de l’argent dans ton Wallet (Profil, Déposer).'; $('#fpPin', ov).style.display = 'none'; var g = $('#fpGo', ov); g.disabled = true; g.style.opacity = '.5'; }
     }).catch(function () { var be = $('#fpBal', ov); if (be) be.style.display = 'none'; });
     $('#fpGo', ov).addEventListener('click', function () {
       var pin = $('#fpPin', ov).value, err = $('#fpErr', ov);
       if (pin.length !== 6) { err.textContent = 'Entre ton code secret à 6 chiffres.'; return; }
       err.style.color = '#999'; err.textContent = 'Achat en cours…';
-      apiFetch('/api/lives/' + id + '/flames/buy', { method: 'POST', body: JSON.stringify({ pin: pin }) })
+      apiFetch(inLive ? '/api/lives/' + id + '/flames/buy' : '/api/flames/buy', { method: 'POST', body: JSON.stringify({ pin: pin }) })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d && d.success) { if (live && live.id === id) { live.credit = d.credit; paintFlLabel(); } ov.remove(); showAlert('10 flammes ajoutées. Continue de taper sur la flamme !', 'success'); try { loadWallet(); } catch (e) {} }
+          if (d && d.success) { if (live && inLive && live.id === id) { live.credit = d.credit; paintFlLabel(); } var bc = $('#bpCredit'); if (bc) bc.textContent = d.credit; ov.remove(); showAlert('10 flammes ajoutées. Continue de taper sur la flamme !', 'success'); try { loadWallet(); } catch (e) {} }
           else { err.style.color = '#E74C3C'; err.textContent = (d && d.message) || 'Erreur, réessaie.'; }
         }).catch(function () { err.style.color = '#E74C3C'; err.textContent = 'Erreur réseau.'; });
     });
@@ -1578,6 +1585,7 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
       inp.addEventListener('focus', function () { [60, 250, 600].forEach(function (t) { setTimeout(function () { window.scrollTo(0, 0); fitLive(); }, t); }); });
     }
     $('#blFlame').addEventListener('click', tapFlame);
+    var bb = $('#blBuy'); if (bb) bb.addEventListener('click', function () { openFlamePack(); });
     $$('#blAdd,#blAdd2').forEach(function (b) { b.addEventListener('click', function () { openAddItem(id); }); });
     $('#bliBack').addEventListener('click', function () { setPage(0); });
     setTimeout(function () { var h = $('#blHint'); if (h) h.style.opacity = 0; }, 7000);
@@ -1774,6 +1782,28 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
     var b = $('#blkLiveBtn .n'); if (!b || document.hidden) return;
     apiFetch('/api/lives').then(function (r) { return r.json(); }).then(function (d) { var n = (d && d.data ? d.data.length : 0); b.textContent = n; b.style.display = n ? 'flex' : 'none'; }).catch(function () {});
   }
+
+  function ensureProfStats() {
+    var card = $('#btnFlameInfo'); if (!card || $('#blkProfStats')) return;
+    var d = document.createElement('div'); d.id = 'blkProfStats';
+    d.innerHTML = '<div class="bps"><div class="bps-i"><b id="bpFollowers">0</b><span>Abonnés</span></div><div class="bps-i"><b id="bpFollowing">0</b><span>Abonnements</span></div><div class="bps-i"><b id="bpCredit">0</b><span>Flammes achetées</span></div></div>' +
+      '<button class="btn btn-primary" id="bpBuy" type="button" style="margin-bottom:12px;">Acheter 10 flammes (1 000 FCFA)</button>';
+    card.insertAdjacentElement('afterend', d);
+    $('#bpBuy', d).addEventListener('click', function () { openFlamePack(); });
+  }
+  function loadProfStats() {
+    if (typeof currentUserId === 'undefined' || !currentUserId) return;
+    ensureProfStats();
+    apiFetch('/api/follow/stats/' + currentUserId).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.success) { var a = $('#bpFollowers'), b = $('#bpFollowing'); if (a) a.textContent = d.followers; if (b) b.textContent = d.following; }
+    }).catch(function () {});
+    apiFetch('/api/flames/credit').then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.success) { var c = $('#bpCredit'); if (c) c.textContent = d.credit; }
+    }).catch(function () {});
+  }
+  var _lf0 = window.loadFlames;
+  if (typeof _lf0 === 'function') window.loadFlames = function () { var r = _lf0.apply(this, arguments); try { loadProfStats(); } catch (e) {} return r; };
+
   function run() {
     var appOn = $('#appContainer.active') && !$('#blkIntro');
     var brand = $('#pageHome .brand-row');
