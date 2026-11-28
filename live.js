@@ -76,6 +76,18 @@ module.exports = function setupLive(app, ctx) {
     console.error('[live] agora:', e.message);
     return res.status(500).json({ success: false, message: 'Erreur vidéo, réessaie.' });
   }
+  // ---- Diagnostic Agora (protégé par CRON_SECRET) : montre ce que le serveur lit vraiment, sans révéler les clés
+  app.get('/api/lives/diag', (req, res) => {
+    const CRON = process.env.CRON_SECRET || '';
+    const a = Buffer.from(String(req.query.key || '')), b = Buffer.from(CRON);
+    if (!CRON || a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.sendStatus(403);
+    const clean = (v) => String(v || '').replace(/[\s"']/g, '');
+    const appId = clean(process.env.AGORA_APP_ID || process.env.AGORA_APPID);
+    const cert = clean(process.env.AGORA_APP_CERTIFICATE || process.env.AGORA_CERTIFICATE);
+    const mask = (v, head, tail) => v ? ((head ? v.slice(0, head) : '') + '…' + v.slice(-tail) + ' (' + v.length + ' caractères)') : 'ABSENT';
+    res.json({ appId: mask(appId, 4, 4), certificat: mask(cert, 0, 4), memeValeur: !!appId && appId === cert, moduleOfficielInstalle: !!AgoraToken, heureServeur: new Date().toISOString() });
+  });
+
   const publicItem = (it) => ({ id: it.id, name: it.name, price: it.price, category: it.category, status: it.left > 0 ? 'available' : 'sold', qty: it.qty || 1, left: it.left, reservedBy: it.reservedByName || '' });
   const publicLive = (st) => ({
     id: st.meta.id, sellerId: st.meta.sellerId, sellerName: st.meta.sellerName, sellerPhoto: st.meta.sellerPhoto,
