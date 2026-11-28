@@ -12,7 +12,7 @@ module.exports = function setupLive(app, ctx) {
   const MAX_ITEMS = 30;
   const FREE_FLAMES = 3;            // flammes gratuites par spectateur et par live
   const FLAME_PACK = 10;            // un pack = 10 flammes
-  const FLAME_PACK_PRICE = 100;     // ... pour 100 FCFA
+  const FLAME_PACK_PRICE = 1000;    // ... pour 1000 FCFA (versés au compte admin)
   const INFLIGHT = new Set();
   const LIVES = new Map();                     // id -> état en mémoire (lecture sans Firestore)
 
@@ -271,12 +271,10 @@ module.exports = function setupLive(app, ctx) {
     } catch (e) { console.error('[live] flamme:', e.message); res.status(500).json({ success: false, message: 'Erreur, réessaie.' }); }
   });
 
-  // Achat d'un pack de flammes : 10 flammes = 100 FCFA, pris sur le Wallet (code secret obligatoire)
-  app.post('/api/lives/:id/flames/buy', authenticate, async (req, res) => {
+  // Achat d'un pack de flammes : 10 flammes = 1000 FCFA, pris sur le Wallet (code secret obligatoire).
+  // L'argent va sur le compte admin, puis est viré tout de suite vers le numéro Mobile Money de l'admin.
+  async function buyFlamePack(req, res, st) {
     if (!isReady()) return res.status(500).json({ success: false });
-    const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
-    if (req.userId === st.meta.sellerId) return res.status(403).json({ success: false, message: 'Le vendeur ne peut pas acheter de flammes.' });
     try {
       if (!(await requirePin(req, res))) return;
       const buyerRef = db().collection('users').doc(req.userId), adminRef = db().collection('users').doc('admin');
@@ -289,14 +287,40 @@ module.exports = function setupLive(app, ctx) {
         t.set(adminRef, { walletBalance: FV.increment(FLAME_PACK_PRICE) }, { merge: true });
         return { credit, balance: bal - FLAME_PACK_PRICE };
       });
-      st.credit.set(req.userId, out.credit);
-      db().collection('transactions').add({ userId: req.userId, amount: FLAME_PACK_PRICE, type: 'flame_pack', status: 'completed', description: FLAME_PACK + ' flammes en live', createdAt: new Date() }).catch(() => {});
+      if (st) st.credit.set(req.userId, out.credit);
+      db().collection('transactions').add({ userId: req.userId, amount: FLAME_PACK_PRICE, type: 'flame_pack', status: 'completed', description: FLAME_PACK + ' flammes', createdAt: new Date() }).catch(() => {});
+      if (typeof ctx.autoWithdrawAdmin === 'function') Promise.resolve(ctx.autoWithdrawAdmin()).catch((e) => console.error('[live] virement admin:', e && e.message));
       res.json({ success: true, credit: out.credit, balance: out.balance });
     } catch (e) {
       if (e.message === 'SOLDE') return res.status(400).json({ success: false, message: 'Solde insuffisant : il te faut ' + FLAME_PACK_PRICE + ' FCFA dans ton Wallet.' });
       console.error('[live] achat flammes:', e.message);
       res.status(500).json({ success: false, message: 'Erreur, réessaie.' });
     }
+  }
+  app.post('/api/lives/:id/flames/buy', authenticate, async (req, res) => {
+    const st = LIVES.get(req.params.id);
+    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
+    if (req.userId === st.meta.sellerId) return res.status(403).json({ success: false, message: 'Le vendeur ne peut pas acheter de flammes.' });
+    return buyFlamePack(req, res, st);
+  });
+  // Même achat depuis le profil (hors live)
+  app.post('/api/flames/buy', authenticate, (req, res) => buyFlamePack(req, res, null));
+  app.get('/api/flames/credit', authenticate, async (req, res) => {
+    if (!isReady()) return res.status(500).json({ success: false });
+    try { const u = await db().collection('users').doc(req.userId).get(); res.json({ success: true, credit: (u.data() && u.data().liveFlameCredit) || 0 }); }
+    catch (e) { res.status(500).json({ success: false }); }
+  });
+  // Nombre d'abonnés et d'abonnements d'un profil
+  app.get('/api/follow/stats/:userId', authenticate, async (req, res) => {
+    if (!isReady()) return res.status(500).json({ success: false });
+    try {
+      const uid = req.params.userId;
+      const [a, b] = await Promise.all([
+        db().collection('follows').where('sellerId', '==', uid).count().get(),
+        db().collection('follows').where('followerId', '==', uid).count().get()
+      ]);
+      res.json({ success: true, followers: a.data().count, following: b.data().count });
+    } catch (e) { console.error('[live] stats abonnés:', e.message); res.status(500).json({ success: false }); }
   });
 
   // Le vendeur ajoute un article à réserver
