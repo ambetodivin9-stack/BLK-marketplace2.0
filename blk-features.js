@@ -1486,10 +1486,20 @@ window.BLK_IMG = {"flamme": "data:image/webp;base64,UklGRiYgAABXRUJQVlA4WAoAAAAQ
   }
 
   function liveError(e) {
-    var m = String((e && e.message) || e || '');
-    if (/Permission|NotAllowed|NotFound|denied/i.test(m)) return "Autorise la caméra et le micro pour BLK (Réglages du téléphone), puis réessaie.";
+    var m = String((e && e.message) || e || '').replace(/\s+/g, ' ');
+    var code = String((e && (e.code || e.name)) || '');
+    try { console.error('live (détail):', code, m); } catch (x) {}
+    if (/Permission|NotAllowed|denied/i.test(m + code)) return "Autorise la caméra et le micro pour BLK (Réglages du téléphone), puis réessaie.";
+    if (/NotFound|DEVICES_NOT_FOUND/i.test(m + code)) return "Aucune caméra ou micro trouvé sur ce téléphone.";
+    if (/NotReadable|TrackStartError/i.test(m + code)) return "La caméra est utilisée par une autre application. Ferme-la puis réessaie.";
     if (/SDK_INDISPONIBLE/.test(m)) return 'Impossible de charger la vidéo. Vérifie ta connexion et réessaie.';
-    return m && m.length < 140 ? m : 'Impossible de lancer le live pour le moment.';
+    if (/vendor key|can not find appid|appid/i.test(m)) return "Agora ne reconnaît pas l'App ID. Vérifie AGORA_APP_ID sur Render (il doit venir du même projet que le certificat), puis redéploie.";
+    if (/invalid token|authorized failed|token/i.test(m) && /GATEWAY|token/i.test(m)) return "Agora refuse le jeton. Le certificat ne correspond pas à l'App ID : recopie AGORA_APP_CERTIFICATE depuis le même projet Agora, puis redéploie.";
+    if (/dynamic key|expired|EXPIRED/i.test(m)) return "Le jeton a expiré. Vérifie l'heure du téléphone puis réessaie.";
+    if (/UID_CONFLICT/i.test(m)) return "Tu es déjà connecté à ce live sur un autre appareil.";
+    if (/NETWORK|TIMEOUT|disconnected/i.test(m + code)) return "Connexion internet trop faible pour lancer le live.";
+    var out = (code && m.indexOf(code) < 0 ? code + ' : ' : '') + m;
+    return out ? out.slice(0, 180) : 'Impossible de lancer le live pour le moment.';
   }
 
   function startLive() {
