@@ -538,6 +538,23 @@ app.get('/api/articles', async (req, res) => {
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateB - dateA;
     });
+    // Les flammes des vendeurs sont relues à chaque rafraîchissement : un vendeur qui gagne des flammes est mis en avant tout de suite
+    try {
+      const sellerIds = [...new Set(articles.map(a => a.sellerId).filter(Boolean))];
+      const flamesBy = {};
+      for (let i = 0; i < sellerIds.length; i += 100) {
+        const docs = await db.getAll(...sellerIds.slice(i, i + 100).map(id => db.collection('users').doc(id)));
+        docs.forEach(d => { if (d.exists) flamesBy[d.id] = d.data().flames || 0; });
+      }
+      articles.forEach(a => { if (flamesBy[a.sellerId] !== undefined) a.sellerFlames = flamesBy[a.sellerId]; });
+      articles.sort((a, b) => {
+        const flamesDiff = (b.sellerFlames || 0) - (a.sellerFlames || 0);
+        if (flamesDiff !== 0) return flamesDiff;
+        const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        return dateB - dateA;
+      });
+    } catch (e) { console.error('[articles] flammes vendeurs:', e.message); }
     articles = articles.slice(0, 200);
     articlesCache = { at: Date.now(), data: articles };
     res.json({ success: true, data: articles });
@@ -1982,7 +1999,8 @@ process.on('unhandledRejection', (reason) => {
 require('./live')(app, {
   admin, getDb: () => db, isReady: () => firebaseReady, authenticate, requirePin, push: (uid, p) => sendPushToUser(uid, p),
   parseAmount, commissionBuyer: COMMISSION_BUYER, commissionSeller: COMMISSION_SELLER, orderDelayMs: ORDER_DELAY_MS,
-  categories: ALLOWED_CATEGORIES, invalidateCache: invalidateArticlesCache, rateLimit, AgoraToken
+  categories: ALLOWED_CATEGORIES, invalidateCache: invalidateArticlesCache, rateLimit, AgoraToken,
+  autoWithdrawAdmin: () => autoWithdrawAdmin()
 });
 
 app.listen(PORT, () => {
