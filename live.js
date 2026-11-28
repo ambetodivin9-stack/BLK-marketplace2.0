@@ -10,6 +10,9 @@ module.exports = function setupLive(app, ctx) {
   const LIVE_MAX_MS = 3 * 60 * 60 * 1000;      // un live dure 3 h au maximum
   const HOST_TIMEOUT_MS = 90 * 1000;           // si le vendeur disparaît 90 s, le live se termine
   const MAX_ITEMS = 30;
+  const FREE_FLAMES = 3;            // flammes gratuites par spectateur et par live
+  const FLAME_PACK = 10;            // un pack = 10 flammes
+  const FLAME_PACK_PRICE = 100;     // ... pour 100 FCFA
   const INFLIGHT = new Set();
   const LIVES = new Map();                     // id -> état en mémoire (lecture sans Firestore)
 
@@ -99,7 +102,7 @@ module.exports = function setupLive(app, ctx) {
     for (const [k, t] of st.viewers) if (now - t > 12000) st.viewers.delete(k);
     return st.viewers.size;
   }
-  function newState(meta) { return { meta, items: new Map(), comments: [], seq: 0, flames: 0, viewers: new Map(), hostSeen: Date.now(), lastComment: new Map(), flameRate: new Map() }; }
+  function newState(meta) { return { meta, items: new Map(), comments: [], seq: 0, flames: 0, viewers: new Map(), hostSeen: Date.now(), lastComment: new Map(), flameRate: new Map(), freeUsed: new Map(), credit: new Map() }; }
   function addComment(st, c) {
     st.seq += 1; st.comments.push({ seq: st.seq, ...c, at: Date.now() });
     if (st.comments.length > 150) st.comments.splice(0, st.comments.length - 150);
@@ -214,8 +217,14 @@ module.exports = function setupLive(app, ctx) {
     const isHost = req.userId === st.meta.sellerId;
     if (isHost) st.hostSeen = Date.now(); else st.viewers.set(req.userId, Date.now());
     const since = parseInt(req.query.since, 10) || 0;
+    let myCredit = 0;
+    if (!isHost) {
+      if (!st.credit.has(req.userId)) { try { const us = await db().collection('users').doc(req.userId).get(); st.credit.set(req.userId, (us.data() && us.data().liveFlameCredit) || 0); } catch (e) { st.credit.set(req.userId, 0); } }
+      myCredit = st.credit.get(req.userId) || 0;
+    }
     res.json({
       success: true, status: st.meta.status, viewers: countViewers(st), flames: st.flames,
+      myFreeLeft: isHost ? 0 : Math.max(0, FREE_FLAMES - (st.freeUsed.get(req.userId) || 0)), myCredit,
       host: { id: st.meta.sellerId, name: st.meta.sellerName, photo: st.meta.sellerPhoto },
       items: Array.from(st.items.values()).map(publicItem),
       comments: st.comments.filter(c => c.seq > since), seq: st.seq, isHost
@@ -225,6 +234,7 @@ module.exports = function setupLive(app, ctx) {
   app.post('/api/lives/:id/comment', authenticate, async (req, res) => {
     const st = LIVES.get(req.params.id);
     if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
+    if (req.userId === st.meta.sellerId) return res.status(403).json({ success: false, message: 'Le vendeur ne peut pas commenter son propre live.' });
     const text = String(req.body.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
     if (!text) return res.status(400).json({ success: false });
     const last = st.lastComment.get(req.userId) || 0;
@@ -234,14 +244,59 @@ module.exports = function setupLive(app, ctx) {
     catch (e) { res.status(500).json({ success: false }); }
   });
 
-  app.post('/api/lives/:id/flame', authenticate, (req, res) => {
+  app.post('/api/lives/:id/flame', authenticate, async (req, res) => {
     const st = LIVES.get(req.params.id);
-    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false });
-    const now = Date.now(), r = st.flameRate.get(req.userId) || { t: now, n: 0 };
+    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
+    const uid = req.userId;
+    if (uid === st.meta.sellerId) return res.status(403).json({ success: false, message: 'Tu ne peux pas t’offrir des flammes.' });
+    const now = Date.now(), r = st.flameRate.get(uid) || { t: now, n: 0 };
     if (now - r.t > 60000) { r.t = now; r.n = 0; }
-    if (r.n >= 60) return res.json({ success: true, flames: st.flames });
-    r.n++; st.flameRate.set(req.userId, r); st.flames++;
-    res.json({ success: true, flames: st.flames });
+    if (r.n >= 30) return res.status(429).json({ success: false, message: 'Doucement.' });
+    r.n++; st.flameRate.set(uid, r);
+    try {
+      const used = st.freeUsed.get(uid) || 0;
+      if (used < FREE_FLAMES) {
+        st.freeUsed.set(uid, used + 1); st.flames++;
+        return res.json({ success: true, flames: st.flames, freeLeft: FREE_FLAMES - used - 1, credit: st.credit.get(uid) || 0 });
+      }
+      const ref = db().collection('users').doc(uid);
+      const credit = await db().runTransaction(async (t) => {
+        const snap = await t.get(ref); const c = (snap.data() && snap.data().liveFlameCredit) || 0;
+        if (c < 1) return -1;
+        t.update(ref, { liveFlameCredit: c - 1 }); return c - 1;
+      });
+      if (credit < 0) { st.credit.set(uid, 0); return res.status(402).json({ success: false, needPack: true, message: 'Tes ' + FREE_FLAMES + ' flammes gratuites sont utilisées. ' + FLAME_PACK + ' flammes coûtent ' + FLAME_PACK_PRICE + ' FCFA.' }); }
+      st.credit.set(uid, credit); st.flames++;
+      res.json({ success: true, flames: st.flames, freeLeft: 0, credit });
+    } catch (e) { console.error('[live] flamme:', e.message); res.status(500).json({ success: false, message: 'Erreur, réessaie.' }); }
+  });
+
+  // Achat d'un pack de flammes : 10 flammes = 100 FCFA, pris sur le Wallet (code secret obligatoire)
+  app.post('/api/lives/:id/flames/buy', authenticate, async (req, res) => {
+    if (!isReady()) return res.status(500).json({ success: false });
+    const st = LIVES.get(req.params.id);
+    if (!st || st.meta.status !== 'live') return res.status(409).json({ success: false, message: 'Live terminé' });
+    if (req.userId === st.meta.sellerId) return res.status(403).json({ success: false, message: 'Le vendeur ne peut pas acheter de flammes.' });
+    try {
+      if (!(await requirePin(req, res))) return;
+      const buyerRef = db().collection('users').doc(req.userId), adminRef = db().collection('users').doc('admin');
+      const out = await db().runTransaction(async (t) => {
+        const b = await t.get(buyerRef); const d = b.data() || {};
+        const bal = d.walletBalance || 0;
+        if (bal < FLAME_PACK_PRICE) throw new Error('SOLDE');
+        const credit = (d.liveFlameCredit || 0) + FLAME_PACK;
+        t.update(buyerRef, { walletBalance: bal - FLAME_PACK_PRICE, liveFlameCredit: credit });
+        t.set(adminRef, { walletBalance: FV.increment(FLAME_PACK_PRICE) }, { merge: true });
+        return { credit, balance: bal - FLAME_PACK_PRICE };
+      });
+      st.credit.set(req.userId, out.credit);
+      db().collection('transactions').add({ userId: req.userId, amount: FLAME_PACK_PRICE, type: 'flame_pack', status: 'completed', description: FLAME_PACK + ' flammes en live', createdAt: new Date() }).catch(() => {});
+      res.json({ success: true, credit: out.credit, balance: out.balance });
+    } catch (e) {
+      if (e.message === 'SOLDE') return res.status(400).json({ success: false, message: 'Solde insuffisant : il te faut ' + FLAME_PACK_PRICE + ' FCFA dans ton Wallet.' });
+      console.error('[live] achat flammes:', e.message);
+      res.status(500).json({ success: false, message: 'Erreur, réessaie.' });
+    }
   });
 
   // Le vendeur ajoute un article à réserver
